@@ -7,10 +7,26 @@ import tensorflow as tf
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, LSTM, Dropout
 from sklearn.preprocessing import MinMaxScaler
+from datetime import datetime, timedelta
+
+#%%
+# Get today's date
+today = datetime.today()
+
+#%%
+# Calculate a start date (e.g., 30 days ago)
+start_date = today - timedelta(days=1597)
+str_end_date =today.strftime('%Y-%m-%d')
+str_start_date = start_date.strftime('%Y-%m-%d')
+
+# print date
+print(f"Today: {str_end_date}")
+print(f"Start Date (1597 days ago): {str_start_date}")
 
 # Step 1: Fetch Nifty 50 data
 ticker = "^NSEI"
-data = yf.download(ticker, start="2020-01-01", end="2025-01-29")
+
+data = yf.download(ticker, start=str_start_date, end=str_end_date)
 data.reset_index(inplace=True)
 # data.columns = data.columns.str.replace("^NSEI", "", regex=False)
 
