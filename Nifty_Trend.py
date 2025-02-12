@@ -4,6 +4,8 @@ import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import tensorflow as tf
+import plotly.express as px
+import plotly.graph_objects as go
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.layers import Dense, LSTM, Dropout
 from sklearn.preprocessing import MinMaxScaler
@@ -32,23 +34,6 @@ data.reset_index(inplace=True)
 
 # Step 2: Calculate 52-day moving average
 data['52_MA'] = data['Close'].rolling(window=52).mean()
-
-# Step 3: Plot the results
-plt.figure(figsize=(14, 8))
-
-# Plot actual Nifty 50 prices
-plt.plot(data['Date'], data['Close'], label='Actual Nifty 50 Price', color='blue')
-
-# Plot 52-day moving average
-plt.plot(data['Date'], data['52_MA'], label='52-Day Moving Average', color='orange', linestyle='--')
-
-# Add labels and title
-plt.title('Nifty 50 Time Series with 52-Day Moving Average', fontsize=16)
-plt.xlabel('Date', fontsize=14)
-plt.ylabel('Price', fontsize=14)
-plt.legend()
-plt.grid()
-plt.show()
 
 # Extract 'Close' prices and split into training/testing sets
 dataset = data[['Close']].values
@@ -111,14 +96,14 @@ train = data[:training_data_len]
 valid = data[training_data_len:].copy()
 valid['Predictions'] = test_predict
 
-# Plot the data
-plt.figure(figsize=(16, 8))
-plt.title('Nifty 50 Close Price Prediction')
-plt.xlabel('Date')
-plt.ylabel('Close Price (INR)')
-plt.plot(train['Close'], label='Training Data')
-plt.plot(valid['Close'], label='Actual Price')
-plt.plot(valid['Predictions'], label='Predicted Price')
-plt.legend(loc='lower right')
-plt.show()
 # %%
+# Create the figure
+valid.columns = valid.columns.get_level_values(0)
+
+# %%
+fig = go.Figure()
+fig.add_scatter(x=valid['Date'], y=valid['Close'], name='Close', mode='lines')
+fig.add_scatter(x=valid['Date'], y=valid['52_MA'], name='52 Day SMA', mode='lines')
+fig.add_scatter(x=valid['Date'], y=valid['Predictions'], name='Predictions', mode='lines')
+# %%
+fig.show()
