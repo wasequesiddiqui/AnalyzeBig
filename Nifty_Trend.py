@@ -6,8 +6,8 @@ import matplotlib.pyplot as plt
 import tensorflow as tf
 import plotly.express as px
 import plotly.graph_objects as go
-from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import Dense, LSTM, Dropout
+from tensorflow.keras.models import Sequential # type: ignore
+from tensorflow.keras.layers import Dense, LSTM, Dropout # type: ignore
 from sklearn.preprocessing import MinMaxScaler
 from datetime import datetime, timedelta
 

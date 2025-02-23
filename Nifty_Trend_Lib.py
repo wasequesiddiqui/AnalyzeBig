@@ -90,10 +90,10 @@ def get_ts_prediction(ticker):
 
     # Create the figure
     valid.columns = valid.columns.get_level_values(0)
-    fig = go.Figure()
-    fig.add_scatter(x=valid['Date'], y=valid['Close'], name='Close', mode='lines')
-    fig.add_scatter(x=valid['Date'], y=valid['52_MA'], name='52 Day SMA', mode='lines')
-    fig.add_scatter(x=valid['Date'], y=valid['Predictions'], name='Predictions', mode='lines')
-    fig.write_html(ticker.replace(".","_").replace("^","_")+'.html', auto_open=True)
+    # fig = go.Figure()
+    # fig.add_scatter(x=valid['Date'], y=valid['Close'], name='Close', mode='lines')
+    # fig.add_scatter(x=valid['Date'], y=valid['52_MA'], name='52 Day SMA', mode='lines')
+    # fig.add_scatter(x=valid['Date'], y=valid['Predictions'], name='Predictions', mode='lines')
+    # fig.write_html(ticker.replace(".","_").replace("^","_")+'.html', auto_open=True)
     
-    return
+    return valid
