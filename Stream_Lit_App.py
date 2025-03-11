@@ -1,7 +1,9 @@
 import streamlit as st
+import pandas as pd
 import Nifty_Trend_Lib as ntl
 import plotly.express as px
 import plotly.graph_objects as go
+import datetime
 
 """
 sample demo code for charting out nifty 50 data
@@ -45,3 +47,38 @@ def btn_click():
     print("Refresh button clicked!")
     
 btn = st.button("Refresh", on_click=btn_click)
+
+image = st.file_uploader("Please Upload An Image",type=["jpeg","jpg","png"])
+if image is not None:
+    st.image(image=image)
+
+csv_file = st.file_uploader("Please upload a csv file", type=["csv"])
+if csv_file is not None:
+    df = pd.read_csv(csv_file)
+    st.write(df)
+
+color = st.select_slider(
+    "Select a color of the rainbow",
+    options=[
+        "red",
+        "orange",
+        "yellow",
+        "green",
+        "blue",
+        "indigo",
+        "violet",
+    ],
+)
+st.write("My favorite color is", color)
+
+slider_val = st.slider("This is the slider value ", max_value=200, min_value=10, value=80, step=1)
+st.write("My selected value: ", slider_val)
+
+val_text = st.text_input("Please enter your name: ", max_chars=100)
+st.write("The name value entered by you is: ", val_text)
+
+val_text_area = st.text_area("Please enter address: ", max_chars=1000)
+st.write("Address entered by you is: ", val_text_area)
+
+dob = st.date_input("Please enter your date of birth: ", min_value=datetime.date(1950,1,1))
+st.write("Your date of birth is: ",dob)
