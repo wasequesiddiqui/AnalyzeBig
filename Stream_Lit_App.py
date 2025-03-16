@@ -4,6 +4,13 @@ import Nifty_Trend_Lib as ntl
 import plotly.express as px
 import plotly.graph_objects as go
 import datetime
+import time as t
+import numpy as np
+import altair as alt
+
+from matplotlib import pyplot as plt
+
+x = np.linspace(0,10,100)
 
 """
 sample demo code for charting out nifty 50 data
@@ -82,3 +89,35 @@ st.write("Address entered by you is: ", val_text_area)
 
 dob = st.date_input("Please enter your date of birth: ", min_value=datetime.date(1950,1,1))
 st.write("Your date of birth is: ",dob)
+
+bar = st.progress(10)
+
+# for i in range(10):
+#     bar.progress((i+1)*10)
+#     t.sleep(1)
+
+st.sidebar.write("Sample Sidebar")
+fig = plt.figure()
+plt.plot(x,np.sin(x))
+st.write(fig)
+
+chart_data = pd.DataFrame()
+chart_data['a'] = x
+chart_data['b'] = np.sin(x)
+chart_data['c'] = np.cos(x)
+chart_data['d'] = chart_data['a'] + chart_data['b'] + chart_data['c']
+
+c = (
+   alt.Chart(chart_data)
+   .mark_circle()
+   .encode(x="a", y="b", size="c", color="c", tooltip=["a", "b", "c"])
+)
+st.altair_chart(c)
+
+fig = px.scatter(chart_data, 
+                 x="a", 
+                 y="c",
+                 color="b",
+                 size="d",
+                 hover_data=["a","b","d"])
+st.plotly_chart(fig)
