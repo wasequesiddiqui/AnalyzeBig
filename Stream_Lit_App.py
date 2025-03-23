@@ -7,6 +7,7 @@ import datetime
 import time as t
 import numpy as np
 import altair as alt
+import asyncio as syn
 
 from matplotlib import pyplot as plt
 
@@ -121,3 +122,41 @@ fig = px.scatter(chart_data,
                  size="d",
                  hover_data=["a","b","d"])
 st.plotly_chart(fig)
+
+# callbacks
+st.subheader("The below code uses callback")
+st.divider()
+def printer(name):
+    st.write(name)
+    print(name)
+input = st.text_input("Enter your name: ")
+s_btn = st.button("Submit")
+if s_btn:
+    st.checkbox("Want to display your name?", on_change=printer, args=(input,))
+
+# Initialize session state variable
+if "result" not in st.session_state:
+    st.session_state.result = None
+
+# Asynchronous function
+async def async_function():
+    await syn.sleep(2)  # Simulate async task
+    return "Async operation completed!"
+
+# Wrapper for running async task
+def run_async_task():
+    # Store the result in session state
+    st.session_state.result = syn.run(async_function())
+
+st.title("Streamlit Async with Session State")
+
+# Button to trigger the async function
+if st.button("Run Async Task"):
+    run_async_task()
+
+# Display the result from session state
+if st.session_state.result:
+    st.write(st.session_state.result)
+
+
+    
