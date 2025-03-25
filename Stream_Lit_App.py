@@ -1,8 +1,8 @@
 import streamlit as st
 import pandas as pd
 # import Nifty_Trend_Lib as ntl
-import plotly.express as px
-import plotly.graph_objects as go
+# import plotly.express as px
+# import plotly.graph_objects as go
 import datetime
 import time as t
 import numpy as np
@@ -115,13 +115,13 @@ c = (
 )
 st.altair_chart(c)
 
-fig = px.scatter(chart_data, 
-                 x="a", 
-                 y="c",
-                 color="b",
-                 size="d",
-                 hover_data=["a","b","d"])
-st.plotly_chart(fig)
+# fig = px.scatter(chart_data, 
+#                  x="a", 
+#                  y="c",
+#                  color="b",
+#                  size="d",
+#                  hover_data=["a","b","d"])
+# st.plotly_chart(fig)
 
 # callbacks
 st.subheader("The below code uses callback")
