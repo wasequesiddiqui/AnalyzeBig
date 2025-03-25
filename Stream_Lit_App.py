@@ -141,7 +141,8 @@ if "result" not in st.session_state:
 # Asynchronous function
 async def async_function():
     await syn.sleep(2)  # Simulate async task
-    return "Async operation completed!"
+    st.session_state.result = "Async operation completed! ==> " + datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")  
+    return
 
 # Wrapper for running async task
 def run_async_task():
@@ -152,7 +153,7 @@ st.title("Streamlit Async with Session State")
 
 # Button to trigger the async function
 if st.button("Run Async Task"):
-    run_async_task()
+    syn.run(async_function())
 
 # Display the result from session state
 if st.session_state.result:
