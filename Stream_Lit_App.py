@@ -115,13 +115,13 @@ c = (
 )
 st.altair_chart(c)
 
-# fig = px.scatter(chart_data, 
-#                  x="a", 
-#                  y="c",
-#                  color="b",
-#                  size="d",
-#                  hover_data=["a","b","d"])
-# st.plotly_chart(fig)
+fig = px.scatter(chart_data, 
+                 x="a", 
+                 y="c",
+                 color="b",
+                 size="d",
+                 hover_data=["a","b","d"])
+st.plotly_chart(fig)
 
 # callbacks
 st.subheader("The below code uses callback")
