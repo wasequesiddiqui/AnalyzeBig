@@ -1,8 +1,8 @@
 import streamlit as st
 import pandas as pd
 # import Nifty_Trend_Lib as ntl
-# import plotly.express as px
-# import plotly.graph_objects as go
+import plotly.express as px
+import plotly.graph_objects as go
 import datetime
 import time as t
 import numpy as np
