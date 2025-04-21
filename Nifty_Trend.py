@@ -99,7 +99,7 @@ def get_ts_prediction(ticker):
     return
 
 #%%
-lst_tickers = ['^NSEI','NUCLEUS.NS','0P0000XVOU.BO','NIFTY_MIDCAP_100.NS']
+lst_tickers = ['^NSEI','GC=F']
 for ticker in lst_tickers:
     get_ts_prediction(ticker)
 
