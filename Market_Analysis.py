@@ -123,6 +123,29 @@ else:
                             x_title="Date",
                             y_title="Log Daily Returns")
     st.plotly_chart(fig, use_container_width=True)
+    fig = px.scatter(
+        final_daily_ret_df
+        , x="Log_Ret_Price_Nifty"
+        , y="Log_Ret_Price_XAU"
+        , title="Nifty 50 vs Gold Price"
+        , labels={"Log_Ret_Price_Nifty": "Nifty 50 Log Daily Returns", "Log_Ret_Price_XAU": "XAU Log Daily Returns"}
+        , trendline="ols")
+    # Extract regression results
+    results = px.get_trendline_results(fig)
+    ols_results = results.iloc[0]["px_fit_results"]  # Get the OLS results
+    r_squared = ols_results.rsquared  # Extract the R² value
+
+    # Update the chart title to include the R² value
+    fig.update_layout(
+        title=f"Nifty 50 vs Gold Price (R² = {r_squared:.4f})"
+    )
+    st.plotly_chart(fig, use_container_width=True)
+    # Calculate rolling volatility (standard deviation) over a 5-day window
+    final_daily_ret_df = final_daily_ret_df.sort_index(ascending=True)
+    final_daily_ret_df["Volatility_Nifty"] = final_daily_ret_df["Log_Ret_Price_Nifty"].rolling(window=14).std()
+    final_daily_ret_df["Volatility_XAU"] = final_daily_ret_df["Log_Ret_Price_XAU"].rolling(window=14).std()
+    final_daily_ret_df = final_daily_ret_df.sort_index(ascending=False)
+    st.dataframe(final_daily_ret_df)
 st.divider()
 
 
