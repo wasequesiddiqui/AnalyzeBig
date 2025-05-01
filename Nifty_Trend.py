@@ -16,13 +16,13 @@ def get_ts_prediction(ticker):
     today = datetime.today()
 
     # Calculate a start date (e.g., 30 days ago)
-    start_date = today - timedelta(days=1597)
+    start_date = today - timedelta(days=1826)  # 5 years ago
     str_end_date =today.strftime('%Y-%m-%d')
     str_start_date = start_date.strftime('%Y-%m-%d')
 
     # print date
     print(f"Today: {str_end_date}")
-    print(f"Start Date (1597 days ago): {str_start_date}")
+    print(f"Start Date (5 Years ago): {str_start_date}")
     data = yf.download(ticker, start=str_start_date, end=str_end_date)
     data.reset_index(inplace=True)
 
@@ -99,7 +99,7 @@ def get_ts_prediction(ticker):
     return
 
 #%%
-lst_tickers = ['^NSEI','GC=F','SI=F']
+lst_tickers = ['^NSEI','GC=F']
 for ticker in lst_tickers:
     get_ts_prediction(ticker)
 
