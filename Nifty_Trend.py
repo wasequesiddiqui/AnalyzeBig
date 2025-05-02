@@ -1,5 +1,6 @@
 #%%
 import yfinance as yf
+import random
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -11,7 +12,51 @@ from tensorflow.keras.layers import Dense, LSTM, Dropout # type: ignore
 from sklearn.preprocessing import MinMaxScaler
 from datetime import datetime, timedelta
 
+def add_average_line(fig,df,col_name,annotation_text_val="Average ",line_color_val="red"):
+    # Calculate the average of the 'Close' column
+    average_delta = df.loc[df['Negative_Streak'] > 0, 'Negative_Streak'].median()*0.8
+    
+    # Add a horizontal line for the average
+    fig.add_shape(
+        type="line",
+        x0=df["Date"].min(),
+        x1=df["Date"].max(),
+        y0=average_delta,
+        y1=average_delta,
+        line=dict(color=line_color_val, width=2, dash="dash"),
+        name=annotation_text_val,
+    )
+
+    # Add annotation for the average line
+    fig.add_annotation(
+        x=df["Date"].iloc[-1],  # Position the annotation at the last date
+        y=average_delta,
+        text=f"value: {average_delta:.2f}",
+        showarrow=False,
+        font=dict(color="blue", size=12),
+        align="right",
+    )
+
+    # Customize layout
+    fig.update_layout(
+        title="Graph with Average Line",
+        xaxis_title="Date",
+        yaxis_title="Delta",
+        legend_title="Legend",
+    )
+    return fig
+
+def set_seed(seed_value):
+    """
+    Set seed for reproducibility across NumPy, TensorFlow, and Python's random module.
+    """
+    np.random.seed(seed_value)
+    tf.random.set_seed(seed_value)
+    random.seed(seed_value)
+
 def get_ts_prediction(ticker):
+    set_seed(seed_value=13)
+
     # Get today's date
     today = datetime.today()
 
@@ -90,12 +135,19 @@ def get_ts_prediction(ticker):
 
     # Create the figure
     valid.columns = valid.columns.get_level_values(0)
+    valid['Delta'] = valid['Close'] - valid['Predictions']
     fig = go.Figure()
     fig.add_scatter(x=valid['Date'], y=valid['Close'], name='Close', mode='lines')
     fig.add_scatter(x=valid['Date'], y=valid['52_MA'], name='52 Day SMA', mode='lines')
     fig.add_scatter(x=valid['Date'], y=valid['Predictions'], name='Predictions', mode='lines')
     fig.write_html(ticker.replace(".","_").replace("^","_")+'.html', auto_open=True)
-    
+    fig = go.Figure(data=[go.Bar(x=valid['Date'], y=valid['Delta'], name="Deviation from Prediction", marker_color=valid['Delta'].apply(lambda x: 'green' if x > 0 else 'red'))])
+    fig.write_html(ticker.replace(".","_").replace("^","_")+'_Deviation.html', auto_open=True)
+    valid['Is_Negative'] = valid['Delta'] < 0
+    valid['Negative_Streak'] = valid['Is_Negative'].astype(int).groupby((~valid['Is_Negative']).cumsum()).cumsum()
+    fig = go.Figure(data=[go.Bar(x=valid['Date'], y=valid['Negative_Streak'], name="Negative Streak", marker_color='red')])
+    fig = add_average_line(fig,valid,'Negative_Streak',annotation_text_val="Average Negative Streak",line_color_val="blue")
+    fig.write_html(ticker.replace(".","_").replace("^","_")+'_Negative_Streak.html', auto_open=True)
     return
 
 #%%
