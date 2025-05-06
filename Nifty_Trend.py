@@ -1,4 +1,5 @@
 #%%
+
 import yfinance as yf
 import random
 import numpy as np
@@ -12,10 +13,15 @@ from tensorflow.keras.layers import Dense, LSTM, Dropout # type: ignore
 from sklearn.preprocessing import MinMaxScaler
 from datetime import datetime, timedelta
 
-def add_average_line(fig,df,col_name,annotation_text_val="Average ",line_color_val="red"):
+def add_median_line(fig,df,col_name,annotation_text_val="Median ",line_color_val="red",type=0):
     # Calculate the average of the 'Close' column
-    average_delta = df.loc[df['Negative_Streak'] > 0, 'Negative_Streak'].median()*0.8
+    average_delta = 0.0
     
+    if type==0:
+        average_delta = df.loc[df[col_name] > 0, col_name].median()*1.2
+    else:
+        average_delta = df.loc[df[col_name] < 0, col_name].median()*1.2
+
     # Add a horizontal line for the average
     fig.add_shape(
         type="line",
@@ -39,7 +45,7 @@ def add_average_line(fig,df,col_name,annotation_text_val="Average ",line_color_v
 
     # Customize layout
     fig.update_layout(
-        title="Graph with Average Line",
+        title="Graph with Median Line",
         xaxis_title="Date",
         yaxis_title="Delta",
         legend_title="Legend",
@@ -141,17 +147,23 @@ def get_ts_prediction(ticker):
     fig.add_scatter(x=valid['Date'], y=valid['52_MA'], name='52 Day SMA', mode='lines')
     fig.add_scatter(x=valid['Date'], y=valid['Predictions'], name='Predictions', mode='lines')
     fig.write_html(ticker.replace(".","_").replace("^","_")+'.html', auto_open=True)
+
     fig = go.Figure(data=[go.Bar(x=valid['Date'], y=valid['Delta'], name="Deviation from Prediction", marker_color=valid['Delta'].apply(lambda x: 'green' if x > 0 else 'red'))])
+    fig = add_median_line(fig,valid,'Delta',annotation_text_val="Median Negative Deviation",line_color_val="blue",type=1)
+    fig.update_layout(title="Deviation from Prediction", xaxis_title="Date", yaxis_title="Deviation")
+    fig.update_traces(marker=dict(line=dict(width=0.5, color='black')))
     fig.write_html(ticker.replace(".","_").replace("^","_")+'_Deviation.html', auto_open=True)
+    
     valid['Is_Negative'] = valid['Delta'] < 0
     valid['Negative_Streak'] = valid['Is_Negative'].astype(int).groupby((~valid['Is_Negative']).cumsum()).cumsum()
     fig = go.Figure(data=[go.Bar(x=valid['Date'], y=valid['Negative_Streak'], name="Negative Streak", marker_color='red')])
-    fig = add_average_line(fig,valid,'Negative_Streak',annotation_text_val="Average Negative Streak",line_color_val="blue")
+    fig = add_median_line(fig,valid,'Negative_Streak',annotation_text_val="Average Negative Streak",line_color_val="blue")
     fig.write_html(ticker.replace(".","_").replace("^","_")+'_Negative_Streak.html', auto_open=True)
+
     return
 
 #%%
-lst_tickers = ['^NSEI','GC=F']
+lst_tickers = ['GOLDBEES.NS']
 for ticker in lst_tickers:
     get_ts_prediction(ticker)
 
