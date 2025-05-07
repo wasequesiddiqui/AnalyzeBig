@@ -141,7 +141,19 @@ def get_ts_prediction(ticker):
 
     # Create the figure
     valid.columns = valid.columns.get_level_values(0)
+    valid["Log_Return_Actual"] = np.log(valid["Close"] / valid["Close"].shift(1))
+    valid["Log_Return_Predicted"] = np.log(valid["Predictions"] / valid["Predictions"].shift(1))
+
+    valid["Log_Return_Actual"] = valid["Log_Return_Actual"].fillna(0)
+    valid["Log_Return_Predicted"] = valid["Log_Return_Predicted"].fillna(0)
+    
+    valid["Log_Return_Actual"] = valid["Log_Return_Actual"].round(4)
+    valid["Log_Return_Predicted"] = valid["Log_Return_Predicted"].round(4)
+
     valid['Delta'] = valid['Close'] - valid['Predictions']
+    valid['Delta_Ret'] = valid['Log_Return_Actual'] - valid['Log_Return_Predicted']
+    valid['Delta_Ret'] = valid['Delta_Ret'].round(6)
+
     fig = go.Figure()
     fig.add_scatter(x=valid['Date'], y=valid['Close'], name='Close', mode='lines')
     fig.add_scatter(x=valid['Date'], y=valid['52_MA'], name='52 Day SMA', mode='lines')
@@ -153,6 +165,12 @@ def get_ts_prediction(ticker):
     fig.update_layout(title="Deviation from Prediction", xaxis_title="Date", yaxis_title="Deviation")
     fig.update_traces(marker=dict(line=dict(width=0.5, color='black')))
     fig.write_html(ticker.replace(".","_").replace("^","_")+'_Deviation.html', auto_open=True)
+
+    fig = go.Figure(data=[go.Bar(x=valid['Date'], y=valid['Delta_Ret'], name="Return Deviation from Prediction", marker_color=valid['Delta_Ret'].apply(lambda x: 'green' if x > 0 else 'red'))])
+    fig = add_median_line(fig,valid,'Delta_Ret',annotation_text_val="Median Negative Deviation",line_color_val="blue",type=1)
+    fig.update_layout(title="Return Deviation from Prediction", xaxis_title="Date", yaxis_title="Return Deviation")
+    fig.update_traces(marker=dict(line=dict(width=0.5, color='blue')))
+    fig.write_html(ticker.replace(".","_").replace("^","_")+'_Deviation_Ret.html', auto_open=True)
     
     valid['Is_Negative'] = valid['Delta'] < 0
     valid['Negative_Streak'] = valid['Is_Negative'].astype(int).groupby((~valid['Is_Negative']).cumsum()).cumsum()
