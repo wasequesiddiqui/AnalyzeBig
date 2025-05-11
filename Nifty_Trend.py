@@ -61,7 +61,7 @@ def set_seed(seed_value):
     random.seed(seed_value)
 
 def get_ts_prediction(ticker):
-    set_seed(seed_value=13)
+    # set_seed(seed_value=13)
 
     # Get today's date
     today = datetime.today()
