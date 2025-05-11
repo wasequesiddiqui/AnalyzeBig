@@ -27,6 +27,22 @@ def get_date_string(date):
     """
     return date.strftime("%Y-%m-%d")
 
+def get_ticker_data(ticker, start_date, end_date):
+    """
+    Retrieve historical data for a given ticker symbol.
+    """
+    df = yf.download(ticker, start=start_date, end=end_date)
+    df.columns = df.columns.get_level_values(0)
+    df.reset_index(inplace=True)
+    return df
+
+def get_log_returns(df, col_name):
+    """
+    Calculate log returns for a given column in the DataFrame.
+    """
+    df[f"Log_Ret_{col_name}"] = np.log(df[col_name] / df[col_name].shift(1))
+    return df
+
 # main program script here
 # print date
 str_start_date,str_end_date = get_dates()
@@ -36,3 +52,13 @@ str_end_date = get_date_string(str_end_date)
 print("Default Dates:")
 print(f"Today: {str_end_date}")
 print(f"Start Date (5 Years ago): {str_start_date}")
+
+df_XAU = get_ticker_data("GOLDBEES.NS", str_start_date, str_end_date)
+df_XAU = get_log_returns(df_XAU, "Close")
+df_XAU = get_log_returns(df_XAU, "Volume")
+
+df_XAU.fillna(0, inplace=True)
+df_XAU.iloc[:, :-2] = df_XAU.iloc[:, :-2].round(4)
+df_XAU = df_XAU.sort_values(by=['Date'], ascending=False)
+df_XAU['Date_Val'] = df_XAU.index
+print(df_XAU.head(5))
