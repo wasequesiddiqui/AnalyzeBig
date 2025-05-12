@@ -72,3 +72,16 @@ df_XAU = get_log_returns(df_XAU, "Close")
 df_XAU = get_log_returns(df_XAU, "Volume")
 df_XAU = set_df_datatype(df_XAU)
 print(df_XAU.head(5))
+
+df_latest2Months = df_XAU[:60]
+df_analysis = df_XAU[60:]
+
+print("Sample Latest 2 Months Data:")
+print(df_latest2Months.head(5))
+print("Sample Analysis Data:")
+print(df_analysis.head(5))
+
+last_close_value = df_analysis["Log_Ret_Close"].iloc[0]
+last_volume_value = df_analysis["Log_Ret_Volume"].iloc[0]
+print("Last Close Value:", last_close_value)
+print("Last Volume Value:", last_volume_value)
