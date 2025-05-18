@@ -56,6 +56,15 @@ def set_df_datatype(df):
     df['Date_Val'] = df.index
     return df
 
+def set_df_prophet(df,ds,y):
+    """
+    Set the DataFrame for Prophet model.
+    """
+    df = df.rename(columns={ds: 'ds', y: 'y'})
+    df['ds'] = pd.to_datetime(df['ds'])
+    df['y'] = df['y'].astype(float)
+    return df
+
 # main program script here
 # print date
 str_start_date,str_end_date = get_dates()
@@ -81,7 +90,28 @@ print(df_latest2Months.head(5))
 print("Sample Analysis Data:")
 print(df_analysis.head(5))
 
-last_close_value = df_analysis["Log_Ret_Close"].iloc[0]
-last_volume_value = df_analysis["Log_Ret_Volume"].iloc[0]
+last_close_value = df_analysis["Close"].iloc[0]
+last_volume_value = df_analysis["Volume"].iloc[0]
 print("Last Close Value:", last_close_value)
 print("Last Volume Value:", last_volume_value)
+
+df_latest2Months = df_latest2Months.sort_index(ascending=True)
+df_analysis = df_analysis.sort_index(ascending=True)
+
+print("Sample Latest 2 Months Data Sorted Ascending:")
+print(df_latest2Months.head(5))
+print("Sample Analysis Data Sorted Ascending:")
+print(df_analysis.head(5))
+
+df_latest2Months_close = set_df_prophet(df_latest2Months, 'Date_Val', 'Log_Ret_Close')
+df_latest2Months_vol = set_df_prophet(df_latest2Months, 'Date_Val', 'Log_Ret_Volume')
+df_analysis_close = set_df_prophet(df_analysis, 'Date_Val', 'Log_Ret_Close')
+df_analysis_vol = set_df_prophet(df_analysis, 'Date_Val', 'Log_Ret_Volume')
+print("Sample Latest 2 Months Data for Close:")
+print(df_latest2Months_close.head(5))
+print("Sample Latest 2 Months Data for Vol:")
+print(df_latest2Months_vol.head(5))
+print("Sample Analysis Data for Close:")
+print(df_analysis_close.head(5))
+print("Sample Analysis Data for Vol:")
+print(df_analysis_vol.head(5))
