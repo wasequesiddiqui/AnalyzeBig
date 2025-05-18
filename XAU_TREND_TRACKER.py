@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import tensorflow as tf
 import plotly.express as px
 import plotly.graph_objects as go
-import prophet as pf
+from prophet import Prophet
 
 from tensorflow.keras.models import Sequential # type: ignore
 from tensorflow.keras.layers import Dense, LSTM, Dropout # type: ignore
@@ -115,3 +115,42 @@ print("Sample Analysis Data for Close:")
 print(df_analysis_close.head(5))
 print("Sample Analysis Data for Vol:")
 print(df_analysis_vol.head(5))
+df_analysis_close = df_analysis_close[['ds','y']]
+df_analysis_vol = df_analysis_vol[['ds','y']]
+print("Sample Analysis Data for Close:")
+print(df_analysis_close.head(5))
+print("Sample Analysis Data for Vol:")
+print(df_analysis_vol.head(5))
+
+df_analysis_close.replace([np.inf, -np.inf], np.nan, inplace=True)
+df_analysis_close['y'] = df_analysis_close['y'].fillna(0)  # or use .dropna(subset=['y'])
+
+df_analysis_vol.replace([np.inf, -np.inf], np.nan, inplace=True)
+df_analysis_vol['y'] = df_analysis_vol['y'].fillna(0)  # or use .dropna(subset=['y'])
+df_latest2Months_close.replace([np.inf, -np.inf], np.nan, inplace=True)
+df_latest2Months_close['y'] = df_latest2Months_close['y'].fillna(0)  # or use .dropna(subset=['y'])
+df_latest2Months_vol.replace([np.inf, -np.inf], np.nan, inplace=True)
+df_latest2Months_vol['y'] = df_latest2Months_vol['y'].fillna(0)  # or use .dropna(subset=['y'])
+
+m_close = Prophet()
+m_close.fit(df_analysis_close)
+forecast_close = m_close.predict(df_latest2Months_close[['ds']])
+
+m_vol = Prophet()
+m_vol.fit(df_analysis_vol)
+forecast_vol = m_vol.predict(df_latest2Months_vol[['ds']])
+
+forecast_close.head(5)
+forecast_vol.head(5)
+
+fig_close = m_close.plot(forecast_close)
+plt.title("Forecast Close Price")
+plt.xlabel("Date")
+plt.ylabel("Log Return")
+plt.show()
+
+fig_vol = m_vol.plot(forecast_vol)
+plt.title("Forecast Volume")
+plt.xlabel("Date")
+plt.ylabel("Log Return")
+plt.show()
