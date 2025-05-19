@@ -65,6 +65,37 @@ def set_df_prophet(df,ds,y):
     df['y'] = df['y'].astype(float)
     return df
 
+def handle_infinity_values(df):
+    """
+    Replace infinite values in the DataFrame with NaN.
+    """
+    df.replace([np.inf, -np.inf], np.nan, inplace=True)
+    df.fillna(0, inplace=True)
+    return df
+
+def prophet_forecast(df, col_name):
+    """
+    Fit a Prophet model and make predictions.
+    """
+    m = Prophet()
+    m.fit(df)
+    future = m.make_future_dataframe(periods=60)
+    forecast = m.predict(future)
+    return forecast
+
+def plot_forecast(forecast, figure_title):
+    """
+    Plot the forecasted data.
+    """
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=forecast['ds'], y=forecast['yhat'], mode='lines', name='Forecast'))
+    fig.add_trace(go.Scatter(x=forecast['ds'], y=forecast['yhat_lower'], mode='lines', name='Lower Bound'))
+    fig.add_trace(go.Scatter(x=forecast['ds'], y=forecast['yhat_upper'], mode='lines', name='Upper Bound'))
+    fig.update_layout(title=f'Forecast for {figure_title}', xaxis_title='Date', yaxis_title=figure_title)
+    fig.show()
+    return
+
+
 # main program script here
 # print date
 str_start_date,str_end_date = get_dates()
@@ -125,32 +156,16 @@ print(df_analysis_vol.head(5))
 df_analysis_close.replace([np.inf, -np.inf], np.nan, inplace=True)
 df_analysis_close['y'] = df_analysis_close['y'].fillna(0)  # or use .dropna(subset=['y'])
 
-df_analysis_vol.replace([np.inf, -np.inf], np.nan, inplace=True)
-df_analysis_vol['y'] = df_analysis_vol['y'].fillna(0)  # or use .dropna(subset=['y'])
-df_latest2Months_close.replace([np.inf, -np.inf], np.nan, inplace=True)
-df_latest2Months_close['y'] = df_latest2Months_close['y'].fillna(0)  # or use .dropna(subset=['y'])
-df_latest2Months_vol.replace([np.inf, -np.inf], np.nan, inplace=True)
-df_latest2Months_vol['y'] = df_latest2Months_vol['y'].fillna(0)  # or use .dropna(subset=['y'])
+df_analysis_vol = handle_infinity_values(df_analysis_vol)
+df_latest2Months_close = handle_infinity_values(df_latest2Months_close)
+df_latest2Months_vol = handle_infinity_values(df_latest2Months_vol)
 
-m_close = Prophet()
-m_close.fit(df_analysis_close)
-forecast_close = m_close.predict(df_latest2Months_close[['ds']])
-
-m_vol = Prophet()
-m_vol.fit(df_analysis_vol)
-forecast_vol = m_vol.predict(df_latest2Months_vol[['ds']])
-
+forecast_close = prophet_forecast(df_analysis_close, 'Log_Ret_Close')
+forecast_vol = prophet_forecast(df_analysis_vol, 'Log_Ret_Volume')
+print("Forecast Close Data:")
 forecast_close.head(5)
+print("Forecast Volume Data:")
 forecast_vol.head(5)
 
-fig_close = m_close.plot(forecast_close)
-plt.title("Forecast Close Price")
-plt.xlabel("Date")
-plt.ylabel("Log Return")
-plt.show()
-
-fig_vol = m_vol.plot(forecast_vol)
-plt.title("Forecast Volume")
-plt.xlabel("Date")
-plt.ylabel("Log Return")
-plt.show()
+plot_forecast(forecast_close, "Forecast Close")
+plot_forecast(forecast_vol, "Forecast Volume")
