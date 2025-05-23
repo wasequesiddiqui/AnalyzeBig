@@ -73,14 +73,22 @@ def handle_infinity_values(df):
     df.fillna(0, inplace=True)
     return df
 
-def prophet_forecast(df, col_name):
+def prophet_forecast(df_fit, df_predict,title):
     """
     Fit a Prophet model and make predictions.
     """
     m = Prophet()
-    m.fit(df)
-    future = m.make_future_dataframe(periods=60)
-    forecast = m.predict(future)
+    m.fit(df_fit)
+    forecast = m.predict(df_predict[['ds']])
+    forecast['yhat'] = forecast['yhat'].round(4)
+    forecast['yhat_lower'] = forecast['yhat_lower'].round(4)
+    forecast['yhat_upper'] = forecast['yhat_upper'].round(4)
+    forecast['ds'] = pd.to_datetime(forecast['ds'])
+    forecast['yhat'] = forecast['yhat'].astype(float)
+    forecast['yhat_lower'] = forecast['yhat_lower'].astype(float)
+    forecast['yhat_upper'] = forecast['yhat_upper'].astype(float)
+    print(title)
+    print(forecast.head(5))
     return forecast
 
 def plot_forecast(forecast, figure_title):
@@ -92,9 +100,51 @@ def plot_forecast(forecast, figure_title):
     fig.add_trace(go.Scatter(x=forecast['ds'], y=forecast['yhat_lower'], mode='lines', name='Lower Bound'))
     fig.add_trace(go.Scatter(x=forecast['ds'], y=forecast['yhat_upper'], mode='lines', name='Upper Bound'))
     fig.update_layout(title=f'Forecast for {figure_title}', xaxis_title='Date', yaxis_title=figure_title)
+    return fig
+
+def predict_close_val(last_close_value,df):
+    """
+    Predict the close value based on the last close value.
+    """
+    # Placeholder for prediction logic
+    # For now, just returning the last close value
+    predicted_prices = []
+    current_price = last_close_value
+
+    for yhat in df['yhat']:
+        current_price = current_price * (1+yhat)
+        predicted_prices.append(current_price)
+
+    # Add predicted prices to the forecast_close DataFrame
+    df['predicted_price'] = predicted_prices
+
+    # Print the first 5 predicted prices
+    print("Sample Predicted Values:")
+    print(df[['ds', 'yhat', 'predicted_price']].tail(5))
+
+    return df
+
+def add_forecasted_price(df,new_col, df_forecast, forecast_col,message=""):
+    """
+    Add the forecasted price to the DataFrame.
+    """
+    df[new_col] = df_forecast[forecast_col].values
+    df[new_col] = df[new_col].astype(float)
+    df[new_col] = df[new_col].round(4)
+    print(message)
+    print(df.head(5))
+    return df
+
+def plot_actual_vs_predicted(df, actual_col, predicted_col):
+    """
+    Plot the actual vs predicted values.
+    """
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(x=df['ds'], y=df[actual_col], mode='lines', name='Actual'))
+    fig.add_trace(go.Scatter(x=df['ds'], y=df[predicted_col], mode='lines', name='Predicted'))
+    fig.update_layout(title='Actual Close vs Predicted Close', xaxis_title='Date', yaxis_title='Close Price')
     fig.show()
     return
-
 
 # main program script here
 # print date
@@ -107,6 +157,7 @@ print(f"Today: {str_end_date}")
 print(f"Start Date (5 Years ago): {str_start_date}")
 
 df_XAU = get_ticker_data("GOLDBEES.NS", str_start_date, str_end_date)
+
 # df_XAU.set_index("Price Date", inplace=True)
 df_XAU = get_log_returns(df_XAU, "Close")
 df_XAU = get_log_returns(df_XAU, "Volume")
@@ -160,12 +211,20 @@ df_analysis_vol = handle_infinity_values(df_analysis_vol)
 df_latest2Months_close = handle_infinity_values(df_latest2Months_close)
 df_latest2Months_vol = handle_infinity_values(df_latest2Months_vol)
 
-forecast_close = prophet_forecast(df_analysis_close, 'Log_Ret_Close')
-forecast_vol = prophet_forecast(df_analysis_vol, 'Log_Ret_Volume')
-print("Forecast Close Data:")
-forecast_close.head(5)
-print("Forecast Volume Data:")
-forecast_vol.head(5)
+forecast_close = prophet_forecast(df_analysis_close,df_latest2Months_close,"Forecast Close Data:")
+forecast_vol = prophet_forecast(df_analysis_vol, df_latest2Months_vol, "Forecast Volume Data:")
 
-plot_forecast(forecast_close, "Forecast Close")
-plot_forecast(forecast_vol, "Forecast Volume")
+# fig_plot = plot_forecast(forecast_close, "Forecast Close")
+# fig_plot.show()
+# fig_plot = plot_forecast(forecast_vol, "Forecast Volume")
+# fig_plot.show()
+
+forecast_close = predict_close_val(last_close_value, forecast_close)
+forecast_vol = predict_close_val(last_volume_value, forecast_vol)
+
+df_latest2Months_close = add_forecasted_price(df_latest2Months_close, "Predicted_Value", forecast_close, "predicted_price","Close Price Predicted Values:")
+df_latest2Months_vol = add_forecasted_price(df_latest2Months_vol, "Predicted_Value", forecast_vol, "predicted_price","Volume Predicted Values:")
+
+
+plot_actual_vs_predicted(df_latest2Months_close, "Close", "Predicted_Value")
+plot_actual_vs_predicted(df_latest2Months_vol, "Volume", "Predicted_Value")
