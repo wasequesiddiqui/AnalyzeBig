@@ -135,15 +135,25 @@ def add_forecasted_price(df,new_col, df_forecast, forecast_col,message=""):
     print(df.head(5))
     return df
 
-def plot_actual_vs_predicted(df, actual_col, predicted_col):
+def plot_actual_vs_predicted(df, actual_col, predicted_col,title_txt=""):
     """
     Plot the actual vs predicted values.
     """
     fig = go.Figure()
     fig.add_trace(go.Scatter(x=df['ds'], y=df[actual_col], mode='lines', name='Actual'))
     fig.add_trace(go.Scatter(x=df['ds'], y=df[predicted_col], mode='lines', name='Predicted'))
-    fig.update_layout(title='Actual Close vs Predicted Close', xaxis_title='Date', yaxis_title='Close Price')
-    fig.show()
+    fig.update_layout(title=title_txt, xaxis_title='Date', yaxis_title='Close Price')
+    fig.write_html(title_txt.replace(" ", "_") + ".html", auto_open=True)
+    return
+
+def plot_bar_graph(df, x_col, y_col, title):
+    """
+    Plot a bar graph.
+    """
+    fig = go.Figure()
+    fig.add_trace(go.Bar(x=df[x_col], y=df[y_col], name=title))
+    fig.update_layout(title=title, xaxis_title=x_col, yaxis_title=y_col)
+    fig.write_html(title.replace(" ", "_") + ".html", auto_open=True)
     return
 
 # main program script here
@@ -226,5 +236,16 @@ df_latest2Months_close = add_forecasted_price(df_latest2Months_close, "Predicted
 df_latest2Months_vol = add_forecasted_price(df_latest2Months_vol, "Predicted_Value", forecast_vol, "predicted_price","Volume Predicted Values:")
 
 
-plot_actual_vs_predicted(df_latest2Months_close, "Close", "Predicted_Value")
-plot_actual_vs_predicted(df_latest2Months_vol, "Volume", "Predicted_Value")
+plot_actual_vs_predicted(df_latest2Months_close, "Close", "Predicted_Value","Close Price Deviation from Prediction")
+plot_actual_vs_predicted(df_latest2Months_vol, "Volume", "Predicted_Value","Volume Deviation from Prediction")
+
+df_latest2Months_close['Delta'] = df_latest2Months_close['Close'] - df_latest2Months_close['Predicted_Value']
+df_latest2Months_close['Delta'] = df_latest2Months_close['Delta'].astype(float) 
+df_latest2Months_close['Delta'] = df_latest2Months_close['Delta'].round(4)
+
+df_latest2Months_vol['Delta'] = df_latest2Months_vol['Volume'] - df_latest2Months_vol['Predicted_Value']
+df_latest2Months_vol['Delta'] = df_latest2Months_vol['Delta'].astype(float)
+df_latest2Months_vol['Delta'] = df_latest2Months_vol['Delta'].round(4)
+
+plot_bar_graph(df_latest2Months_close, "ds", "Delta", "Close Price Deviation from Prediction")
+plot_bar_graph(df_latest2Months_vol, "ds", "Delta", "Volume Deviation from Prediction")
