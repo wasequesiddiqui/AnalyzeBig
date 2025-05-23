@@ -150,8 +150,15 @@ def plot_bar_graph(df, x_col, y_col, title):
     """
     Plot a bar graph.
     """
+    colors = [ "#3e8a00" if val >= 0 else "#a63700" for val in df[y_col] ]
     fig = go.Figure()
-    fig.add_trace(go.Bar(x=df[x_col], y=df[y_col], name=title))
+    fig.add_trace(go.Bar(
+        x=df[x_col], 
+        y=df[y_col],
+        marker_color=colors,
+        text=df[y_col].apply(lambda x: f"{x:,.2f}"),
+        textposition='auto',
+        name=title))
     fig.update_layout(title=title, xaxis_title=x_col, yaxis_title=y_col)
     fig.write_html(title.replace(" ", "_") + ".html", auto_open=True)
     return
