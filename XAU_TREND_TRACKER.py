@@ -174,12 +174,25 @@ print(f"Today: {str_end_date}")
 print(f"Start Date (5 Years ago): {str_start_date}")
 
 df_XAU = get_ticker_data("GOLDBEES.NS", str_start_date, str_end_date)
+df_Nifty_50 = get_ticker_data("^NSEI", str_start_date, str_end_date)
+
 
 # df_XAU.set_index("Price Date", inplace=True)
 df_XAU = get_log_returns(df_XAU, "Close")
 df_XAU = get_log_returns(df_XAU, "Volume")
 df_XAU = set_df_datatype(df_XAU)
 print(df_XAU.head(5))
+
+df_Nifty_50 = get_log_returns(df_Nifty_50, "Close")
+df_Nifty_50 = get_log_returns(df_Nifty_50, "Volume")
+df_Nifty_50 = set_df_datatype(df_Nifty_50)
+df_Nifty_50 = df_Nifty_50.rename(columns={"Close": "Nifty_Close"
+                                          , "Volume": "Nifty_Volume"
+                                          ,"Log_Ret_Close": "Log_Ret_Close_Nifty"
+                                          , "Log_Ret_Volume": "Log_Ret_Volume_Nifty"})
+print(df_Nifty_50.head(5))
+
+df_XAU = df_XAU.join(df_Nifty_50[['Log_Ret_Close_Nifty', 'Log_Ret_Volume_Nifty']], how='left')
 
 df_latest2Months = df_XAU[:60]
 df_analysis = df_XAU[60:]
