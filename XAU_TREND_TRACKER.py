@@ -215,6 +215,7 @@ print(df_latest2Months.head(5))
 print("Sample Analysis Data Sorted Ascending:")
 print(df_analysis.head(5))
 
+# add coregressor values
 df_latest2Months_close = set_df_prophet(df_latest2Months, 'Date_Val', 'Log_Ret_Close')
 df_latest2Months_vol = set_df_prophet(df_latest2Months, 'Date_Val', 'Log_Ret_Volume')
 df_analysis_close = set_df_prophet(df_analysis, 'Date_Val', 'Log_Ret_Close')
