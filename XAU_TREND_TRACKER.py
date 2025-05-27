@@ -217,7 +217,10 @@ print(df_analysis.head(5))
 
 # add coregressor values
 df_latest2Months_close = set_df_prophet(df_latest2Months, 'Date_Val', 'Log_Ret_Close')
+df_latest2Months_close['Log_Ret_Close_Nifty'] = df_latest2Months['Log_Ret_Close_Nifty'].values
 df_latest2Months_vol = set_df_prophet(df_latest2Months, 'Date_Val', 'Log_Ret_Volume')
+df_latest2Months_vol['Log_Ret_Volume_Nifty'] = df_latest2Months['Log_Ret_Volume_Nifty'].values
+
 df_analysis_close = set_df_prophet(df_analysis, 'Date_Val', 'Log_Ret_Close')
 df_analysis_vol = set_df_prophet(df_analysis, 'Date_Val', 'Log_Ret_Volume')
 print("Sample Latest 2 Months Data for Close:")
