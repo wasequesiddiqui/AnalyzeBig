@@ -73,13 +73,30 @@ def handle_infinity_values(df):
     df.fillna(0, inplace=True)
     return df
 
-def prophet_forecast(df_fit, df_predict,title):
+def prophet_forecast(df_fit, df_predict,lst_regressors,title):
     """
     Fit a Prophet model and make predictions.
     """
     m = Prophet()
+    for regressor in lst_regressors:
+        m.add_regressor(regressor)
+    lst_fit_cols = ['ds', 'y'] + lst_regressors
+    df_fit = df_fit[lst_fit_cols]
+    df_fit.columns = df_fit.columns.get_level_values(0)
+    df_fit = df_fit.dropna()
+    nan_rows = df_fit[df_fit.isna().any(axis=1)]
+    print("Rows with NaN in df_fit:")
+    print(nan_rows)
+
+    lst_predict_cols = ['ds'] + lst_regressors
+    df_predict = df_predict[lst_predict_cols]
+    df_predict.columns = df_predict.columns.get_level_values(0)
+    nan_rows = df_predict[df_predict.isna().any(axis=1)]
+    print("Rows with NaN in df_predict:")
+    print(nan_rows)
+
     m.fit(df_fit)
-    forecast = m.predict(df_predict[['ds']])
+    forecast = m.predict(df_predict)
     forecast['yhat'] = forecast['yhat'].round(4)
     forecast['yhat_lower'] = forecast['yhat_lower'].round(4)
     forecast['yhat_upper'] = forecast['yhat_upper'].round(4)
@@ -221,8 +238,15 @@ df_latest2Months_close['Log_Ret_Close_Nifty'] = df_latest2Months['Log_Ret_Close_
 df_latest2Months_vol = set_df_prophet(df_latest2Months, 'Date_Val', 'Log_Ret_Volume')
 df_latest2Months_vol['Log_Ret_Volume_Nifty'] = df_latest2Months['Log_Ret_Volume_Nifty'].values
 
+# df_latest2Months_close['Log_Ret_Close_Nifty'] = df_latest2Months_close['Log_Ret_Close_Nifty'].fillna(0)
+# df_latest2Months_vol['Log_Ret_Volume_Nifty'] = df_latest2Months_vol['Log_Ret_Volume_Nifty'].fillna(0)
+
 df_analysis_close = set_df_prophet(df_analysis, 'Date_Val', 'Log_Ret_Close')
 df_analysis_vol = set_df_prophet(df_analysis, 'Date_Val', 'Log_Ret_Volume')
+
+# df_analysis_vol['Log_Ret_Volume_Nifty'] = df_analysis_vol['Log_Ret_Volume_Nifty'].fillna(0)
+# df_analysis_close['Log_Ret_Close_Nifty'] = df_analysis_close['Log_Ret_Close_Nifty'].fillna(0)
+
 print("Sample Latest 2 Months Data for Close:")
 print(df_latest2Months_close.head(5))
 print("Sample Latest 2 Months Data for Vol:")
@@ -231,8 +255,8 @@ print("Sample Analysis Data for Close:")
 print(df_analysis_close.head(5))
 print("Sample Analysis Data for Vol:")
 print(df_analysis_vol.head(5))
-df_analysis_close = df_analysis_close[['ds','y']]
-df_analysis_vol = df_analysis_vol[['ds','y']]
+df_analysis_close = df_analysis_close[['ds','y', 'Log_Ret_Close_Nifty']]
+df_analysis_vol = df_analysis_vol[['ds','y', 'Log_Ret_Volume_Nifty']]
 print("Sample Analysis Data for Close:")
 print(df_analysis_close.head(5))
 print("Sample Analysis Data for Vol:")
@@ -245,8 +269,9 @@ df_analysis_vol = handle_infinity_values(df_analysis_vol)
 df_latest2Months_close = handle_infinity_values(df_latest2Months_close)
 df_latest2Months_vol = handle_infinity_values(df_latest2Months_vol)
 
-forecast_close = prophet_forecast(df_analysis_close,df_latest2Months_close,"Forecast Close Data:")
-forecast_vol = prophet_forecast(df_analysis_vol, df_latest2Months_vol, "Forecast Volume Data:")
+#pass list of columns to be used as regressors
+forecast_close = prophet_forecast(df_analysis_close,df_latest2Months_close,['Log_Ret_Close_Nifty'],"Forecast Close Data:")
+forecast_vol = prophet_forecast(df_analysis_vol, df_latest2Months_vol,['Log_Ret_Volume_Nifty'], "Forecast Volume Data:")
 
 # fig_plot = plot_forecast(forecast_close, "Forecast Close")
 # fig_plot.show()
