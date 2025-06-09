@@ -206,6 +206,7 @@ df_Nifty_50 = get_log_returns(df_Nifty_50, "Volume")
 df_Nifty_50 = set_df_datatype(df_Nifty_50)
 
 df_USD_INR = get_log_returns(df_USD_INR, "Close")
+df_USD_INR = get_log_returns(df_USD_INR, "Volume")
 df_USD_INR = set_df_datatype(df_USD_INR)
 
 df_Nifty_50 = df_Nifty_50.rename(columns={"Close": "Nifty_Close"
@@ -214,7 +215,14 @@ df_Nifty_50 = df_Nifty_50.rename(columns={"Close": "Nifty_Close"
                                           , "Log_Ret_Volume": "Log_Ret_Volume_Nifty"})
 print(df_Nifty_50.head(5))
 
+df_USD_INR = df_USD_INR.rename(columns={"Close": "INR_Close"
+                                          , "Volume": "INR_Volume"
+                                          ,"Log_Ret_Close": "Log_Ret_Close_INR"
+                                          , "Log_Ret_Volume": "Log_Ret_Volume_INR"})
+print(df_USD_INR.head(5))
+
 df_XAU = df_XAU.join(df_Nifty_50[['Log_Ret_Close_Nifty', 'Log_Ret_Volume_Nifty']], how='left')
+df_XAU = df_XAU.join(df_USD_INR[['Log_Ret_Close_INR', 'Log_Ret_Volume_INR']], how='left')
 
 df_latest2Months = df_XAU[:60]
 df_analysis = df_XAU[60:]
@@ -240,8 +248,10 @@ print(df_analysis.head(5))
 # add coregressor values
 df_latest2Months_close = set_df_prophet(df_latest2Months, 'Date_Val', 'Log_Ret_Close')
 df_latest2Months_close['Log_Ret_Close_Nifty'] = df_latest2Months['Log_Ret_Close_Nifty'].values
+df_latest2Months_close['Log_Ret_Close_INR'] = df_latest2Months['Log_Ret_Close_INR'].values
 df_latest2Months_vol = set_df_prophet(df_latest2Months, 'Date_Val', 'Log_Ret_Volume')
 df_latest2Months_vol['Log_Ret_Volume_Nifty'] = df_latest2Months['Log_Ret_Volume_Nifty'].values
+df_latest2Months_vol['Log_Ret_Volume_INR'] = df_latest2Months['Log_Ret_Volume_INR'].values
 
 # df_latest2Months_close['Log_Ret_Close_Nifty'] = df_latest2Months_close['Log_Ret_Close_Nifty'].fillna(0)
 # df_latest2Months_vol['Log_Ret_Volume_Nifty'] = df_latest2Months_vol['Log_Ret_Volume_Nifty'].fillna(0)
@@ -260,8 +270,8 @@ print("Sample Analysis Data for Close:")
 print(df_analysis_close.head(5))
 print("Sample Analysis Data for Vol:")
 print(df_analysis_vol.head(5))
-df_analysis_close = df_analysis_close[['ds','y', 'Log_Ret_Close_Nifty']]
-df_analysis_vol = df_analysis_vol[['ds','y', 'Log_Ret_Volume_Nifty']]
+df_analysis_close = df_analysis_close[['ds','y', 'Log_Ret_Close_Nifty','Log_Ret_Close_INR']]
+df_analysis_vol = df_analysis_vol[['ds','y', 'Log_Ret_Volume_Nifty','Log_Ret_Volume_INR']]
 print("Sample Analysis Data for Close:")
 print(df_analysis_close.head(5))
 print("Sample Analysis Data for Vol:")
@@ -275,8 +285,8 @@ df_latest2Months_close = handle_infinity_values(df_latest2Months_close)
 df_latest2Months_vol = handle_infinity_values(df_latest2Months_vol)
 
 #pass list of columns to be used as regressors
-forecast_close = prophet_forecast(df_analysis_close,df_latest2Months_close,['Log_Ret_Close_Nifty'],"Forecast Close Data:")
-forecast_vol = prophet_forecast(df_analysis_vol, df_latest2Months_vol,['Log_Ret_Volume_Nifty'], "Forecast Volume Data:")
+forecast_close = prophet_forecast(df_analysis_close,df_latest2Months_close,['Log_Ret_Close_Nifty','Log_Ret_Close_INR'],"Forecast Close Data:")
+forecast_vol = prophet_forecast(df_analysis_vol, df_latest2Months_vol,['Log_Ret_Volume_Nifty','Log_Ret_Volume_INR'], "Forecast Volume Data:")
 
 # fig_plot = plot_forecast(forecast_close, "Forecast Close")
 # fig_plot.show()
