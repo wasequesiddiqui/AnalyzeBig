@@ -180,6 +180,28 @@ def plot_bar_graph(df, x_col, y_col, title):
     fig.write_html(title.replace(" ", "_") + ".html", auto_open=True)
     return
 
+def rename_columns(df, col_mapping,message=""):
+    """
+    Rename columns in the DataFrame based on the provided mapping.
+    """
+    df = df.rename(columns=col_mapping)
+    print(message)
+    print(df.head(5))
+    print(df.tail(5))
+    return df
+
+def split_dataframe(df, num_parts):
+    """
+    Split the DataFrame into num_parts equal parts.
+    """
+    part_size = len(df) // num_parts
+    arr_split_df = [df.iloc[i * part_size:(i + 1) * part_size] for i in range(num_parts)]
+    for i, part in enumerate(arr_split_df):
+        print(f"Part {i+1} of DataFrame:")
+        print(part.head(3))
+        print(part.tail(3))
+    return arr_split_df
+
 # main program script here
 # print date
 str_start_date,str_end_date = get_dates()
@@ -194,6 +216,7 @@ df_XAU = get_ticker_data("GOLDBEES.NS", str_start_date, str_end_date)
 df_Nifty_50 = get_ticker_data("^NSEI", str_start_date, str_end_date)
 df_USD_INR = get_ticker_data("USDINR=X", str_start_date, str_end_date)
 df_USD_BTC = get_ticker_data("BTC-USD", str_start_date, str_end_date)
+df_US_GLD = get_ticker_data("GLD", str_start_date, str_end_date)
 
 # df_XAU.set_index("Price Date", inplace=True)
 df_XAU = get_log_returns(df_XAU, "Close")
@@ -213,27 +236,34 @@ df_USD_BTC = get_log_returns(df_USD_BTC, "Close")
 df_USD_BTC = get_log_returns(df_USD_BTC, "Volume")
 df_USD_BTC = set_df_datatype(df_USD_BTC)
 
-df_Nifty_50 = df_Nifty_50.rename(columns={"Close": "Nifty_Close"
+df_US_GLD = get_log_returns(df_US_GLD, "Close")
+df_US_GLD = get_log_returns(df_US_GLD, "Volume")
+df_US_GLD = set_df_datatype(df_US_GLD)
+
+df_Nifty_50 = rename_columns(df_Nifty_50,{"Close": "Nifty_Close"
                                           , "Volume": "Nifty_Volume"
                                           ,"Log_Ret_Close": "Log_Ret_Close_Nifty"
-                                          , "Log_Ret_Volume": "Log_Ret_Volume_Nifty"})
-print(df_Nifty_50.head(5))
+                                          , "Log_Ret_Volume": "Log_Ret_Volume_Nifty"},"Nifty 50 Data:")
 
-df_USD_INR = df_USD_INR.rename(columns={"Close": "INR_Close"
+df_USD_INR = rename_columns(df_USD_INR,{"Close": "INR_Close"
                                           , "Volume": "INR_Volume"
                                           ,"Log_Ret_Close": "Log_Ret_Close_INR"
-                                          , "Log_Ret_Volume": "Log_Ret_Volume_INR"})
-print(df_USD_INR.head(5))
+                                          , "Log_Ret_Volume": "Log_Ret_Volume_INR"},"USD to INR Data:")
 
-df_USD_BTC = df_USD_BTC.rename(columns={"Close": "BTC_Close"
+df_USD_BTC =rename_columns(df_USD_BTC,{"Close": "BTC_Close"
                                           , "Volume": "BTC_Volume"
                                           ,"Log_Ret_Close": "Log_Ret_Close_BTC"
-                                          , "Log_Ret_Volume": "Log_Ret_Volume_BTC"})
-print(df_USD_BTC.head(5))
+                                          , "Log_Ret_Volume": "Log_Ret_Volume_BTC"},"USD to BTC Data:")
+
+df_US_GLD = rename_columns(df_US_GLD,{"Close": "XAU_Close"
+                                          , "Volume": "XAU_Volume"
+                                          ,"Log_Ret_Close": "Log_Ret_Close_XAU"
+                                          , "Log_Ret_Volume": "Log_Ret_Volume_XAU"},"US GLD Data:")
 
 df_XAU = df_XAU.join(df_Nifty_50[['Log_Ret_Close_Nifty', 'Log_Ret_Volume_Nifty']], how='left')
 df_XAU = df_XAU.join(df_USD_INR[['Log_Ret_Close_INR', 'Log_Ret_Volume_INR']], how='left')
 df_XAU = df_XAU.join(df_USD_BTC[['Log_Ret_Close_BTC', 'Log_Ret_Volume_BTC']], how='left')
+df_XAU = df_XAU.join(df_US_GLD[['Log_Ret_Close_XAU', 'Log_Ret_Volume_XAU']], how='left')
 
 df_latest2Months = df_XAU[:60]
 df_analysis = df_XAU[60:]
@@ -261,11 +291,13 @@ df_latest2Months_close = set_df_prophet(df_latest2Months, 'Date_Val', 'Log_Ret_C
 df_latest2Months_close['Log_Ret_Close_Nifty'] = df_latest2Months['Log_Ret_Close_Nifty'].values
 df_latest2Months_close['Log_Ret_Close_INR'] = df_latest2Months['Log_Ret_Close_INR'].values
 df_latest2Months_close['Log_Ret_Close_BTC'] = df_latest2Months['Log_Ret_Close_BTC'].values
+df_latest2Months_close['Log_Ret_Close_XAU'] = df_latest2Months['Log_Ret_Close_XAU'].values
 
 df_latest2Months_vol = set_df_prophet(df_latest2Months, 'Date_Val', 'Log_Ret_Volume')
 df_latest2Months_vol['Log_Ret_Volume_Nifty'] = df_latest2Months['Log_Ret_Volume_Nifty'].values
 df_latest2Months_vol['Log_Ret_Volume_INR'] = df_latest2Months['Log_Ret_Volume_INR'].values
 df_latest2Months_vol['Log_Ret_Volume_BTC'] = df_latest2Months['Log_Ret_Volume_BTC'].values
+df_latest2Months_vol['Log_Ret_Volume_XAU'] = df_latest2Months['Log_Ret_Volume_XAU'].values
 
 # df_latest2Months_close['Log_Ret_Close_Nifty'] = df_latest2Months_close['Log_Ret_Close_Nifty'].fillna(0)
 # df_latest2Months_vol['Log_Ret_Volume_Nifty'] = df_latest2Months_vol['Log_Ret_Volume_Nifty'].fillna(0)
@@ -285,8 +317,8 @@ print(df_analysis_close.head(5))
 print("Sample Analysis Data for Vol:")
 print(df_analysis_vol.head(5))
 
-df_analysis_close = df_analysis_close[['ds','y', 'Log_Ret_Close_Nifty','Log_Ret_Close_INR', 'Log_Ret_Close_BTC']]
-df_analysis_vol = df_analysis_vol[['ds','y', 'Log_Ret_Volume_Nifty','Log_Ret_Volume_INR', 'Log_Ret_Volume_BTC']]
+df_analysis_close = df_analysis_close[['ds','y', 'Log_Ret_Close_Nifty','Log_Ret_Close_INR', 'Log_Ret_Close_BTC','Log_Ret_Close_XAU']]
+df_analysis_vol = df_analysis_vol[['ds','y', 'Log_Ret_Volume_Nifty','Log_Ret_Volume_INR', 'Log_Ret_Volume_BTC', 'Log_Ret_Volume_XAU']]
 
 print("Sample Analysis Data for Close:")
 print(df_analysis_close.head(5))
@@ -301,8 +333,8 @@ df_latest2Months_close = handle_infinity_values(df_latest2Months_close)
 df_latest2Months_vol = handle_infinity_values(df_latest2Months_vol)
 
 #pass list of columns to be used as regressors
-forecast_close = prophet_forecast(df_analysis_close,df_latest2Months_close,['Log_Ret_Close_Nifty','Log_Ret_Close_INR','Log_Ret_Close_BTC'],"Forecast Close Data:")
-forecast_vol = prophet_forecast(df_analysis_vol, df_latest2Months_vol,['Log_Ret_Volume_Nifty','Log_Ret_Volume_INR','Log_Ret_Volume_BTC'], "Forecast Volume Data:")
+forecast_close = prophet_forecast(df_analysis_close,df_latest2Months_close,['Log_Ret_Close_Nifty','Log_Ret_Close_INR','Log_Ret_Close_BTC','Log_Ret_Close_XAU'],"Forecast Close Data:")
+forecast_vol = prophet_forecast(df_analysis_vol, df_latest2Months_vol,['Log_Ret_Volume_Nifty','Log_Ret_Volume_INR','Log_Ret_Volume_BTC','Log_Ret_Volume_XAU'], "Forecast Volume Data:")
 
 # fig_plot = plot_forecast(forecast_close, "Forecast Close")
 # fig_plot.show()
@@ -329,3 +361,6 @@ df_latest2Months_vol['Delta'] = df_latest2Months_vol['Delta'].round(4)
 
 plot_bar_graph(df_latest2Months_close, "ds", "Delta", "Close Price Deviation from Prediction")
 plot_bar_graph(df_latest2Months_vol, "ds", "Delta", "Volume Deviation from Prediction")
+
+# Split df_xau into 5 equal parts
+arr_split_df = split_dataframe(df_XAU, 5)

@@ -190,10 +190,11 @@ print("Default Dates:")
 print(f"Today: {str_end_date}")
 print(f"Start Date (5 Years ago): {str_start_date}")
 
-df_USD_INR = get_ticker_data("GOLDBEES.NS", str_start_date, str_end_date)
+df_USD_INR = get_ticker_data("GLD", str_start_date, str_end_date)
 print(df_USD_INR.tail(5))
 
 df_USD_INR = get_log_returns(df_USD_INR, "Close")
 df_USD_INR = get_log_returns(df_USD_INR, "Volume")
 df_USD_INR = set_df_datatype(df_USD_INR)
 print(df_USD_INR.head(5))
+print(df_USD_INR.tail(5))
