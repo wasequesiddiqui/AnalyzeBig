@@ -202,6 +202,16 @@ def split_dataframe(df, num_parts):
         print(part.tail(3))
     return arr_split_df
 
+def filter_array_substr(arr,susbstr=[]):
+    """
+    Filter an array to only include elements that contain a specific substring.
+    """
+    for df in arr:
+        df = df.loc[:, df_XAU.columns.str.contains('|'.join(susbstr))]
+        print("Filtered DataFrame:")
+        print(df.head(5))
+    return arr
+
 # main program script here
 # print date
 str_start_date,str_end_date = get_dates()
@@ -364,3 +374,6 @@ plot_bar_graph(df_latest2Months_vol, "ds", "Delta", "Volume Deviation from Predi
 
 # Split df_xau into 5 equal parts
 arr_split_df = split_dataframe(df_XAU, 5)
+
+# only extract return from dataframes
+filtered_arr_split_df = filter_array_substr(arr_split_df, ['Log_Ret_Close', 'Date_Val'])
