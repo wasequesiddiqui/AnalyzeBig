@@ -207,173 +207,176 @@ def filter_array_substr(arr,susbstr=[]):
     Filter an array to only include elements that contain a specific substring.
     """
     for df in arr:
-        df = df.loc[:, df_XAU.columns.str.contains('|'.join(susbstr))]
+        df = df.loc[:, df.columns.str.contains('|'.join(susbstr))]
         print("Filtered DataFrame:")
         print(df.head(5))
     return arr
 
-# main program script here
-# print date
-str_start_date,str_end_date = get_dates()
-str_start_date = get_date_string(str_start_date)
-str_end_date = get_date_string(str_end_date)
+def analyse(main_ticker):
+    str_start_date,str_end_date = get_dates()
+    str_start_date = get_date_string(str_start_date)
+    str_end_date = get_date_string(str_end_date)
 
-print("Default Dates:")
-print(f"Today: {str_end_date}")
-print(f"Start Date (5 Years ago): {str_start_date}")
+    print("Default Dates:")
+    print(f"Today: {str_end_date}")
+    print(f"Start Date (5 Years ago): {str_start_date}")
 
-df_XAU = get_ticker_data("GOLDBEES.NS", str_start_date, str_end_date)
-df_Nifty_50 = get_ticker_data("^NSEI", str_start_date, str_end_date)
-df_USD_INR = get_ticker_data("USDINR=X", str_start_date, str_end_date)
-df_USD_BTC = get_ticker_data("BTC-USD", str_start_date, str_end_date)
-df_US_GLD = get_ticker_data("GLD", str_start_date, str_end_date)
+    df_XAU = get_ticker_data("GOLDBEES.NS", str_start_date, str_end_date)
+    df_Nifty_50 = get_ticker_data("^NSEI", str_start_date, str_end_date)
+    df_USD_INR = get_ticker_data("USDINR=X", str_start_date, str_end_date)
+    df_USD_BTC = get_ticker_data("BTC-USD", str_start_date, str_end_date)
+    df_US_GLD = get_ticker_data("GLD", str_start_date, str_end_date)
 
-# df_XAU.set_index("Price Date", inplace=True)
-df_XAU = get_log_returns(df_XAU, "Close")
-df_XAU = get_log_returns(df_XAU, "Volume")
-df_XAU = set_df_datatype(df_XAU)
-print(df_XAU.head(5))
+    # df_XAU.set_index("Price Date", inplace=True)
+    df_XAU = get_log_returns(df_XAU, "Close")
+    df_XAU = get_log_returns(df_XAU, "Volume")
+    df_XAU = set_df_datatype(df_XAU)
+    print(df_XAU.head(5))
 
-df_Nifty_50 = get_log_returns(df_Nifty_50, "Close")
-df_Nifty_50 = get_log_returns(df_Nifty_50, "Volume")
-df_Nifty_50 = set_df_datatype(df_Nifty_50)
+    df_Nifty_50 = get_log_returns(df_Nifty_50, "Close")
+    df_Nifty_50 = get_log_returns(df_Nifty_50, "Volume")
+    df_Nifty_50 = set_df_datatype(df_Nifty_50)
 
-df_USD_INR = get_log_returns(df_USD_INR, "Close")
-df_USD_INR = get_log_returns(df_USD_INR, "Volume")
-df_USD_INR = set_df_datatype(df_USD_INR)
+    df_USD_INR = get_log_returns(df_USD_INR, "Close")
+    df_USD_INR = get_log_returns(df_USD_INR, "Volume")
+    df_USD_INR = set_df_datatype(df_USD_INR)
 
-df_USD_BTC = get_log_returns(df_USD_BTC, "Close")
-df_USD_BTC = get_log_returns(df_USD_BTC, "Volume")
-df_USD_BTC = set_df_datatype(df_USD_BTC)
+    df_USD_BTC = get_log_returns(df_USD_BTC, "Close")
+    df_USD_BTC = get_log_returns(df_USD_BTC, "Volume")
+    df_USD_BTC = set_df_datatype(df_USD_BTC)
 
-df_US_GLD = get_log_returns(df_US_GLD, "Close")
-df_US_GLD = get_log_returns(df_US_GLD, "Volume")
-df_US_GLD = set_df_datatype(df_US_GLD)
+    df_US_GLD = get_log_returns(df_US_GLD, "Close")
+    df_US_GLD = get_log_returns(df_US_GLD, "Volume")
+    df_US_GLD = set_df_datatype(df_US_GLD)
 
-df_Nifty_50 = rename_columns(df_Nifty_50,{"Close": "Nifty_Close"
-                                          , "Volume": "Nifty_Volume"
-                                          ,"Log_Ret_Close": "Log_Ret_Close_Nifty"
-                                          , "Log_Ret_Volume": "Log_Ret_Volume_Nifty"},"Nifty 50 Data:")
+    df_Nifty_50 = rename_columns(df_Nifty_50,{"Close": "Nifty_Close"
+                                            , "Volume": "Nifty_Volume"
+                                            ,"Log_Ret_Close": "Log_Ret_Close_Nifty"
+                                            , "Log_Ret_Volume": "Log_Ret_Volume_Nifty"},"Nifty 50 Data:")
 
-df_USD_INR = rename_columns(df_USD_INR,{"Close": "INR_Close"
-                                          , "Volume": "INR_Volume"
-                                          ,"Log_Ret_Close": "Log_Ret_Close_INR"
-                                          , "Log_Ret_Volume": "Log_Ret_Volume_INR"},"USD to INR Data:")
+    df_USD_INR = rename_columns(df_USD_INR,{"Close": "INR_Close"
+                                            , "Volume": "INR_Volume"
+                                            ,"Log_Ret_Close": "Log_Ret_Close_INR"
+                                            , "Log_Ret_Volume": "Log_Ret_Volume_INR"},"USD to INR Data:")
 
-df_USD_BTC =rename_columns(df_USD_BTC,{"Close": "BTC_Close"
-                                          , "Volume": "BTC_Volume"
-                                          ,"Log_Ret_Close": "Log_Ret_Close_BTC"
-                                          , "Log_Ret_Volume": "Log_Ret_Volume_BTC"},"USD to BTC Data:")
+    df_USD_BTC =rename_columns(df_USD_BTC,{"Close": "BTC_Close"
+                                            , "Volume": "BTC_Volume"
+                                            ,"Log_Ret_Close": "Log_Ret_Close_BTC"
+                                            , "Log_Ret_Volume": "Log_Ret_Volume_BTC"},"USD to BTC Data:")
 
-df_US_GLD = rename_columns(df_US_GLD,{"Close": "XAU_Close"
-                                          , "Volume": "XAU_Volume"
-                                          ,"Log_Ret_Close": "Log_Ret_Close_XAU"
-                                          , "Log_Ret_Volume": "Log_Ret_Volume_XAU"},"US GLD Data:")
+    df_US_GLD = rename_columns(df_US_GLD,{"Close": "XAU_Close"
+                                            , "Volume": "XAU_Volume"
+                                            ,"Log_Ret_Close": "Log_Ret_Close_XAU"
+                                            , "Log_Ret_Volume": "Log_Ret_Volume_XAU"},"US GLD Data:")
 
-df_XAU = df_XAU.join(df_Nifty_50[['Log_Ret_Close_Nifty', 'Log_Ret_Volume_Nifty']], how='left')
-df_XAU = df_XAU.join(df_USD_INR[['Log_Ret_Close_INR', 'Log_Ret_Volume_INR']], how='left')
-df_XAU = df_XAU.join(df_USD_BTC[['Log_Ret_Close_BTC', 'Log_Ret_Volume_BTC']], how='left')
-df_XAU = df_XAU.join(df_US_GLD[['Log_Ret_Close_XAU', 'Log_Ret_Volume_XAU']], how='left')
+    df_XAU = df_XAU.join(df_Nifty_50[['Log_Ret_Close_Nifty', 'Log_Ret_Volume_Nifty']], how='left')
+    df_XAU = df_XAU.join(df_USD_INR[['Log_Ret_Close_INR', 'Log_Ret_Volume_INR']], how='left')
+    df_XAU = df_XAU.join(df_USD_BTC[['Log_Ret_Close_BTC', 'Log_Ret_Volume_BTC']], how='left')
+    df_XAU = df_XAU.join(df_US_GLD[['Log_Ret_Close_XAU', 'Log_Ret_Volume_XAU']], how='left')
 
-df_latest2Months = df_XAU[:60]
-df_analysis = df_XAU[60:]
+    df_latest2Months = df_XAU[:60]
+    df_analysis = df_XAU[60:]
 
-print("Sample Latest 2 Months Data:")
-print(df_latest2Months.head(5))
-print("Sample Analysis Data:")
-print(df_analysis.head(5))
+    print("Sample Latest 2 Months Data:")
+    print(df_latest2Months.head(5))
+    print("Sample Analysis Data:")
+    print(df_analysis.head(5))
 
-last_close_value = df_analysis["Close"].iloc[0]
-last_volume_value = df_analysis["Volume"].iloc[0]
-print("Last Close Value:", last_close_value)
-print("Last Volume Value:", last_volume_value)
+    last_close_value = df_analysis["Close"].iloc[0]
+    last_volume_value = df_analysis["Volume"].iloc[0]
+    print("Last Close Value:", last_close_value)
+    print("Last Volume Value:", last_volume_value)
 
-df_latest2Months = df_latest2Months.sort_index(ascending=True)
-df_analysis = df_analysis.sort_index(ascending=True)
+    df_latest2Months = df_latest2Months.sort_index(ascending=True)
+    df_analysis = df_analysis.sort_index(ascending=True)
 
-print("Sample Latest 2 Months Data Sorted Ascending:")
-print(df_latest2Months.head(5))
-print("Sample Analysis Data Sorted Ascending:")
-print(df_analysis.head(5))
+    print("Sample Latest 2 Months Data Sorted Ascending:")
+    print(df_latest2Months.head(5))
+    print("Sample Analysis Data Sorted Ascending:")
+    print(df_analysis.head(5))
 
-# add coregressor values
-df_latest2Months_close = set_df_prophet(df_latest2Months, 'Date_Val', 'Log_Ret_Close')
-df_latest2Months_close['Log_Ret_Close_Nifty'] = df_latest2Months['Log_Ret_Close_Nifty'].values
-df_latest2Months_close['Log_Ret_Close_INR'] = df_latest2Months['Log_Ret_Close_INR'].values
-df_latest2Months_close['Log_Ret_Close_BTC'] = df_latest2Months['Log_Ret_Close_BTC'].values
-df_latest2Months_close['Log_Ret_Close_XAU'] = df_latest2Months['Log_Ret_Close_XAU'].values
+    # add coregressor values
+    df_latest2Months_close = set_df_prophet(df_latest2Months, 'Date_Val', 'Log_Ret_Close')
+    df_latest2Months_close['Log_Ret_Close_Nifty'] = df_latest2Months['Log_Ret_Close_Nifty'].values
+    df_latest2Months_close['Log_Ret_Close_INR'] = df_latest2Months['Log_Ret_Close_INR'].values
+    df_latest2Months_close['Log_Ret_Close_BTC'] = df_latest2Months['Log_Ret_Close_BTC'].values
+    df_latest2Months_close['Log_Ret_Close_XAU'] = df_latest2Months['Log_Ret_Close_XAU'].values
 
-df_latest2Months_vol = set_df_prophet(df_latest2Months, 'Date_Val', 'Log_Ret_Volume')
-df_latest2Months_vol['Log_Ret_Volume_Nifty'] = df_latest2Months['Log_Ret_Volume_Nifty'].values
-df_latest2Months_vol['Log_Ret_Volume_INR'] = df_latest2Months['Log_Ret_Volume_INR'].values
-df_latest2Months_vol['Log_Ret_Volume_BTC'] = df_latest2Months['Log_Ret_Volume_BTC'].values
-df_latest2Months_vol['Log_Ret_Volume_XAU'] = df_latest2Months['Log_Ret_Volume_XAU'].values
+    df_latest2Months_vol = set_df_prophet(df_latest2Months, 'Date_Val', 'Log_Ret_Volume')
+    df_latest2Months_vol['Log_Ret_Volume_Nifty'] = df_latest2Months['Log_Ret_Volume_Nifty'].values
+    df_latest2Months_vol['Log_Ret_Volume_INR'] = df_latest2Months['Log_Ret_Volume_INR'].values
+    df_latest2Months_vol['Log_Ret_Volume_BTC'] = df_latest2Months['Log_Ret_Volume_BTC'].values
+    df_latest2Months_vol['Log_Ret_Volume_XAU'] = df_latest2Months['Log_Ret_Volume_XAU'].values
 
-# df_latest2Months_close['Log_Ret_Close_Nifty'] = df_latest2Months_close['Log_Ret_Close_Nifty'].fillna(0)
-# df_latest2Months_vol['Log_Ret_Volume_Nifty'] = df_latest2Months_vol['Log_Ret_Volume_Nifty'].fillna(0)
+    # df_latest2Months_close['Log_Ret_Close_Nifty'] = df_latest2Months_close['Log_Ret_Close_Nifty'].fillna(0)
+    # df_latest2Months_vol['Log_Ret_Volume_Nifty'] = df_latest2Months_vol['Log_Ret_Volume_Nifty'].fillna(0)
 
-df_analysis_close = set_df_prophet(df_analysis, 'Date_Val', 'Log_Ret_Close')
-df_analysis_vol = set_df_prophet(df_analysis, 'Date_Val', 'Log_Ret_Volume')
+    df_analysis_close = set_df_prophet(df_analysis, 'Date_Val', 'Log_Ret_Close')
+    df_analysis_vol = set_df_prophet(df_analysis, 'Date_Val', 'Log_Ret_Volume')
 
-# df_analysis_vol['Log_Ret_Volume_Nifty'] = df_analysis_vol['Log_Ret_Volume_Nifty'].fillna(0)
-# df_analysis_close['Log_Ret_Close_Nifty'] = df_analysis_close['Log_Ret_Close_Nifty'].fillna(0)
+    # df_analysis_vol['Log_Ret_Volume_Nifty'] = df_analysis_vol['Log_Ret_Volume_Nifty'].fillna(0)
+    # df_analysis_close['Log_Ret_Close_Nifty'] = df_analysis_close['Log_Ret_Close_Nifty'].fillna(0)
 
-print("Sample Latest 2 Months Data for Close:")
-print(df_latest2Months_close.head(5))
-print("Sample Latest 2 Months Data for Vol:")
-print(df_latest2Months_vol.head(5))
-print("Sample Analysis Data for Close:")
-print(df_analysis_close.head(5))
-print("Sample Analysis Data for Vol:")
-print(df_analysis_vol.head(5))
+    print("Sample Latest 2 Months Data for Close:")
+    print(df_latest2Months_close.head(5))
+    print("Sample Latest 2 Months Data for Vol:")
+    print(df_latest2Months_vol.head(5))
+    print("Sample Analysis Data for Close:")
+    print(df_analysis_close.head(5))
+    print("Sample Analysis Data for Vol:")
+    print(df_analysis_vol.head(5))
 
-df_analysis_close = df_analysis_close[['ds','y', 'Log_Ret_Close_Nifty','Log_Ret_Close_INR', 'Log_Ret_Close_BTC','Log_Ret_Close_XAU']]
-df_analysis_vol = df_analysis_vol[['ds','y', 'Log_Ret_Volume_Nifty','Log_Ret_Volume_INR', 'Log_Ret_Volume_BTC', 'Log_Ret_Volume_XAU']]
+    df_analysis_close = df_analysis_close[['ds','y', 'Log_Ret_Close_Nifty','Log_Ret_Close_INR', 'Log_Ret_Close_BTC','Log_Ret_Close_XAU']]
+    df_analysis_vol = df_analysis_vol[['ds','y', 'Log_Ret_Volume_Nifty','Log_Ret_Volume_INR', 'Log_Ret_Volume_BTC', 'Log_Ret_Volume_XAU']]
 
-print("Sample Analysis Data for Close:")
-print(df_analysis_close.head(5))
-print("Sample Analysis Data for Vol:")
-print(df_analysis_vol.head(5))
+    print("Sample Analysis Data for Close:")
+    print(df_analysis_close.head(5))
+    print("Sample Analysis Data for Vol:")
+    print(df_analysis_vol.head(5))
 
-df_analysis_close.replace([np.inf, -np.inf], np.nan, inplace=True)
-df_analysis_close['y'] = df_analysis_close['y'].fillna(0)  # or use .dropna(subset=['y'])
+    df_analysis_close.replace([np.inf, -np.inf], np.nan, inplace=True)
+    df_analysis_close['y'] = df_analysis_close['y'].fillna(0)  # or use .dropna(subset=['y'])
 
-df_analysis_vol = handle_infinity_values(df_analysis_vol)
-df_latest2Months_close = handle_infinity_values(df_latest2Months_close)
-df_latest2Months_vol = handle_infinity_values(df_latest2Months_vol)
+    df_analysis_vol = handle_infinity_values(df_analysis_vol)
+    df_latest2Months_close = handle_infinity_values(df_latest2Months_close)
+    df_latest2Months_vol = handle_infinity_values(df_latest2Months_vol)
 
-#pass list of columns to be used as regressors
-forecast_close = prophet_forecast(df_analysis_close,df_latest2Months_close,['Log_Ret_Close_Nifty','Log_Ret_Close_INR','Log_Ret_Close_BTC','Log_Ret_Close_XAU'],"Forecast Close Data:")
-forecast_vol = prophet_forecast(df_analysis_vol, df_latest2Months_vol,['Log_Ret_Volume_Nifty','Log_Ret_Volume_INR','Log_Ret_Volume_BTC','Log_Ret_Volume_XAU'], "Forecast Volume Data:")
+    #pass list of columns to be used as regressors
+    forecast_close = prophet_forecast(df_analysis_close,df_latest2Months_close,['Log_Ret_Close_Nifty','Log_Ret_Close_INR','Log_Ret_Close_BTC','Log_Ret_Close_XAU'],"Forecast Close Data:")
+    forecast_vol = prophet_forecast(df_analysis_vol, df_latest2Months_vol,['Log_Ret_Volume_Nifty','Log_Ret_Volume_INR','Log_Ret_Volume_BTC','Log_Ret_Volume_XAU'], "Forecast Volume Data:")
 
-# fig_plot = plot_forecast(forecast_close, "Forecast Close")
-# fig_plot.show()
-# fig_plot = plot_forecast(forecast_vol, "Forecast Volume")
-# fig_plot.show()
+    # fig_plot = plot_forecast(forecast_close, "Forecast Close")
+    # fig_plot.show()
+    # fig_plot = plot_forecast(forecast_vol, "Forecast Volume")
+    # fig_plot.show()
 
-forecast_close = predict_close_val(last_close_value, forecast_close)
-forecast_vol = predict_close_val(last_volume_value, forecast_vol)
+    forecast_close = predict_close_val(last_close_value, forecast_close)
+    forecast_vol = predict_close_val(last_volume_value, forecast_vol)
 
-df_latest2Months_close = add_forecasted_price(df_latest2Months_close, "Predicted_Value", forecast_close, "predicted_price","Close Price Predicted Values:")
-df_latest2Months_vol = add_forecasted_price(df_latest2Months_vol, "Predicted_Value", forecast_vol, "predicted_price","Volume Predicted Values:")
+    df_latest2Months_close = add_forecasted_price(df_latest2Months_close, "Predicted_Value", forecast_close, "predicted_price","Close Price Predicted Values:")
+    df_latest2Months_vol = add_forecasted_price(df_latest2Months_vol, "Predicted_Value", forecast_vol, "predicted_price","Volume Predicted Values:")
 
 
-plot_actual_vs_predicted(df_latest2Months_close, "Close", "Predicted_Value","Close Price Deviation from Prediction")
-plot_actual_vs_predicted(df_latest2Months_vol, "Volume", "Predicted_Value","Volume Deviation from Prediction")
+    plot_actual_vs_predicted(df_latest2Months_close, "Close", "Predicted_Value","Close Price Deviation from Prediction")
+    plot_actual_vs_predicted(df_latest2Months_vol, "Volume", "Predicted_Value","Volume Deviation from Prediction")
 
-df_latest2Months_close['Delta'] = df_latest2Months_close['Close'] - df_latest2Months_close['Predicted_Value']
-df_latest2Months_close['Delta'] = df_latest2Months_close['Delta'].astype(float) 
-df_latest2Months_close['Delta'] = df_latest2Months_close['Delta'].round(4)
+    df_latest2Months_close['Delta'] = df_latest2Months_close['Close'] - df_latest2Months_close['Predicted_Value']
+    df_latest2Months_close['Delta'] = df_latest2Months_close['Delta'].astype(float) 
+    df_latest2Months_close['Delta'] = df_latest2Months_close['Delta'].round(4)
 
-df_latest2Months_vol['Delta'] = df_latest2Months_vol['Volume'] - df_latest2Months_vol['Predicted_Value']
-df_latest2Months_vol['Delta'] = df_latest2Months_vol['Delta'].astype(float)
-df_latest2Months_vol['Delta'] = df_latest2Months_vol['Delta'].round(4)
+    df_latest2Months_vol['Delta'] = df_latest2Months_vol['Volume'] - df_latest2Months_vol['Predicted_Value']
+    df_latest2Months_vol['Delta'] = df_latest2Months_vol['Delta'].astype(float)
+    df_latest2Months_vol['Delta'] = df_latest2Months_vol['Delta'].round(4)
 
-plot_bar_graph(df_latest2Months_close, "ds", "Delta", "Close Price Deviation from Prediction")
-plot_bar_graph(df_latest2Months_vol, "ds", "Delta", "Volume Deviation from Prediction")
+    plot_bar_graph(df_latest2Months_close, "ds", "Delta", "Close Price Deviation from Prediction")
+    plot_bar_graph(df_latest2Months_vol, "ds", "Delta", "Volume Deviation from Prediction")
 
-# Split df_xau into 5 equal parts
-arr_split_df = split_dataframe(df_XAU, 5)
+    # Split df_xau into 5 equal parts
+    arr_split_df = split_dataframe(df_XAU, 5)
 
-# only extract return from dataframes
-filtered_arr_split_df = filter_array_substr(arr_split_df, ['Log_Ret_Close', 'Date_Val'])
+    # only extract return from dataframes
+    filtered_arr_split_df = filter_array_substr(arr_split_df, ['Log_Ret_Close', 'Date_Val'])
+
+    return
+
+analyse("GOLDBEES.NS")
