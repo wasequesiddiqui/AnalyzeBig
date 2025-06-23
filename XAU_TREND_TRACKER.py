@@ -11,6 +11,7 @@ from prophet import Prophet
 from tensorflow.keras.models import Sequential # type: ignore
 from tensorflow.keras.layers import Dense, LSTM, Dropout # type: ignore
 from sklearn.preprocessing import MinMaxScaler
+from sklearn.metrics import r2_score
 from datetime import datetime, timedelta
 
 def get_dates(day_delta=1826):
@@ -212,6 +213,16 @@ def filter_array_substr(arr,susbstr=[]):
         print(df.head(5))
     return arr
 
+def calculate_r2(df, col1, col2):
+    # Drop rows where either column is NaN
+    temp = df[[col1, col2]].dropna()
+    if len(temp) < 2:
+        print(f"Not enough data to calculate R^2 for {col1} vs {col2}")
+        return None
+    r2 = r2_score(temp[col1], temp[col2])
+    print(f"R^2 between {col1} and {col2}: {r2:.4f}")
+    return r2
+
 def analyse(main_ticker):
     str_start_date,str_end_date = get_dates()
     str_start_date = get_date_string(str_start_date)
@@ -221,7 +232,7 @@ def analyse(main_ticker):
     print(f"Today: {str_end_date}")
     print(f"Start Date (5 Years ago): {str_start_date}")
 
-    df_XAU = get_ticker_data("GOLDBEES.NS", str_start_date, str_end_date)
+    df_XAU = get_ticker_data(main_ticker, str_start_date, str_end_date)
     df_Nifty_50 = get_ticker_data("^NSEI", str_start_date, str_end_date)
     df_USD_INR = get_ticker_data("USDINR=X", str_start_date, str_end_date)
     df_USD_BTC = get_ticker_data("BTC-USD", str_start_date, str_end_date)
@@ -357,8 +368,8 @@ def analyse(main_ticker):
     df_latest2Months_vol = add_forecasted_price(df_latest2Months_vol, "Predicted_Value", forecast_vol, "predicted_price","Volume Predicted Values:")
 
 
-    plot_actual_vs_predicted(df_latest2Months_close, "Close", "Predicted_Value","Close Price Deviation from Prediction")
-    plot_actual_vs_predicted(df_latest2Months_vol, "Volume", "Predicted_Value","Volume Deviation from Prediction")
+    plot_actual_vs_predicted(df_latest2Months_close, "Close", "Predicted_Value","Close Price Deviation from Prediction" + main_ticker.replace(".NS", ""))
+    plot_actual_vs_predicted(df_latest2Months_vol, "Volume", "Predicted_Value","Volume Deviation from Prediction" + main_ticker.replace(".NS", ""))
 
     df_latest2Months_close['Delta'] = df_latest2Months_close['Close'] - df_latest2Months_close['Predicted_Value']
     df_latest2Months_close['Delta'] = df_latest2Months_close['Delta'].astype(float) 
@@ -368,8 +379,8 @@ def analyse(main_ticker):
     df_latest2Months_vol['Delta'] = df_latest2Months_vol['Delta'].astype(float)
     df_latest2Months_vol['Delta'] = df_latest2Months_vol['Delta'].round(4)
 
-    plot_bar_graph(df_latest2Months_close, "ds", "Delta", "Close Price Deviation from Prediction")
-    plot_bar_graph(df_latest2Months_vol, "ds", "Delta", "Volume Deviation from Prediction")
+    plot_bar_graph(df_latest2Months_close, "ds", "Delta", "Close Price Delta "+main_ticker.replace(".NS", ""))
+    plot_bar_graph(df_latest2Months_vol, "ds", "Delta", "Volume Delta "+main_ticker.replace(".NS", ""))
 
     # Split df_xau into 5 equal parts
     arr_split_df = split_dataframe(df_XAU, 5)
@@ -377,6 +388,27 @@ def analyse(main_ticker):
     # only extract return from dataframes
     filtered_arr_split_df = filter_array_substr(arr_split_df, ['Log_Ret_Close', 'Date_Val'])
 
-    return
+    # calculate r square values for all the dataframes
+    for df in filtered_arr_split_df:
+        r2_nifty = calculate_r2(df, 'Log_Ret_Close', 'Log_Ret_Close_Nifty')
+        r2_inr = calculate_r2(df, 'Log_Ret_Close', 'Log_Ret_Close_INR')
+        r2_btc = calculate_r2(df, 'Log_Ret_Close', 'Log_Ret_Close_BTC')
+        r2_xau = calculate_r2(df, 'Log_Ret_Close', 'Log_Ret_Close_XAU')
+    return df_XAU
 
-analyse("GOLDBEES.NS")
+df_XAU = analyse("GOLDBEES.NS")[['Date_Val','Close']]
+df_XAG = analyse("SILVERBEES.NS")[['Date_Val','Close']]
+
+print(df_XAU.head(5))
+print(df_XAG.head(5))
+
+df_ratio = df_XAU.merge(df_XAG, on='Date_Val', how='inner', suffixes=('_XAU', '_XAG'))
+df_ratio['XAU_XAG_Ratio'] = df_ratio['Close_XAU'] / df_ratio['Close_XAG']
+df_ratio['XAU_XAG_Ratio'] = df_ratio['XAU_XAG_Ratio'].round(4)
+print("XAU to XAG Ratio Data:")
+print("head data")
+print(df_ratio.head(5))
+print("tail data")
+print(df_ratio.tail(5))
+
+plot_bar_graph(df_ratio, "Date_Val", "XAU_XAG_Ratio", "XAU to XAG Ratio")

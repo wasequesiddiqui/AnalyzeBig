@@ -190,7 +190,7 @@ print("Default Dates:")
 print(f"Today: {str_end_date}")
 print(f"Start Date (5 Years ago): {str_start_date}")
 
-df_USD_INR = get_ticker_data("GLD", str_start_date, str_end_date)
+df_USD_INR = get_ticker_data("PSLV", str_start_date, str_end_date)
 print(df_USD_INR.tail(5))
 
 df_USD_INR = get_log_returns(df_USD_INR, "Close")
