@@ -13,6 +13,7 @@ from tensorflow.keras.layers import Dense, LSTM, Dropout # type: ignore
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import r2_score
 from datetime import datetime, timedelta
+from plotly.subplots import make_subplots
 
 def get_dates(day_delta=1826):
     """
@@ -223,6 +224,70 @@ def calculate_r2(df, col1, col2):
     print(f"R^2 between {col1} and {col2}: {r2:.4f}")
     return r2
 
+def calculate_r2_for_all(filtered_arr_split_df):
+    """
+    Calculate R^2 values for all pairs of columns in the DataFrame.
+    """
+    df_correlation_progress = pd.DataFrame()
+    lst_r2_nifty = []
+    lst_r2_inr = []
+    lst_r2_btc = []
+    lst_r2_xau = []
+    lst_year = []
+    for df in filtered_arr_split_df:
+        r2_nifty = calculate_r2(df, 'Log_Ret_Close', 'Log_Ret_Close_Nifty')
+        lst_r2_nifty.append(r2_nifty)
+        r2_inr = calculate_r2(df, 'Log_Ret_Close', 'Log_Ret_Close_INR')
+        lst_r2_inr.append(r2_inr)
+        r2_btc = calculate_r2(df, 'Log_Ret_Close', 'Log_Ret_Close_BTC')
+        lst_r2_btc.append(r2_btc)
+        r2_xau = calculate_r2(df, 'Log_Ret_Close', 'Log_Ret_Close_XAU')
+        lst_r2_xau.append(r2_xau)
+        year = df['Date_Val'].iloc[0].year
+        lst_year.append(year)
+
+    df_correlation_progress['Year'] = lst_year
+    df_correlation_progress['R2_Nifty'] = lst_r2_nifty
+    df_correlation_progress['R2_INR'] = lst_r2_inr
+    df_correlation_progress['R2_BTC'] = lst_r2_btc
+    df_correlation_progress['R2_XAU'] = lst_r2_xau
+
+    # Create a 2x2 subplot figure
+    fig = make_subplots(
+        rows=2, cols=2,
+        subplot_titles=("R² Nifty", "R² INR", "R² BTC", "R² XAU")
+    )
+
+    # Add bar for R2_Nifty
+    fig.add_trace(
+        go.Bar(x=df_correlation_progress['Year'], y=df_correlation_progress['R2_Nifty'], name='R² Nifty', marker_color="#3e8a00"),
+        row=1, col=1
+    )
+    # Add bar for R2_INR
+    fig.add_trace(
+        go.Bar(x=df_correlation_progress['Year'], y=df_correlation_progress['R2_INR'], name='R² INR', marker_color="#a63700"),
+        row=1, col=2
+    )
+    # Add bar for R2_BTC
+    fig.add_trace(
+        go.Bar(x=df_correlation_progress['Year'], y=df_correlation_progress['R2_BTC'], name='R² BTC', marker_color="#0074D9"),
+        row=2, col=1
+    )
+    # Add bar for R2_XAU
+    fig.add_trace(
+        go.Bar(x=df_correlation_progress['Year'], y=df_correlation_progress['R2_XAU'], name='R² XAU', marker_color="#FF851B"),
+        row=2, col=2
+    )
+
+    fig.update_layout(
+        height=700, width=900,
+        title_text="R² Values for Nifty, INR, BTC, XAU by Year"
+    )
+
+    fig.write_html("R2_Values_Matrix.html", auto_open=True)
+
+    return df_correlation_progress
+
 def analyse(main_ticker):
     str_start_date,str_end_date = get_dates()
     str_start_date = get_date_string(str_start_date)
@@ -389,11 +454,10 @@ def analyse(main_ticker):
     filtered_arr_split_df = filter_array_substr(arr_split_df, ['Log_Ret_Close', 'Date_Val'])
 
     # calculate r square values for all the dataframes
-    for df in filtered_arr_split_df:
-        r2_nifty = calculate_r2(df, 'Log_Ret_Close', 'Log_Ret_Close_Nifty')
-        r2_inr = calculate_r2(df, 'Log_Ret_Close', 'Log_Ret_Close_INR')
-        r2_btc = calculate_r2(df, 'Log_Ret_Close', 'Log_Ret_Close_BTC')
-        r2_xau = calculate_r2(df, 'Log_Ret_Close', 'Log_Ret_Close_XAU')
+    df_correlation_progress = calculate_r2_for_all(filtered_arr_split_df)
+    print("R^2 Values for Nifty, INR, BTC, XAU:")
+    print(df_correlation_progress)
+
     return df_XAU
 
 df_XAU = analyse("GOLDBEES.NS")[['Date_Val','Close']]
