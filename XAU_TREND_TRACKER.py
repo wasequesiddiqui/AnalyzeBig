@@ -224,7 +224,7 @@ def calculate_r2(df, col1, col2):
     print(f"R^2 between {col1} and {col2}: {r2:.4f}")
     return r2
 
-def calculate_r2_for_all(filtered_arr_split_df):
+def calculate_r2_for_all(filtered_arr_split_df,main_ticker):
     """
     Calculate R^2 values for all pairs of columns in the DataFrame.
     """
@@ -284,7 +284,7 @@ def calculate_r2_for_all(filtered_arr_split_df):
         title_text="R² Values for Nifty, INR, BTC, XAU by Year"
     )
 
-    fig.write_html("R2_Values_Matrix.html", auto_open=True)
+    fig.write_html(main_ticker+"_"+"R2_Values_Matrix.html", auto_open=True)
 
     return df_correlation_progress
 
@@ -454,7 +454,7 @@ def analyse(main_ticker):
     filtered_arr_split_df = filter_array_substr(arr_split_df, ['Log_Ret_Close', 'Date_Val'])
 
     # calculate r square values for all the dataframes
-    df_correlation_progress = calculate_r2_for_all(filtered_arr_split_df)
+    df_correlation_progress = calculate_r2_for_all(filtered_arr_split_df,main_ticker)
     print("R^2 Values for Nifty, INR, BTC, XAU:")
     print(df_correlation_progress)
 
