@@ -216,7 +216,7 @@ def filter_array_substr(arr,susbstr=[]):
 
 def calculate_r2(df, col1, col2):
     # Drop rows where either column is NaN
-    temp = df[[col1, col2]].dropna()
+    temp = df[[col1, col2]].fillna(df.mean(numeric_only=True))
     if len(temp) < 2:
         print(f"Not enough data to calculate R^2 for {col1} vs {col2}")
         return None
@@ -234,7 +234,19 @@ def calculate_r2_for_all(filtered_arr_split_df,main_ticker):
     lst_r2_btc = []
     lst_r2_xau = []
     lst_year = []
+    fig_correl = make_subplots(
+    rows=2, cols=3,
+    subplot_titles=("XAU Correlation", "XAG Correlation"),
+    horizontal_spacing=0.15)
+    row_counter = 1
+    col_counter = 1
+
     for df in filtered_arr_split_df:
+        col_counter+=1
+        if(col_counter >= 3):
+            col_counter = 1
+            row_counter += 1
+        df_correl = df[['Log_Ret_Close', 'Log_Ret_Close_Nifty', 'Log_Ret_Close_INR', 'Log_Ret_Close_BTC', 'Log_Ret_Close_XAU']].corr().round(4)
         r2_nifty = calculate_r2(df, 'Log_Ret_Close', 'Log_Ret_Close_Nifty')
         lst_r2_nifty.append(r2_nifty)
         r2_inr = calculate_r2(df, 'Log_Ret_Close', 'Log_Ret_Close_INR')
@@ -244,7 +256,28 @@ def calculate_r2_for_all(filtered_arr_split_df,main_ticker):
         r2_xau = calculate_r2(df, 'Log_Ret_Close', 'Log_Ret_Close_XAU')
         lst_r2_xau.append(r2_xau)
         year = df['Date_Val'].iloc[0].year
+        print("Dataframe shape for year ", year, ":", df.shape)
+        fig_correl.add_trace(
+            go.Heatmap(
+                z=df_correl.values,
+                x=df_correl.columns,
+                y=df_correl.index,
+                colorscale='Viridis',
+                colorbar=dict(title="Correlation", x=0.46),
+                zmin=-1, zmax=1,
+                text=df_correl.values,
+                texttemplate="%{text:.2f}"
+            ),
+            row=1, col=1
+        )
         lst_year.append(year)
+    
+    fig_correl.update_layout(
+    title="Correlation Heatmaps for daily returns of XAU, Nifty, INR, BTC",
+    height=600,
+    autosize=True)
+
+    fig_correl.write_html(main_ticker+"_"+"Correlation_Heatmaps.html", auto_open=True)
 
     df_correlation_progress['Year'] = lst_year
     df_correlation_progress['R2_Nifty'] = lst_r2_nifty
