@@ -234,18 +234,24 @@ def calculate_r2_for_all(filtered_arr_split_df,main_ticker):
     lst_r2_btc = []
     lst_r2_xau = []
     lst_year = []
+
+    for df in filtered_arr_split_df:
+        year = df['Date_Val'].iloc[0].year
+        print("Dataframe shape for year ", year, ":", df.shape)
+        lst_year.append(year)
+
     fig_correl = make_subplots(
-    rows=2, cols=3,
-    subplot_titles=("XAU Correlation", "XAG Correlation"),
-    horizontal_spacing=0.15)
+    rows=2, 
+    cols=3,
+    subplot_titles=tuple(lst_year),
+    horizontal_spacing=0.15
+    )
+
     row_counter = 1
     col_counter = 1
 
     for df in filtered_arr_split_df:
-        col_counter+=1
-        if(col_counter >= 3):
-            col_counter = 1
-            row_counter += 1
+        
         df_correl = df[['Log_Ret_Close', 'Log_Ret_Close_Nifty', 'Log_Ret_Close_INR', 'Log_Ret_Close_BTC', 'Log_Ret_Close_XAU']].corr().round(4)
         r2_nifty = calculate_r2(df, 'Log_Ret_Close', 'Log_Ret_Close_Nifty')
         lst_r2_nifty.append(r2_nifty)
@@ -255,22 +261,24 @@ def calculate_r2_for_all(filtered_arr_split_df,main_ticker):
         lst_r2_btc.append(r2_btc)
         r2_xau = calculate_r2(df, 'Log_Ret_Close', 'Log_Ret_Close_XAU')
         lst_r2_xau.append(r2_xau)
-        year = df['Date_Val'].iloc[0].year
-        print("Dataframe shape for year ", year, ":", df.shape)
         fig_correl.add_trace(
             go.Heatmap(
                 z=df_correl.values,
                 x=df_correl.columns,
                 y=df_correl.index,
-                colorscale='Viridis',
-                colorbar=dict(title="Correlation", x=0.46),
-                zmin=-1, zmax=1,
+                colorscale='rdylgn',
+                showscale=False,
+                zmin=-1, 
+                zmax=1,
                 text=df_correl.values,
                 texttemplate="%{text:.2f}"
             ),
-            row=1, col=1
+            row=row_counter, col=col_counter
         )
-        lst_year.append(year)
+        col_counter+=1
+        if(col_counter > 3):
+            col_counter = 1
+            row_counter += 1
     
     fig_correl.update_layout(
     title="Correlation Heatmaps for daily returns of XAU, Nifty, INR, BTC",
