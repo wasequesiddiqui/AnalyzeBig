@@ -329,6 +329,54 @@ def calculate_r2_for_all(filtered_arr_split_df,main_ticker):
 
     return df_correlation_progress
 
+def max_min_band(df):
+    """
+    Calculate the maximum and minimum price bands for the DataFrame.
+    """
+    df = df.sort_index(ascending=True)
+    df['Max_Price'] = df[['Close', 'High', 'Low', 'Open']].max(axis=1)
+    df['Min_Price'] = df[['Close', 'High', 'Low', 'Open']].min(axis=1)
+    df['Max_Price'] = df['Max_Price'].astype(float)
+    df['Min_Price'] = df['Min_Price'].astype(float)
+    df['Max_Price'] = df['Max_Price'].round(4)
+    df['Min_Price'] = df['Min_Price'].round(4)
+    df['Max_Min_Band'] = df['Max_Price'] - df['Min_Price']
+    df['Max_Min_Band'] = df['Max_Min_Band'].astype(float)
+    df['Max_Min_Band'] = df['Max_Min_Band'].round(4)
+
+    df['Max_Price_Rolling_Vol'] = df['Max_Price'].rolling(window=23).std() * (252 ** 0.5)
+    df['Max_Price_Rolling_Vol'] = df['Max_Price_Rolling_Vol'].round(6)
+    df['Max_Price_Rolling_Vol'] = df['Max_Price_Rolling_Vol'].astype(float)
+
+    df['Min_Price_Rolling_Vol'] = df['Min_Price'].rolling(window=23).std() * (252 ** 0.5)
+    df['Min_Price_Rolling_Vol'] = df['Min_Price_Rolling_Vol'].round(6)
+    df['Min_Price_Rolling_Vol'] = df['Min_Price_Rolling_Vol'].astype(float)
+
+    # Filter df for dates after the first 252 days (i.e., keep rows starting from index 252)
+    df_after_252 = df.iloc[252:]
+    
+    fig = go.Figure()
+
+    fig.add_trace(go.Scatter(
+        x=df_after_252.index,
+        y=df_after_252['Max_Price_Rolling_Vol'],
+        mode='lines',
+        name='Max Price Rolling Volatility'
+    ))
+    fig.add_trace(go.Scatter(
+        x=df_after_252.index,
+        y=df_after_252['Min_Price_Rolling_Vol'],
+        mode='lines',
+        name='Min Price Rolling Volatility'
+    ))
+    fig.update_layout(
+        title='252-Day Rolling Volatility: Max vs Min Price',
+        xaxis_title='Date',
+        yaxis_title='Annualized Volatility'
+    )
+    fig.write_html("Max_Min_Price_Rolling_Vol.html", auto_open=True)
+    return
+
 def analyse(main_ticker):
     str_start_date,str_end_date = get_dates()
     str_start_date = get_date_string(str_start_date)
@@ -498,6 +546,8 @@ def analyse(main_ticker):
     df_correlation_progress = calculate_r2_for_all(filtered_arr_split_df,main_ticker)
     print("R^2 Values for Nifty, INR, BTC, XAU:")
     print(df_correlation_progress)
+
+    max_min_band(df_XAU)
 
     return df_XAU
 
