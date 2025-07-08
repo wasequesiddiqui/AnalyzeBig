@@ -351,10 +351,21 @@ def max_min_band(df):
     df['Min_Price_Rolling_Vol'] = df['Min_Price'].rolling(window=23).std() * (252 ** 0.5)
     df['Min_Price_Rolling_Vol'] = df['Min_Price_Rolling_Vol'].round(6)
     df['Min_Price_Rolling_Vol'] = df['Min_Price_Rolling_Vol'].astype(float)
+    
+    max_value = df['Max_Price'].max()
+    df['Delta_from_Max'] = df['Max_Price'] - max_value
+    df['Delta_from_Max'] = df['Delta_from_Max'].astype(float)
+    df['Delta_from_Max'] = df['Delta_from_Max'].round(4)
+
+    min_value = df['Min_Price'].min()
+    df['Delta_from_Min'] = df['Min_Price'] - min_value
+    df['Delta_from_Min'] = df['Delta_from_Min'].astype(float)
+    df['Delta_from_Min'] = df['Delta_from_Min'].round(4)
 
     # Filter df for dates after the first 252 days (i.e., keep rows starting from index 252)
     df_after_252 = df.iloc[252:]
-    
+    df_last_90 = df.tail(90)
+
     fig = go.Figure()
 
     fig.add_trace(go.Scatter(
@@ -375,6 +386,27 @@ def max_min_band(df):
         yaxis_title='Annualized Volatility'
     )
     fig.write_html("Max_Min_Price_Rolling_Vol.html", auto_open=True)
+
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(  
+        x=df_last_90.index,
+        y=df_last_90['Delta_from_Max'],
+        mode='lines',
+        name='Delta from Max Price'
+    ))
+    fig.add_trace(go.Scatter(
+        x=df_last_90.index,
+        y=df_last_90['Delta_from_Min'],
+        mode='lines',
+        name='Delta from Min Price'
+    ))
+    fig.update_layout(
+        title='Last 90 Days: Delta from Max and Min Price',
+        xaxis_title='Date',
+        yaxis_title='Price Delta'
+    )
+    fig.write_html("Max_Min_Price_Delta.html", auto_open=True)
+
     return
 
 def analyse(main_ticker):
