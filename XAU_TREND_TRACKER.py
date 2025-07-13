@@ -329,7 +329,7 @@ def calculate_r2_for_all(filtered_arr_split_df,main_ticker):
 
     return df_correlation_progress
 
-def max_min_band(df):
+def max_min_band(df,ticker):
     """
     Calculate the maximum and minimum price bands for the DataFrame.
     """
@@ -353,11 +353,13 @@ def max_min_band(df):
     df['Min_Price_Rolling_Vol'] = df['Min_Price_Rolling_Vol'].astype(float)
     
     max_value = df['Max_Price'].max()
+    print("Max Price Value:", max_value)
     df['Delta_from_Max'] = df['Max_Price'] - max_value
     df['Delta_from_Max'] = df['Delta_from_Max'].astype(float)
     df['Delta_from_Max'] = df['Delta_from_Max'].round(4)
 
     min_value = df['Min_Price'].min()
+    print("Min Price Value:", min_value)
     df['Delta_from_Min'] = df['Min_Price'] - min_value
     df['Delta_from_Min'] = df['Delta_from_Min'].astype(float)
     df['Delta_from_Min'] = df['Delta_from_Min'].round(4)
@@ -365,6 +367,9 @@ def max_min_band(df):
     # Filter df for dates after the first 252 days (i.e., keep rows starting from index 252)
     df_after_252 = df.iloc[252:]
     df_last_90 = df.tail(90)
+
+    print("Latest 90 days : ")
+    print(df_last_90.tail(5))
 
     fig = go.Figure()
 
@@ -385,28 +390,123 @@ def max_min_band(df):
         xaxis_title='Date',
         yaxis_title='Annualized Volatility'
     )
-    fig.write_html("Max_Min_Price_Rolling_Vol.html", auto_open=True)
+    fig.write_html("Max_Min_Price_Rolling_Vol_"+ ticker + ".html", auto_open=True)
 
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(  
+    fig2 = go.Figure()
+    fig2.add_trace(go.Scatter(  
         x=df_last_90.index,
         y=df_last_90['Delta_from_Max'],
         mode='lines',
         name='Delta from Max Price'
     ))
-    fig.add_trace(go.Scatter(
+    fig2.add_trace(go.Scatter(
         x=df_last_90.index,
         y=df_last_90['Delta_from_Min'],
         mode='lines',
         name='Delta from Min Price'
     ))
-    fig.update_layout(
+    fig2.update_layout(
         title='Last 90 Days: Delta from Max and Min Price',
         xaxis_title='Date',
         yaxis_title='Price Delta'
     )
-    fig.write_html("Max_Min_Price_Delta.html", auto_open=True)
+    fig2.write_html("Max_Min_Price_Delta_" + ticker + ".html", auto_open=True)
 
+    return
+
+def plot_positive_negative_streak(df, title):
+    """
+    Plot the positive and negative streaks in the DataFrame.
+    """
+    df = df.sort_index(ascending=True)
+    positive = df['Log_Ret_Close'] >= 0
+    negative = df['Log_Ret_Close'] < 0
+    df['Positive_Streak'] = positive.groupby((~positive).cumsum()).cumcount()
+    df['Positive_Streak'] = df['Positive_Streak'] * positive  # Set to 0 where not positive
+    df['Negative_Streak'] = negative.groupby((~negative).cumsum()).cumcount()
+    df['Negative_Streak'] = df['Negative_Streak'] * negative  # Set to 0 where not negative
+    df_latest_45 = df.tail(45)
+    
+    fig = go.Figure()
+    fig.add_trace(go.Bar(
+        x=df_latest_45.index,
+        y=df_latest_45['Positive_Streak'],
+        name='Positive Streak',
+        marker_color='green'
+    ))
+    fig.add_trace(go.Bar(
+        x=df_latest_45.index,
+        y=df_latest_45['Negative_Streak'],
+        name='Negative Streak',
+        marker_color='red'
+    ))
+    fig.update_layout(
+        title=title,
+        xaxis_title='Date',
+        yaxis_title='Streak Length'
+    )
+    fig.write_html(title.replace(" ", "_") + ".html", auto_open=True)
+
+    return df
+
+def probability_of_streak_reset_after_value(df, streak_col):
+    """
+    Calculate the probability that the streak resets to zero after each unique streak value.
+    Prints the probability for each streak value.
+    """
+    streaks = df[streak_col].values
+    unique_streaks = sorted(set(streaks) - {0})  # Exclude 0
+    df_prob_marker = pd.DataFrame(columns=['Streak', 'Probability'])
+    df_prob_marker['Streak'] = list(unique_streaks)
+    df_prob_marker['Probability'] = 0.0
+    lst_prob=[]
+    for val in unique_streaks:
+        idx = np.where(streaks[:-1] == val)[0]
+        resets = (streaks[idx + 1] == 0).sum()
+        total = len(idx)
+        prob = resets / total if total > 0 else 0
+        lst_prob.append(prob)
+        df_prob_marker.loc[df_prob_marker['Streak'] == val, 'Probability'] = prob
+        print(f"Streak {val}: {resets} resets out of {total} occurrences, probability = {prob:.2%}")
+    df_prob_marker['Probability'] = df_prob_marker['Probability'].astype(float)
+    df_prob_marker['Probability'] = df_prob_marker['Probability'].round(4)
+    df = pd.merge(df, df_prob_marker, left_on=streak_col, right_on='Streak', how='left')
+    df.rename(columns={'Probability': 'Reset_Probability_'+streak_col}, inplace=True)
+    df['Reset_Probability_'+streak_col].fillna(0, inplace=True)
+    return df
+
+def plot_probability_of_streak_reset(df,title):
+    """
+    Plot the probability of streak reset for each unique streak value.
+    """
+    df_latest = df.tail(45)
+    fig = go.Figure()
+
+    # Plot Positive Streak Reset Probability
+    fig.add_trace(go.Scatter(
+        x=df_latest['Date_Val'],
+        y=df_latest['Reset_Probability_Positive_Streak'],
+        mode='lines+markers',
+        name='Positive Streak Reset Probability',
+        marker_color='#808000'  # Olive green
+    ))
+
+    # Plot Negative Streak Reset Probability
+    fig.add_trace(go.Scatter(
+        x=df_latest['Date_Val'],
+        y=df_latest['Reset_Probability_Negative_Streak'],
+        mode='lines+markers',
+        name='Negative Streak Reset Probability',
+        marker_color='#FF9933'  # Sunset saffron
+    ))
+
+    fig.update_layout(
+        title='Reset Probability for Positive and Negative Streaks',
+        xaxis_title='Streak Value',
+        yaxis_title='Reset Probability',
+        yaxis=dict(tickformat=".00%")
+    )
+    fig.write_html(title.replace(" ", "_") + ".html", auto_open=True)
     return
 
 def analyse(main_ticker):
@@ -579,23 +679,28 @@ def analyse(main_ticker):
     print("R^2 Values for Nifty, INR, BTC, XAU:")
     print(df_correlation_progress)
 
-    max_min_band(df_XAU)
-
+    max_min_band(df_XAU, main_ticker.replace(".NS", ""))
+    df_XAU = plot_positive_negative_streak(df_XAU, "Positive and Negative Streaks for " + main_ticker.replace(".NS", ""))
+    # Example usage after your plot_positive_negative_streak:
+    probability_of_streak_reset_after_value(df_XAU, 'Positive_Streak')
+    df_XAU = probability_of_streak_reset_after_value(df_XAU, 'Positive_Streak')
+    df_XAU = probability_of_streak_reset_after_value(df_XAU, 'Negative_Streak')
+    plot_probability_of_streak_reset(df_XAU, "Probability of Streak Reset for " + main_ticker.replace(".NS", ""))
     return df_XAU
 
 df_XAU = analyse("GOLDBEES.NS")[['Date_Val','Close']]
-df_XAG = analyse("SILVERBEES.NS")[['Date_Val','Close']]
+# df_XAG = analyse("SILVERBEES.NS")[['Date_Val','Close']]
 
 print(df_XAU.head(5))
-print(df_XAG.head(5))
+# print(df_XAG.head(5))
 
-df_ratio = df_XAU.merge(df_XAG, on='Date_Val', how='inner', suffixes=('_XAU', '_XAG'))
-df_ratio['XAU_XAG_Ratio'] = df_ratio['Close_XAU'] / df_ratio['Close_XAG']
-df_ratio['XAU_XAG_Ratio'] = df_ratio['XAU_XAG_Ratio'].round(4)
-print("XAU to XAG Ratio Data:")
-print("head data")
-print(df_ratio.head(5))
-print("tail data")
-print(df_ratio.tail(5))
+# df_ratio = df_XAU.merge(df_XAG, on='Date_Val', how='inner', suffixes=('_XAU', '_XAG'))
+# df_ratio['XAU_XAG_Ratio'] = df_ratio['Close_XAU'] / df_ratio['Close_XAG']
+# df_ratio['XAU_XAG_Ratio'] = df_ratio['XAU_XAG_Ratio'].round(4)
+# print("XAU to XAG Ratio Data:")
+# print("head data")
+# print(df_ratio.head(5))
+# print("tail data")
+# print(df_ratio.tail(5))
 
-plot_bar_graph(df_ratio, "Date_Val", "XAU_XAG_Ratio", "XAU to XAG Ratio")
+# plot_bar_graph(df_ratio, "Date_Val", "XAU_XAG_Ratio", "XAU to XAG Ratio")
