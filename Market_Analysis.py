@@ -183,14 +183,31 @@ else:
     </div>
     """,
     unsafe_allow_html=True)
-    fig = correlation_heatmap(final_daily_ret_df)
+    fig = correlation_heatmap(final_daily_ret_df, title="Correlation Heatmap of Nifty 50 and Gold (XAU) Daily Returns")
     st.plotly_chart(fig, use_container_width=True)
 
     final_daily_ret_df['Date'] = final_daily_ret_df.index
+    st.markdown(
+    """
+    <div style="font-family: 'Segoe UI', Arial, sans-serif; font-size: 1.12rem; color: #222831; background-color: #f5f6fa; padding: 16px 22px; border-radius: 10px; margin-bottom: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
+        <b style="font-size:1.18rem; color:#0074D9;">Nifty 50 & Gold Log Returns Line Chart: Use Case</b><br><br>
+        This interactive line chart visualizes the <b>logarithmic daily returns</b> of the <span style="color:#0074D9;"><b>Nifty 50</b></span> index and <span style="color:#FF851B;"><b>Gold (XAU)</b></span> over your selected date range.<br><br>
+        <span style="color:#393e46;">Use this chart to:</span>
+        <ul style="margin-top: 0.5em; margin-bottom: 0.5em;">
+            <li>Compare the performance and volatility of Indian equities (Nifty 50) and global gold prices (XAU) side by side.</li>
+            <li>Identify periods of high or low correlation, divergence, or co-movement between the two assets.</li>
+            <li>Spot trends, sudden spikes, or drops in returns that may signal important market events or shifts in investor sentiment.</li>
+            <li>Support investment analysis, risk management, and portfolio diversification decisions by understanding how these assets behave over time.</li>
+        </ul>
+        <span style="color:#393e46;">This visualization is a powerful tool for analysts and investors seeking to understand the dynamic relationship between stock market returns and gold as a safe-haven asset.</span>
+    </div>
+    """,
+    unsafe_allow_html=True)
+    
     fig = plotly_line_graph(final_daily_ret_df,
                             x_col='Date',
                             y_cols=[['Log_Ret_Price_Nifty','Nifty'], ['Log_Ret_Price_XAU','XAU']],
-                            title="Nifty 50 & Gold Price",
+                            title="Nifty 50 & Gold Return (Logarithmic Daily Returns)",
                             x_title="Date",
                             y_title="Log Daily Returns")
     st.plotly_chart(fig, use_container_width=True)
@@ -210,13 +227,29 @@ else:
     fig.update_layout(
         title=f"Nifty 50 vs Gold Price (R² = {r_squared:.4f})"
     )
+    st.markdown(
+    """
+    <div style="font-family: 'Segoe UI', Arial, sans-serif; font-size: 1.12rem; color: #222831; background-color: #f5f6fa; padding: 16px 22px; border-radius: 10px; margin-bottom: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
+        <b style="font-size:1.18rem; color:#e83e8c;">Nifty 50 vs Gold Regression Scatter Plot: Use Case</b><br><br>
+        This interactive scatter plot visualizes the relationship between the <b>logarithmic daily returns</b> of the <span style="color:#0074D9;"><b>Nifty 50</b></span> index and <span style="color:#FF851B;"><b>Gold (XAU)</b></span>.<br><br>
+        <span style="color:#393e46;">Use this chart to:</span>
+        <ul style="margin-top: 0.5em; margin-bottom: 0.5em;">
+            <li>Assess the linear relationship between Nifty 50 and Gold returns using the regression trendline.</li>
+            <li>Interpret the <b>R² value</b> in the chart title to understand how much of the variation in Gold returns can be explained by Nifty 50 returns.</li>
+            <li>Identify periods of strong or weak correlation, and spot outliers or unusual co-movements.</li>
+            <li>Support portfolio diversification and risk management by analyzing the dependency between these two assets.</li>
+        </ul>
+        <span style="color:#393e46;">This visualization is valuable for analysts and investors seeking to quantify and visualize the statistical relationship between Indian equities and gold as a global asset.</span>
+    </div>
+    """,
+    unsafe_allow_html=True)
     st.plotly_chart(fig, use_container_width=True)
     # Calculate rolling volatility (standard deviation) over a 5-day window
-    final_daily_ret_df = final_daily_ret_df.sort_index(ascending=True)
-    final_daily_ret_df["Volatility_Nifty"] = final_daily_ret_df["Log_Ret_Price_Nifty"].rolling(window=14).std()
-    final_daily_ret_df["Volatility_XAU"] = final_daily_ret_df["Log_Ret_Price_XAU"].rolling(window=14).std()
-    final_daily_ret_df = final_daily_ret_df.sort_index(ascending=False)
-    st.dataframe(final_daily_ret_df)
+    # final_daily_ret_df = final_daily_ret_df.sort_index(ascending=True)
+    # final_daily_ret_df["Volatility_Nifty"] = final_daily_ret_df["Log_Ret_Price_Nifty"].rolling(window=14).std()
+    # final_daily_ret_df["Volatility_XAU"] = final_daily_ret_df["Log_Ret_Price_XAU"].rolling(window=14).std()
+    # final_daily_ret_df = final_daily_ret_df.sort_index(ascending=False)
+    # st.dataframe(final_daily_ret_df)
 st.divider()
 
 
