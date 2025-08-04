@@ -1,6 +1,6 @@
 #%%
 
-import yfinance as yf
+import yfinance as yf                              
 import random
 import numpy as np
 import pandas as pd
@@ -52,6 +52,15 @@ def add_median_line(fig,df,col_name,annotation_text_val="Median ",line_color_val
     )
     return fig
 
+def get_log_returns(df, col_name):
+    """
+    Calculate log returns for a given column in the DataFrame.
+    """
+    df[f"Log_Ret_{col_name}"] = np.log(df[col_name] / df[col_name].shift(1))
+    df[f"Log_Ret_{col_name}"] = df[f"Log_Ret_{col_name}"].fillna(0)
+    df[f"Log_Ret_{col_name}"] = df[f"Log_Ret_{col_name}"].round(4)
+    return df
+
 def set_seed(seed_value):
     """
     Set seed for reproducibility across NumPy, TensorFlow, and Python's random module.
@@ -61,40 +70,39 @@ def set_seed(seed_value):
     random.seed(seed_value)
 
 def get_ts_prediction(ticker):
-    # set_seed(seed_value=13)
+    #set_seed(seed_value=23)
 
     # Get today's date
     today = datetime.today()
-
-    # Calculate a start date (e.g., 30 days ago)
     start_date = today - timedelta(days=1826)  # 5 years ago
-    str_end_date =today.strftime('%Y-%m-%d')
+    str_end_date = today.strftime('%Y-%m-%d')
     str_start_date = start_date.strftime('%Y-%m-%d')
 
-    # print date
     print(f"Today: {str_end_date}")
     print(f"Start Date (5 Years ago): {str_start_date}")
     data = yf.download(ticker, start=str_start_date, end=str_end_date)
+    data.columns = data.columns.get_level_values(0)
     data.reset_index(inplace=True)
 
-    # data.columns = data.columns.str.replace("^NSEI", "", regex=False)
-    # Step 2: Calculate 52-day moving average
+    # Calculate log returns for Close
+    data = get_log_returns(data, 'Close')
     data['52_MA'] = data['Close'].rolling(window=52).mean()
 
-    # Extract 'Close' prices and split into training/testing sets
-    dataset = data[['Close']].values
-    training_data_len = int(len(dataset) * 0.8)  # 80% for training
+    # Use Log_Ret_Close for prediction instead of Close
+    dataset = data[['Log_Ret_Close']].values
+    training_data_len = int(len(dataset) * 0.95)
 
-    # Split into train and test data
     train_data = dataset[0:training_data_len]
+    last_train_index = training_data_len - 1
+    last_close_price = data.loc[last_train_index, 'Close']
+    print("Close price in train_data last row:", last_close_price)
     test_data = dataset[training_data_len:]
 
-    # Scale data using MinMaxScaler (fit only on training data)
     scaler = MinMaxScaler()
     scaled_train = scaler.fit_transform(train_data)
-    scaled_test = scaler.transform(test_data)  # Use the same scaler
+    scaled_test = scaler.transform(test_data)
 
-    # Prepare training data (past 60 days to predict next day)
+    # Prepare training data (past 60 days to predict next day log return)
     X_train, y_train = [], []
     for i in range(60, len(scaled_train)):
         X_train.append(scaled_train[i-60:i, 0])
@@ -102,16 +110,13 @@ def get_ts_prediction(ticker):
     X_train, y_train = np.array(X_train), np.array(y_train)
     X_train = np.reshape(X_train, (X_train.shape[0], X_train.shape[1], 1))
 
-    # Combine last 60 days of training data with test data
     combined_test_data = np.concatenate((scaled_train[-60:], scaled_test), axis=0)
-
-    # Prepare test inputs
     X_test = []
     for i in range(60, len(combined_test_data)):
         X_test.append(combined_test_data[i-60:i, 0])
-
     X_test = np.array(X_test)
     X_test = np.reshape(X_test, (X_test.shape[0], X_test.shape[1], 1))
+
     model = Sequential()
     model.add(LSTM(50, return_sequences=True, input_shape=(X_train.shape[1], 1)))
     model.add(Dropout(0.2))
@@ -126,7 +131,7 @@ def get_ts_prediction(ticker):
     train_predict = model.predict(X_train)
     test_predict = model.predict(X_test)
 
-    # Inverse scaling to get actual prices
+    # Inverse scaling to get actual log returns
     train_predict = scaler.inverse_transform(train_predict)
     test_predict = scaler.inverse_transform(test_predict)
 
@@ -139,51 +144,46 @@ def get_ts_prediction(ticker):
     valid = data[training_data_len:].copy()
     valid['Predictions'] = test_predict
 
-    # Create the figure
-    valid.columns = valid.columns.get_level_values(0)
-    valid["Log_Return_Actual"] = np.log(valid["Close"] / valid["Close"].shift(1))
-    valid["Log_Return_Predicted"] = np.log(valid["Predictions"] / valid["Predictions"].shift(1))
+    # Use last_close_price and sequentially multiply and add predicted daily returns to generate predicted closing value
+    predicted_close = []
+    for ret in test_predict.flatten():
+        last_close_price = round(last_close_price * (1+ ret), 2)
+        predicted_close.append(last_close_price)
 
-    valid["Log_Return_Actual"] = valid["Log_Return_Actual"].fillna(0)
-    valid["Log_Return_Predicted"] = valid["Log_Return_Predicted"].fillna(0)
-    
-    valid["Log_Return_Actual"] = valid["Log_Return_Actual"].round(4)
-    valid["Log_Return_Predicted"] = valid["Log_Return_Predicted"].round(4)
+    valid['Predicted_Close'] = predicted_close
 
-    valid['Delta'] = valid['Close'] - valid['Predictions']
-    valid['Delta_Ret'] = valid['Log_Return_Actual'] - valid['Log_Return_Predicted']
-    valid['Delta_Ret'] = valid['Delta_Ret'].round(6)
+    print(valid.head())
+    print(valid.tail())
+    # Plot actual vs predicted log returns
+    # fig = go.Figure()
+    # fig.add_scatter(x=valid['Date'], y=valid['Log_Ret_Close'], name='Actual Log Returns', mode='lines')
+    # fig.add_scatter(x=valid['Date'], y=valid['Predictions'], name='Predicted Log Returns', mode='lines')
+    # fig.update_layout(title="Actual vs Predicted Log Returns", xaxis_title="Date", yaxis_title="Log Return")
+    # fig.write_html(ticker.replace(".","_").replace("^","_")+'_Log_Return_Prediction.html', auto_open=True)
 
-    fig = go.Figure()
-    fig.add_scatter(x=valid['Date'], y=valid['Close'], name='Close', mode='lines')
-    fig.add_scatter(x=valid['Date'], y=valid['52_MA'], name='52 Day SMA', mode='lines')
-    fig.add_scatter(x=valid['Date'], y=valid['Predictions'], name='Predictions', mode='lines')
-    fig.write_html(ticker.replace(".","_").replace("^","_")+'.html', auto_open=True)
+    # # Optionally, plot deviation
+    # valid['Delta_Log_Ret'] = valid['Log_Ret_Close'] - valid['Predictions']
+    # fig = go.Figure(data=[go.Bar(x=valid['Date'], y=valid['Delta_Log_Ret'], name="Deviation from Prediction", marker_color=valid['Delta_Log_Ret'].apply(lambda x: 'green' if x > 0 else 'red'))])
+    # fig.update_layout(title="Deviation from Log Return Prediction", xaxis_title="Date", yaxis_title="Deviation")
+    # fig.write_html(ticker.replace(".","_").replace("^","_")+'_Log_Return_Deviation.html', auto_open=True)
 
-    fig = go.Figure(data=[go.Bar(x=valid['Date'], y=valid['Delta'], name="Deviation from Prediction", marker_color=valid['Delta'].apply(lambda x: 'green' if x > 0 else 'red'))])
-    fig = add_median_line(fig,valid,'Delta',annotation_text_val="Median Negative Deviation",line_color_val="blue",type=1)
-    fig.update_layout(title="Deviation from Prediction", xaxis_title="Date", yaxis_title="Deviation")
-    fig.update_traces(marker=dict(line=dict(width=0.5, color='black')))
-    fig.write_html(ticker.replace(".","_").replace("^","_")+'_Deviation.html', auto_open=True)
+    # # # Plot actual vs predicted closing prices
+    # fig = go.Figure()
+    # fig.add_scatter(x=valid['Date'], y=valid['Close'], name='Actual Close', mode='lines')
+    # fig.add_scatter(x=valid['Date'], y=valid['Predicted_Close'], name='Predicted Close', mode='lines')
+    # fig.update_layout(title="Actual vs Predicted Close Price (from Log Returns)", xaxis_title="Date", yaxis_title="Close Price")
+    # fig.write_html(ticker.replace(".","_").replace("^","_")+'_Close_Price_Prediction.html', auto_open=True)
 
-    fig = go.Figure(data=[go.Bar(x=valid['Date'], y=valid['Delta_Ret'], name="Return Deviation from Prediction", marker_color=valid['Delta_Ret'].apply(lambda x: 'green' if x > 0 else 'red'))])
-    fig = add_median_line(fig,valid,'Delta_Ret',annotation_text_val="Median Negative Deviation",line_color_val="blue",type=1)
-    fig.update_layout(title="Return Deviation from Prediction", xaxis_title="Date", yaxis_title="Return Deviation")
-    fig.update_traces(marker=dict(line=dict(width=0.5, color='blue')))
-    fig.write_html(ticker.replace(".","_").replace("^","_")+'_Deviation_Ret.html', auto_open=True)
-    
-    valid['Is_Negative'] = valid['Delta'] < 0
-    valid['Negative_Streak'] = valid['Is_Negative'].astype(int).groupby((~valid['Is_Negative']).cumsum()).cumsum()
-    fig = go.Figure(data=[go.Bar(x=valid['Date'], y=valid['Negative_Streak'], name="Negative Streak", marker_color='red')])
-    fig = add_median_line(fig,valid,'Negative_Streak',annotation_text_val="Average Negative Streak",line_color_val="blue")
-    fig.write_html(ticker.replace(".","_").replace("^","_")+'_Negative_Streak.html', auto_open=True)
+    return valid
 
-    return
 
 #%%
+list_predicted_df = []
 lst_tickers = ['GOLDBEES.NS']
 for ticker in lst_tickers:
-    get_ts_prediction(ticker)
+    for i in range(10):
+        print(f"Processing {ticker} - Iteration {i+1}")
+        list_predicted_df.append(get_ts_prediction(ticker))
 
 #%%
 # get_ts_prediction('^INDIAVIX')
