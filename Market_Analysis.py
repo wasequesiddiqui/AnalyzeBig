@@ -751,13 +751,18 @@ if btn_refresh:
     st.write("Start Date: ", str_start_date)
     st.write("End Date: ", str_end_date)
 df_nifty50 = get_ticker_data("^NSEI", str_start_date, str_end_date)
+df_nifty50 = get_log_returns(df_nifty50, "Close")
+df_nifty50 = get_log_returns(df_nifty50, "Volume")
+
 if end_date < start_date:
     st.error("End date must be after start date.")
     st.stop()
 else:
     df_xau = get_ticker_data("GC=F", str_start_date, str_end_date)
-    styled_df_nifty = df_nifty50.style.applymap(color_returns, subset=['Log_Ret_Price','Log_Ret_Volume'])
-    styled_df_xau = df_xau.style.applymap(color_returns, subset=['Log_Ret_Price','Log_Ret_Volume'])
+    df_xau = get_log_returns(df_xau, "Close")
+    df_xau = get_log_returns(df_xau, "Volume")
+    styled_df_nifty = df_nifty50.style.applymap(color_returns, subset=['Log_Ret_Close','Log_Ret_Volume'])
+    styled_df_xau = df_xau.style.applymap(color_returns, subset=['Log_Ret_Close','Log_Ret_Volume'])
     st.subheader("Nifty 50 DataFrame")
     st.markdown(
     """
@@ -804,8 +809,8 @@ else:
                                 right_index=True, 
                                 how='inner', 
                                 suffixes=('_Nifty', '_XAU'))
-    final_daily_ret_df = final_daily_ret_df[['Log_Ret_Price_Nifty','Log_Ret_Volume_Nifty','Log_Ret_Price_XAU','Log_Ret_Volume_XAU']]
-    final_daily_ret_df_styled = final_daily_ret_df.style.applymap(color_returns, subset=['Log_Ret_Price_Nifty','Log_Ret_Volume_Nifty','Log_Ret_Price_XAU','Log_Ret_Volume_XAU'])
+    final_daily_ret_df = final_daily_ret_df[['Log_Ret_Close_Nifty','Log_Ret_Volume_Nifty','Log_Ret_Close_XAU','Log_Ret_Volume_XAU']]
+    final_daily_ret_df_styled = final_daily_ret_df.style.applymap(color_returns, subset=['Log_Ret_Close_Nifty','Log_Ret_Volume_Nifty','Log_Ret_Close_XAU','Log_Ret_Volume_XAU'])
     st.subheader("Final Merged DataFrame")
     st.markdown(
     """
@@ -817,7 +822,7 @@ else:
         <ul style="margin-top: 0.5em; margin-bottom: 0.5em;">
             <li><b>Log_Ret_Price_Nifty</b>: Logarithmic daily returns of the Nifty 50 closing price</li>
             <li><b>Log_Ret_Volume_Nifty</b>: Logarithmic daily returns of the Nifty 50 trading volume</li>
-            <li><b>Log_Ret_Price_XAU</b>: Logarithmic daily returns of the Gold (XAU) closing price</li>
+            <li><b>Log_Ret_Close_XAU</b>: Logarithmic daily returns of the Gold (XAU) closing price</li>
             <li><b>Log_Ret_Volume_XAU</b>: Logarithmic daily returns of the Gold (XAU) trading volume</li>
         </ul>
         <span style="color:#393e46;">This merged dataset enables you to analyze correlations, co-movements, and volatility between the Indian equity market and global gold prices, supporting deeper financial insights and strategy development.</span>
@@ -867,17 +872,17 @@ else:
     
     fig = plotly_line_graph(final_daily_ret_df,
                             x_col='Date',
-                            y_cols=[['Log_Ret_Price_Nifty','Nifty'], ['Log_Ret_Price_XAU','XAU']],
+                            y_cols=[['Log_Ret_Close_Nifty','Nifty'], ['Log_Ret_Close_XAU','XAU']],
                             title="Nifty 50 & Gold Return (Logarithmic Daily Returns)",
                             x_title="Date",
                             y_title="Log Daily Returns")
     st.plotly_chart(fig, use_container_width=True)
     fig = px.scatter(
         final_daily_ret_df
-        , x="Log_Ret_Price_Nifty"
-        , y="Log_Ret_Price_XAU"
+        , x="Log_Ret_Close_Nifty"
+        , y="Log_Ret_Close_XAU"
         , title="Nifty 50 vs Gold Price"
-        , labels={"Log_Ret_Price_Nifty": "Nifty 50 Log Daily Returns", "Log_Ret_Price_XAU": "XAU Log Daily Returns"}
+        , labels={"Log_Ret_Close_Nifty": "Nifty 50 Log Daily Returns", "Log_Ret_Close_XAU": "XAU Log Daily Returns"}
         , trendline="ols")
     # Extract regression results
     results = px.get_trendline_results(fig)
@@ -908,7 +913,7 @@ else:
     # Calculate rolling volatility (standard deviation) over a 5-day window
     # final_daily_ret_df = final_daily_ret_df.sort_index(ascending=True)
     # final_daily_ret_df["Volatility_Nifty"] = final_daily_ret_df["Log_Ret_Price_Nifty"].rolling(window=14).std()
-    # final_daily_ret_df["Volatility_XAU"] = final_daily_ret_df["Log_Ret_Price_XAU"].rolling(window=14).std()
+    # final_daily_ret_df["Volatility_XAU"] = final_daily_ret_df["Log_Ret_Close_XAU"].rolling(window=14).std()
     # final_daily_ret_df = final_daily_ret_df.sort_index(ascending=False)
     # st.dataframe(final_daily_ret_df)
 st.divider()
