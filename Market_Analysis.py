@@ -176,6 +176,22 @@ def plot_actual_vs_predicted(df, actual_col, predicted_col,title_txt=""):
     fig.add_trace(go.Scatter(x=df['ds'], y=df[actual_col], mode='lines', name='Actual'))
     fig.add_trace(go.Scatter(x=df['ds'], y=df[predicted_col], mode='lines', name='Predicted'))
     fig.update_layout(title=title_txt, xaxis_title='Date', yaxis_title='Close Price')
+    st.markdown(
+    """
+    <div style="font-family: 'Segoe UI', Arial, sans-serif; font-size: 1.13rem; color: #222831; background-color: #f5f6fa; padding: 16px 22px; border-radius: 10px; margin-bottom: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
+        <b style="font-size:1.18rem; color:#0074D9;">Actual vs Predicted Chart: Explanation</b><br><br>
+        This chart compares <span style="background-color:#e3f6fd; color:#0074D9; font-weight:bold;">actual values</span> with <span style="background-color:#ffe0e0; color:#db3c02; font-weight:bold;">predicted values</span> over time.<br><br>
+        <span style="color:#393e46;">Key highlights:</span>
+        <ul style="margin-top: 0.5em; margin-bottom: 0.5em;">
+            <li>Visualizes how closely the <span style="background-color:#e3f6fd; color:#0074D9; font-weight:bold;">model predictions</span> track the <span style="background-color:#e3f6fd; color:#0074D9; font-weight:bold;">actual observed data</span> for each date.</li>
+            <li>Helps identify periods of <span style="background-color:#ffe0e0; color:#db3c02; font-weight:bold;">high accuracy</span> and <span style="background-color:#ffe0e0; color:#db3c02; font-weight:bold;">model deviation</span>.</li>
+            <li>Useful for <span style="background-color:#e0ffe0; color:#00c90a; font-weight:bold;">model validation</span>, <span style="background-color:#e0ffe0; color:#00c90a; font-weight:bold;">forecasting analysis</span>, and improving predictive strategies.</li>
+        </ul>
+        <span style="color:#393e46;">Use this chart to evaluate prediction performance and refine your forecasting approach.</span>
+    </div>
+    """,
+    unsafe_allow_html=True)
+    
     st.plotly_chart(fig, use_container_width=True)
     return
 
@@ -404,6 +420,24 @@ def max_min_band(df,ticker):
         xaxis_title='Date',
         yaxis_title='Annualized Volatility'
     )
+
+    st.markdown(
+    """
+    <div style="font-family: 'Segoe UI', Arial, sans-serif; font-size: 1.13rem; color: #222831; background-color: #f5f6fa; padding: 16px 22px; border-radius: 10px; margin-bottom: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
+        <b style="font-size:1.18rem; color:#0074D9;">Max-Min Price Band Chart: Explanation</b><br><br>
+        This chart visualizes the <span style="background-color:#e3f6fd; color:#0074D9; font-weight:bold;">maximum</span> and <span style="background-color:#ffe0e0; color:#db3c02; font-weight:bold;">minimum</span> price bands for each trading day, along with their <span style="background-color:#e0ffe0; color:#00c90a; font-weight:bold;">rolling volatility</span>.<br><br>
+        <span style="color:#393e46;">Key highlights:</span>
+        <ul style="margin-top: 0.5em; margin-bottom: 0.5em;">
+            <li>Shows the <span style="background-color:#e3f6fd; color:#0074D9; font-weight:bold;">highest</span> and <span style="background-color:#ffe0e0; color:#db3c02; font-weight:bold;">lowest</span> prices (from Open, High, Low, Close) for each day.</li>
+            <li>Plots the <span style="background-color:#e0ffe0; color:#00c90a; font-weight:bold;">annualized rolling volatility</span> of these price bands over a 252-day window, helping you spot periods of high or low market uncertainty.</li>
+            <li>Includes a focused view of the <span style="background-color:#ffe0e0; color:#db3c02; font-weight:bold;">last 90 days</span> to highlight recent price movements and deviations from historical extremes.</li>
+            <li>Useful for <span style="background-color:#e0ffe0; color:#00c90a; font-weight:bold;">risk management</span>, <span style="background-color:#e0ffe0; color:#00c90a; font-weight:bold;">volatility analysis</span>, and identifying breakout or reversal zones.</li>
+        </ul>
+        <span style="color:#393e46;">Use this chart to understand price ranges, volatility trends, and how current prices compare to historical highs and lows.</span>
+    </div>
+    """,
+    unsafe_allow_html=True)
+
     st.plotly_chart(fig, use_container_width=True)
 
     fig2 = go.Figure()
@@ -424,6 +458,7 @@ def max_min_band(df,ticker):
         xaxis_title='Date',
         yaxis_title='Price Delta'
     )
+
     st.plotly_chart(fig2, use_container_width=True)
     return
 
@@ -458,6 +493,22 @@ def plot_positive_negative_streak(df, title):
         xaxis_title='Date',
         yaxis_title='Streak Length'
     )
+
+    st.markdown(
+    """
+    <div style="font-family: 'Segoe UI', Arial, sans-serif; font-size: 1.13rem; color: #222831; background-color: #f5f6fa; padding: 16px 22px; border-radius: 10px; margin-bottom: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
+        <b style="font-size:1.18rem; color:#008000;">Positive & Negative Streaks Chart: Explanation</b><br><br>
+        This chart visualizes <span style="background-color:#e3f6fd; color:#008000; font-weight:bold;">positive streaks</span> and <span style="background-color:#ffe0e0; color:#db3c02; font-weight:bold;">negative streaks</span> in daily returns.<br><br>
+        <span style="color:#393e46;">Key highlights:</span>
+        <ul style="margin-top: 0.5em; margin-bottom: 0.5em;">
+            <li>Shows the length of consecutive <span style="background-color:#e3f6fd; color:#008000; font-weight:bold;">positive</span> and <span style="background-color:#ffe0e0; color:#db3c02; font-weight:bold;">negative</span> return streaks for each day.</li>
+            <li>Helps identify <span style="background-color:#ffe0e0; color:#db3c02; font-weight:bold;">momentum</span> and <span style="background-color:#e0ffe0; color:#00c90a; font-weight:bold;">trend persistence</span> in asset returns.</li>
+            <li>Useful for <span style="background-color:#e0ffe0; color:#00c90a; font-weight:bold;">timing strategies</span> and understanding the behavior of market rallies and corrections.</li>
+        </ul>
+        <span style="color:#393e46;">Use this chart to analyze streak patterns and gain insights into market dynamics and investor sentiment.</span>
+    </div>
+    """,
+    unsafe_allow_html=True)
     st.plotly_chart(fig, use_container_width=True)
 
     return df
@@ -519,6 +570,22 @@ def plot_probability_of_streak_reset(df,title):
         yaxis_title='Reset Probability',
         yaxis=dict(tickformat=".00%")
     )
+    st.markdown(
+    """
+    <div style="font-family: 'Segoe UI', Arial, sans-serif; font-size: 1.13rem; color: #222831; background-color: #f5f6fa; padding: 16px 22px; border-radius: 10px; margin-bottom: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
+        <b style="font-size:1.18rem; color:#808000;">Probability of Streak Reset Chart: Explanation</b><br><br>
+        This chart visualizes the <span style="background-color:#e3f6fd; color:#808000; font-weight:bold;">reset probability</span> for both <span style="background-color:#e3f6fd; color:#008000; font-weight:bold;">positive streaks</span> and <span style="background-color:#ffe0e0; color:#FF9933; font-weight:bold;">negative streaks</span> in daily returns.<br><br>
+        <span style="color:#393e46;">Key highlights:</span>
+        <ul style="margin-top: 0.5em; margin-bottom: 0.5em;">
+            <li>Shows how likely a <span style="background-color:#e3f6fd; color:#808000; font-weight:bold;">streak</span> of consecutive positive or negative returns is to end (reset to zero) after reaching a certain length.</li>
+            <li>Helps identify <span style="background-color:#ffe0e0; color:#db3c02; font-weight:bold;">momentum</span> and <span style="background-color:#e0ffe0; color:#00c90a; font-weight:bold;">mean-reversion</span> patterns in asset returns.</li>
+            <li>Useful for <span style="background-color:#e0ffe0; color:#00c90a; font-weight:bold;">risk management</span> and <span style="background-color:#e0ffe0; color:#00c90a; font-weight:bold;">strategy development</span> by understanding the persistence of trends.</li>
+        </ul>
+        <span style="color:#393e46;">Use this chart to analyze the behavior of streaks and improve your understanding of market dynamics.</span>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
     st.plotly_chart(fig, use_container_width=True)
     return
 
@@ -916,6 +983,7 @@ else:
     # final_daily_ret_df["Volatility_XAU"] = final_daily_ret_df["Log_Ret_Close_XAU"].rolling(window=14).std()
     # final_daily_ret_df = final_daily_ret_df.sort_index(ascending=False)
     # st.dataframe(final_daily_ret_df)
+    analyse("GOLDBEES.NS")
 st.divider()
 
 
