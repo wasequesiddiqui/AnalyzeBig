@@ -5,3 +5,4 @@ yfinance
 tensorflow
 prophet
 scikit-learn
+statsmodel
