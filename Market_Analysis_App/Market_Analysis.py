@@ -833,8 +833,8 @@ if btn_refresh:
     str_start_date,str_end_date = update_dates_in_session_state(start_date, end_date, sb)
 else:
     str_start_date, str_end_date = update_dates_in_session_state(start_date, end_date, sb)
-    sb.markdown("**Default start date for initial dataframe:** {}".format(str_start_date))
-    sb.markdown("**Default end date for initial dataframe:** {}".format(str_end_date))
+    # sb.markdown("**Default start date for initial dataframe:** {}".format(str_start_date))
+    # sb.markdown("**Default end date for initial dataframe:** {}".format(str_end_date))
 
 df_nifty50 = get_ticker_data("^NSEI", str_start_date, str_end_date)
 df_nifty50 = get_log_returns(df_nifty50, "Close")
