@@ -35,7 +35,12 @@ def get_dates(day_delta=1826):
     """
     end_date = datetime.now()
     start_date = end_date - timedelta(days=day_delta)
-    return start_date, end_date
+    # Store in session state
+    if 'start_date' not in st.session_state:
+        st.session_state['start_date'] = start_date
+    if 'end_date' not in st.session_state:
+        st.session_state['end_date'] = end_date
+    return st.session_state['start_date'], st.session_state['end_date']
 
 def get_date_string(date):
     """
@@ -589,6 +594,19 @@ def plot_probability_of_streak_reset(df,title):
     st.plotly_chart(fig, use_container_width=True)
     return
 
+def update_dates_in_session_state(start_date, end_date, sb):
+    """
+    Update Streamlit session state with start and end dates and return their string representations.
+    Also writes the date values in the sidebar.
+    """
+    st.session_state['start_date'] = start_date
+    st.session_state['end_date'] = end_date
+    str_start_date = start_date.strftime('%Y-%m-%d')
+    str_end_date = end_date.strftime('%Y-%m-%d')
+    sb.markdown(f"**Start Date:** {str_start_date}")
+    sb.markdown(f"**End Date:** {str_end_date}")
+    return str_start_date, str_end_date
+
 def analyse(main_ticker):
     str_start_date,str_end_date = get_dates()
     str_start_date = get_date_string(str_start_date)
@@ -804,19 +822,20 @@ def correlation_heatmap(df, title):
 
 sb = st.sidebar
 sb.title("Market Analysis Settings")
-str_start_date, str_end_date = get_default_dates(1095)
-st.markdown("**Default start date for initial dataframe:** {}".format(str_start_date))
-st.markdown("**Default end date for initial dataframe:** {}".format(str_end_date))
 st.divider()
 st.header("Select the date range for analysis")
-start_date = sb.date_input("Start Date", min_value=datetime(2020, 1, 1), max_value=datetime.today(), value=datetime(2020, 1, 1))
-end_date = sb.date_input("End Date", min_value=datetime(2020, 1, 1), max_value=datetime.today(), value=datetime.today())
+start_date, end_date = get_dates()
+start_date = sb.date_input("Start Date", min_value=st.session_state['start_date'], max_value=datetime.today(), value=st.session_state['start_date'])
+end_date = sb.date_input("End Date", min_value=st.session_state['start_date'], max_value=datetime.today(), value=datetime.today())
 btn_refresh = sb.button("Refresh Data", key="refresh")
+
 if btn_refresh:
-    str_start_date = start_date.strftime('%Y-%m-%d')
-    str_end_date = end_date.strftime('%Y-%m-%d')
-    st.write("Start Date: ", str_start_date)
-    st.write("End Date: ", str_end_date)
+    str_start_date,str_end_date = update_dates_in_session_state(start_date, end_date, sb)
+else:
+    str_start_date, str_end_date = update_dates_in_session_state(start_date, end_date, sb)
+    sb.markdown("**Default start date for initial dataframe:** {}".format(str_start_date))
+    sb.markdown("**Default end date for initial dataframe:** {}".format(str_end_date))
+
 df_nifty50 = get_ticker_data("^NSEI", str_start_date, str_end_date)
 df_nifty50 = get_log_returns(df_nifty50, "Close")
 df_nifty50 = get_log_returns(df_nifty50, "Volume")
