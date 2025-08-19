@@ -11,6 +11,10 @@
         .section { margin-bottom: 2em; }
         input[type="checkbox"] { transform: scale(1.2); margin-right: 0.5em; }
         .category { font-size: 1.15em; color: #393e46; margin-bottom: 0.5em; }
+        /* Priority styles */
+        .priority-olive { background: #eaf5e0; color: #808000; border-left: 5px solid #808000; padding-left: 8px; }
+        .priority-saffron { background: #fff5e0; color: #FF9933; border-left: 5px solid #FF9933; padding-left: 8px; }
+        .priority-blue { background: #e0f0ff; color: #0074D9; border-left: 5px solid #0074D9; padding-left: 8px; }
     </style>
 </head>
 <body>
@@ -19,76 +23,76 @@
     <div class="section">
         <div class="category"><b>Data Handling</b></div>
         <ul>
-            <li><input type="checkbox" disabled> Add error handling for missing or incomplete data from Yahoo Finance</li>
-            <li><input type="checkbox" disabled> Allow user to select custom tickers from the sidebar</li>
+            <li class="priority-olive"><input type="checkbox" disabled> Add error handling for missing or incomplete data from Yahoo Finance</li>
+            <li class="priority-olive"><input type="checkbox" disabled> Allow user to select custom tickers from the sidebar</li>
         </ul>
     </div>
 
     <div class="section">
         <div class="category"><b>Feature Engineering</b></div>
         <ul>
-            <li><input type="checkbox" disabled> Add more technical indicators (e.g., RSI, MACD)</li>
-            <li><input type="checkbox" disabled> Allow user to select which features to display</li>
+            <li class="priority-blue"><input type="checkbox" disabled> Add more technical indicators (e.g., RSI, MACD)</li>
+            <li class="priority-blue"><input type="checkbox" disabled> Allow user to select which features to display</li>
         </ul>
     </div>
 
     <div class="section">
         <div class="category"><b>Visualization</b></div>
         <ul>
-            <li><input type="checkbox" disabled> Add option to download data and plots</li>
-            <li><input type="checkbox" disabled> Improve color schemes for accessibility</li>
-            <li><input type="checkbox" disabled> Add tooltips and hover info to all charts</li>
+            <li class="priority-olive"><input type="checkbox" disabled> Add option to download data and plots</li>
+            <li class="priority-blue"><input type="checkbox" disabled> Improve color schemes for accessibility</li>
+            <li class="priority-blue"><input type="checkbox" disabled> Add tooltips and hover info to all charts</li>
         </ul>
     </div>
 
     <div class="section">
         <div class="category"><b>Modeling &amp; Forecasting</b></div>
         <ul>
-            <li><input type="checkbox" disabled> Allow user to select forecasting model parameters</li>
-            <li><input type="checkbox" disabled> Display model performance metrics (MAE, RMSE, etc.)</li>
-            <li><input type="checkbox" disabled> Visualize model residuals</li>
+            <li class="priority-blue"><input type="checkbox" disabled> Allow user to select forecasting model parameters</li>
+            <li class="priority-olive"><input type="checkbox" disabled> Display model performance metrics (MAE, RMSE, etc.)</li>
+            <li class="priority-blue"><input type="checkbox" disabled> Visualize model residuals</li>
         </ul>
     </div>
 
     <div class="section">
         <div class="category"><b>UI/UX</b></div>
         <ul>
-            <li><input type="checkbox" disabled> Add a landing page/introduction</li>
-            <li><input type="checkbox" disabled> Group sidebar controls logically</li>
-            <li><input type="checkbox" disabled> Add loading spinners for long computations</li>
+            <li class="priority-blue"><input type="checkbox" disabled> Add a landing page/introduction</li>
+            <li class="priority-olive"><input type="checkbox" disabled> Group sidebar controls logically</li>
+            <li class="priority-olive"><input type="checkbox" disabled> Add loading spinners for long computations</li>
         </ul>
     </div>
 
     <div class="section">
         <div class="category"><b>Code Quality</b></div>
         <ul>
-            <li><input type="checkbox" disabled> Refactor code into modules</li>
-            <li><input type="checkbox" disabled> Add docstrings and comments</li>
-            <li><input type="checkbox" disabled> Remove unused imports and variables</li>
+            <li class="priority-blue"><input type="checkbox" disabled> Refactor code into modules</li>
+            <li class="priority-blue"><input type="checkbox" disabled> Add docstrings and comments</li>
+            <li class="priority-blue"><input type="checkbox" disabled> Remove unused imports and variables</li>
         </ul>
     </div>
 
     <div class="section">
         <div class="category"><b>Documentation</b></div>
         <ul>
-            <li><input type="checkbox" disabled> Update README with setup and usage instructions</li>
-            <li><input type="checkbox" disabled> Document Streamlit UI elements</li>
+            <li class="priority-blue"><input type="checkbox" disabled> Update README with setup and usage instructions</li>
+            <li class="priority-blue"><input type="checkbox" disabled> Document Streamlit UI elements</li>
         </ul>
     </div>
 
     <div class="section">
         <div class="category"><b>Performance</b></div>
         <ul>
-            <li><input type="checkbox" disabled> Optimize data processing for large datasets</li>
-            <li><input type="checkbox" disabled> Cache expensive computations</li>
+            <li class="priority-olive"><input type="checkbox" disabled> Optimize data processing for large datasets</li>
+            <li class="priority-blue"><input type="checkbox" disabled> Cache expensive computations</li>
         </ul>
     </div>
     <div class="section">
         <div class="category"><b>Analytics Enhancements</b></div>
         <ul>
-            <li><input type="checkbox" disabled> Include Holiday List</li>
-            <li><input type="checkbox" disabled>Stacked Chart to show positive and negative close year wise</li>
-            <li><input type="checkbox" disabled>Donnut chart for positive and negative overall</li>
+            <li class="priority-saffron"><input type="checkbox" disabled> Include Holiday List</li>
+            <li class="priority-saffron"><input type="checkbox" disabled> Stacked Chart to show positive and negative close year wise</li>
+            <li class="priority-saffron"><input type="checkbox" disabled> Donnut chart for positive and negative overall</li>
         </ul>
     </div>
 </body>
