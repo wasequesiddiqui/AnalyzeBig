@@ -1,5 +1,8 @@
-"""all the imports are included here"""
-
+"""
+all the imports are included here
+command to run streamlit app: cd C:\Github\AnalyzeBig\Market_Analysis_App
+streamlit run Market_Analysis.py
+"""
 import yfinance as yf
 import random
 import numpy as np
@@ -70,7 +73,7 @@ def set_df_datatype(df):
     """
     Set the data types of the DataFrame columns.
     """
-    df.fillna(0, inplace=True)
+    df = df.fillna(0)
     df = df.sort_index(ascending=False)
     df['Log_Ret_Close'] = df['Log_Ret_Close'].astype(float)
     df['Log_Ret_Volume'] = df['Log_Ret_Volume'].astype(float)
@@ -90,15 +93,26 @@ def handle_infinity_values(df):
     """
     Replace infinite values in the DataFrame with NaN.
     """
-    df.replace([np.inf, -np.inf], np.nan, inplace=True)
-    df.fillna(0, inplace=True)
+    df = df.replace([np.inf, -np.inf], np.nan)
+    df = df.fillna(0)
     return df
 
 def prophet_forecast(df_fit, df_predict,lst_regressors,title):
     """
     Fit a Prophet model and make predictions.
     """
-    m = Prophet()
+    # Find all Saturdays and Sundays in the fit and predict data
+    all_dates = pd.concat([df_fit['ds'], df_predict['ds']]).drop_duplicates()
+    weekends = all_dates[all_dates.dt.weekday >= 5]  # 5=Saturday, 6=Sunday
+
+    # Create a DataFrame for Prophet holidays
+    holidays = pd.DataFrame({
+        'holiday': 'weekend',
+        'ds': weekends,
+        'lower_window': 0,
+        'upper_window': 0,
+    })
+    m = Prophet(holidays=holidays)
     for regressor in lst_regressors:
         m.add_regressor(regressor)
     lst_fit_cols = ['ds', 'y'] + lst_regressors
@@ -540,8 +554,8 @@ def probability_of_streak_reset_after_value(df, streak_col):
     df_prob_marker['Probability'] = df_prob_marker['Probability'].astype(float)
     df_prob_marker['Probability'] = df_prob_marker['Probability'].round(4)
     df = pd.merge(df, df_prob_marker, left_on=streak_col, right_on='Streak', how='left')
-    df.rename(columns={'Probability': 'Reset_Probability_'+streak_col}, inplace=True)
-    df['Reset_Probability_'+streak_col].fillna(0, inplace=True)
+    df = df.rename(columns={'Probability': 'Reset_Probability_'+streak_col})
+    df['Reset_Probability_'+streak_col] = df['Reset_Probability_'+streak_col].fillna(0)
     return df
 
 def plot_probability_of_streak_reset(df,title):
@@ -607,6 +621,184 @@ def update_dates_in_session_state(start_date, end_date, sb):
     sb.markdown(f"**End Date:** {str_end_date}")
     return str_start_date, str_end_date
 
+def plot_xau_yearly_log_return_split(df, streamlit_obj):
+    """
+    Plots a stacked bar chart showing the year-wise percentage split of positive and negative log returns for XAU.
+    
+    Args:
+        df (pd.DataFrame): A DataFrame containing price data, with a 'Close' or similar column.
+        streamlit_obj (streamlit): The streamlit object to render the chart.
+    """
+    # Ensure Date column or index is datetime
+    df_ticker = df.copy()
+
+    # Use 'Date_Val' to find the date column. If it doesn't exist, check the index.
+    if 'Date_Val' in df_ticker.columns and not pd.api.types.is_datetime64_any_dtype(df_ticker['Date_Val']):
+        df_ticker['Date_Val'] = pd.to_datetime(df_ticker['Date_Val'])
+    elif isinstance(df_ticker.index, pd.DatetimeIndex):
+        df_ticker['Date_Val'] = df_ticker.index
+    else:
+        # Handle case where neither a 'Date_Val' column nor a DatetimeIndex exists
+        raise ValueError("DataFrame must have a 'Date_Val' column or a DatetimeIndex.")
+    
+    # Get the year from the date
+    df_ticker['Year'] = df_ticker['Date_Val'].dt.year
+
+    # --- Debugging print statement to see what years are being processed ---
+    print(f"Unique years found in the DataFrame: {df_ticker['Year'].unique()}")
+
+    # Categorize returns as 'Positive' or 'Negative'
+    df_ticker['Return_Type'] = df_ticker['Log_Ret_Close'].apply(lambda x: 'Positive' if x > 0 else 'Negative')
+
+    # Group by year and return type, then count
+    yearly_counts = df_ticker.groupby(['Year', 'Return_Type']).size().unstack(fill_value=0)
+
+    # Calculate percentage split
+    yearly_percent = yearly_counts.div(yearly_counts.sum(axis=1), axis=0) * 100
+
+    # Create stacked bar chart
+    fig = go.Figure()
+    if 'Positive' in yearly_percent.columns:
+        fig.add_bar(
+            x=yearly_percent.index,
+            y=yearly_percent['Positive'],
+            name='Positive Returns',
+            marker_color='#00c90a',
+            text=yearly_percent['Positive'].round(2).astype(str) + '%',
+            textposition='inside',
+            insidetextfont=dict(color='white')
+        )
+    if 'Negative' in yearly_percent.columns:
+        fig.add_bar(
+            x=yearly_percent.index,
+            y=yearly_percent['Negative'],
+            name='Negative Returns',
+            marker_color='#db3c02',
+            text=yearly_percent['Negative'].round(2).astype(str) + '%',
+            textposition='inside',
+            insidetextfont=dict(color='white')
+        )
+    
+    # Update layout for better aesthetics
+    fig.update_layout(
+        barmode='stack',
+        title={
+            'text': 'Year-wise Percentage Split of Positive and Negative Log Returns (XAU)',
+            'y':0.9,
+            'x':0.5,
+            'xanchor': 'center',
+            'yanchor': 'top'
+        },
+        xaxis_title='Year',
+        yaxis_title='Percentage of Days',
+        legend_title='Return Type',
+        font=dict(family="Arial, sans-serif", size=12, color="black"),
+        plot_bgcolor='white',
+        paper_bgcolor='white',
+        xaxis=dict(
+            gridcolor='lightgrey',
+            showgrid=True,
+            zeroline=False
+        ),
+        yaxis=dict(
+            ticksuffix='%',
+            gridcolor='lightgrey',
+            showgrid=True,
+            zeroline=False
+        )
+    )
+
+    # Render the chart in Streamlit
+    streamlit_obj.plotly_chart(fig, use_container_width=True)
+
+def plot_xau_yearly_avg_return_split(df, streamlit_obj):
+    """
+    Plots a stacked bar chart showing the year-wise average value of positive and negative log returns for XAU.
+    Negative returns are shown as absolute values.
+    
+    Args:
+        df (pd.DataFrame): A DataFrame containing price data, with a 'Close' or similar column.
+        streamlit_obj (streamlit): The streamlit object to render the chart.
+    """
+    # Ensure Date column or index is datetime
+    df_ticker = df.copy()
+
+    # Use 'Date_Val' to find the date column. If it doesn't exist, check the index.
+    if 'Date_Val' in df_ticker.columns and not pd.api.types.is_datetime64_any_dtype(df_ticker['Date_Val']):
+        df_ticker['Date_Val'] = pd.to_datetime(df_ticker['Date_Val'])
+    elif isinstance(df_ticker.index, pd.DatetimeIndex):
+        df_ticker['Date_Val'] = df_ticker.index
+    else:
+        # Handle case where neither a 'Date_Val' column nor a DatetimeIndex exists
+        raise ValueError("DataFrame must have a 'Date_Val' column or a DatetimeIndex.")
+    
+    # Get the year from the date
+    df_ticker['Year'] = df_ticker['Date_Val'].dt.year
+
+    # Categorize returns as 'Positive' or 'Negative'
+    df_ticker['Return_Type'] = df_ticker['Log_Ret_Close'].apply(lambda x: 'Positive' if x > 0 else 'Negative')
+
+    # Group by year and return type, then calculate the mean return
+    yearly_avg_returns = df_ticker.groupby(['Year', 'Return_Type'])['Log_Ret_Close'].mean().unstack(fill_value=0)
+
+    # Convert average returns to percentage
+    yearly_avg_returns_percent = yearly_avg_returns * 100
+
+    # Create stacked bar chart
+    fig = go.Figure()
+    if 'Positive' in yearly_avg_returns_percent.columns:
+        fig.add_bar(
+            x=yearly_avg_returns_percent.index,
+            y=yearly_avg_returns_percent['Positive'],
+            name='Average Positive Returns',
+            marker_color='#00c90a', # Green for positive
+            text=yearly_avg_returns_percent['Positive'].round(2).astype(str) + '%',
+            textposition='inside',
+            insidetextfont=dict(color='white')
+        )
+    if 'Negative' in yearly_avg_returns_percent.columns:
+        fig.add_bar(
+            x=yearly_avg_returns_percent.index,
+            y=yearly_avg_returns_percent['Negative'].abs(), # Use absolute value for the plot
+            name='Average Negative Returns',
+            marker_color='#db3c02', # Red for negative
+            text=yearly_avg_returns_percent['Negative'].abs().round(2).astype(str) + '%', # Show absolute value in text
+            textposition='inside',
+            insidetextfont=dict(color='white')
+        )
+    
+    # Update layout for better aesthetics
+    fig.update_layout(
+        barmode='stack',
+        title={
+            'text': 'Year-wise Average Positive and Negative Log Returns (XAU)',
+            'y':0.9,
+            'x':0.5,
+            'xanchor': 'center',
+            'yanchor': 'top'
+        },
+        xaxis_title='Year',
+        yaxis_title='Average Log Return Percentage',
+        legend_title='Return Type',
+        font=dict(family="Arial, sans-serif", size=12, color="black"),
+        plot_bgcolor='white',
+        paper_bgcolor='white',
+        xaxis=dict(
+            gridcolor='lightgrey',
+            showgrid=True,
+            zeroline=False
+        ),
+        yaxis=dict(
+            ticksuffix='%',
+            gridcolor='lightgrey',
+            showgrid=True,
+            zeroline=False
+        )
+    )
+
+    # Render the chart in Streamlit
+    streamlit_obj.plotly_chart(fig, use_container_width=True)
+
 def analyse(main_ticker):
     str_start_date,str_end_date = get_dates()
     str_start_date = get_date_string(str_start_date)
@@ -668,7 +860,7 @@ def analyse(main_ticker):
     df_XAU = df_XAU.join(df_USD_INR[['Log_Ret_Close_INR', 'Log_Ret_Volume_INR']], how='left')
     df_XAU = df_XAU.join(df_USD_BTC[['Log_Ret_Close_BTC', 'Log_Ret_Volume_BTC']], how='left')
     df_XAU = df_XAU.join(df_US_GLD[['Log_Ret_Close_XAU', 'Log_Ret_Volume_XAU']], how='left')
-
+    df_ticker = df_XAU.copy()
     df_latest2Months = df_XAU[:60]
     df_analysis = df_XAU[60:]
 
@@ -784,6 +976,9 @@ def analyse(main_ticker):
     df_XAU = probability_of_streak_reset_after_value(df_XAU, 'Positive_Streak')
     df_XAU = probability_of_streak_reset_after_value(df_XAU, 'Negative_Streak')
     plot_probability_of_streak_reset(df_XAU, "Probability of Streak Reset for " + main_ticker.replace(".NS", ""))
+    plot_xau_yearly_log_return_split(df_ticker,st)
+    plot_xau_yearly_avg_return_split(df_ticker, st)
+    print(df_ticker.info())
     return df_XAU
 
 def get_default_dates(days):
