@@ -799,6 +799,93 @@ def plot_xau_yearly_avg_return_split(df, streamlit_obj):
     # Render the chart in Streamlit
     streamlit_obj.plotly_chart(fig, use_container_width=True)
 
+def calculate_avg_streaks_monthly(df, return_column):
+    """
+    Calculates the average positive and negative streak length at a monthly level.
+
+    Args:
+        df (pd.DataFrame): The input DataFrame, expected to have a DatetimeIndex
+                           and a column for returns.
+        return_column (str): The name of the column containing the returns data.
+
+    Returns:
+        pd.DataFrame: A DataFrame with the average positive and negative streak
+                      lengths per month.
+    """
+    df_copy = df.copy()
+    
+    # Ensure the DataFrame is sorted by date for accurate streak calculations
+    df_copy = df_copy.sort_index(ascending=True)
+    
+    # Calculate daily streaks
+    df_copy['positive'] = df_copy[return_column] > 0
+    df_copy['negative'] = df_copy[return_column] < 0
+    
+    # Use cumsum to group consecutive streaks
+    df_copy['positive_group'] = (df_copy['positive'] != df_copy['positive'].shift()).cumsum()
+    df_copy['negative_group'] = (df_copy['negative'] != df_copy['negative'].shift()).cumsum()
+
+    # Calculate streak lengths
+    df_copy['positive_streak_len'] = df_copy.groupby(['positive_group', 'positive']).cumcount() + 1
+    df_copy['negative_streak_len'] = df_copy.groupby(['negative_group', 'negative']).cumcount() + 1
+
+    # Filter for the end of each streak to get the total length.
+    # A streak ends when the current value is True/False and the next value is False/True,
+    # or if it's the last entry in the DataFrame.
+    positive_streaks = df_copy[
+        (df_copy['positive'] & (df_copy['positive'].shift(-1).fillna(False) == False)) |
+        (df_copy['positive'] & (df_copy.index == df_copy.index[-1]))
+    ].copy()
+    
+    negative_streaks = df_copy[
+        (df_copy['negative'] & (df_copy['negative'].shift(-1).fillna(False) == False)) |
+        (df_copy['negative'] & (df_copy.index == df_copy.index[-1]))
+    ].copy()
+    
+    # Use loc to avoid a SettingWithCopyWarning
+    positive_streaks['month_year'] = positive_streaks.index.to_period('M')
+    negative_streaks['month_year'] = negative_streaks.index.to_period('M')
+
+    # Calculate the average streak length per month
+    monthly_avg_pos_streak = positive_streaks.groupby('month_year')['positive_streak_len'].mean().reset_index()
+    monthly_avg_neg_streak = negative_streaks.groupby('month_year')['negative_streak_len'].mean().reset_index()
+
+    # Merge the results and clean up the month column
+    monthly_avg_streaks = pd.merge(monthly_avg_pos_streak, monthly_avg_neg_streak, on='month_year', how='outer')
+    monthly_avg_streaks.rename(columns={
+        'positive_streak_len': 'Avg_Positive_Streak',
+        'negative_streak_len': 'Avg_Negative_Streak'
+    }, inplace=True)
+    monthly_avg_streaks['month_year'] = monthly_avg_streaks['month_year'].astype(str)
+    
+    return monthly_avg_streaks
+
+def plot_avg_streaks(df, title):
+    """
+    Plots the average monthly positive and negative streaks.
+    """
+    fig = go.Figure()
+    fig.add_trace(go.Bar(
+        x=df['month_year'],
+        y=df['Avg_Positive_Streak'],
+        name='Average Positive Streak',
+        marker_color="#3e8a00"
+    ))
+    fig.add_trace(go.Bar(
+        x=df['month_year'],
+        y=df['Avg_Negative_Streak'],
+        name='Average Negative Streak',
+        marker_color="#a63700"
+    ))
+    fig.update_layout(
+        title=title,
+        xaxis_title='Month-Year',
+        yaxis_title='Average Streak Length (Days)',
+        barmode='group'
+    )
+    st.plotly_chart(fig, use_container_width=True)
+    return
+
 def analyse(main_ticker):
     str_start_date,str_end_date = get_dates()
     str_start_date = get_date_string(str_start_date)
@@ -978,6 +1065,10 @@ def analyse(main_ticker):
     plot_probability_of_streak_reset(df_XAU, "Probability of Streak Reset for " + main_ticker.replace(".NS", ""))
     plot_xau_yearly_log_return_split(df_ticker,st)
     plot_xau_yearly_avg_return_split(df_ticker, st)
+    plot_avg_streaks(
+        calculate_avg_streaks_monthly(df_ticker, 'Log_Ret_Close')
+        , "Average Monthly Streaks for " + main_ticker.replace(".NS", "")
+    )
     print(df_ticker.info())
     return df_XAU
 
