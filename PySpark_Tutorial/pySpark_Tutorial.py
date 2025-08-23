@@ -1,12 +1,11 @@
 #%%
 import os
-from xml.dom.minicompat import StringTypes
 import numpy as np
 import pandas as pd
 
 from pyspark.sql.functions import col,lit,round,regexp_replace,concat
 from pyspark.sql import SparkSession
-# from pyspark.sql.types import StringType
+from pyspark.sql.types import StructType, StructField, StringType, IntegerType
 
 # Change working directory to the script's current directory
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
