@@ -3,7 +3,7 @@ import os
 import numpy as np
 import pandas as pd
 
-from pyspark.sql.functions import col,lit,round,regexp_replace,concat
+from pyspark.sql.functions import *
 from pyspark.sql import SparkSession
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType
 
@@ -67,7 +67,41 @@ df = df.withColumn('Item_visibility_Chances'
                 'Item_visibility_Chances', concat(
                  col('Item_visibility_Chances'), lit(' %')))
 df.show()
-# %% sorting data
+#%% sorting data
 df.sort(col('Item_Identifier').asc(), col('Item_Weight').desc()).show(5)
 
+#%% Initicap function upper() and lower()
+df.select(initcap(col('Item_Type')).alias('Type_CamelCase')).distinct().show()
+
+# %%
+df.select(upper(col('Item_Type')).alias('Type_UpperCase')).distinct().show()
+
+# %%
+df.select(lower(col('Item_Type')).alias('Type_LowerCase')).distinct().show()
+
+# %% use of current date function
+df = df.withColumn('Current_Sys_Date',current_date())
+df.show()
+# %% date add function adding 7 days
+df = df.withColumn('Adding 1 week lates',date_add('Current_Sys_Date',7))
+df = df.withColumnRenamed("Adding 1 week lates", "Future_week_Date")
+df.show()
+# %% date subtract 
+df = df.withColumn("Prior_Week_Date", date_add('Current_Sys_Date',-8))
+df.show()
+# %%
+df = df.withColumn("Prior_Week_Date", date_diff('Future_week_Date','Prior_Week_Date'))
+df.show()
+# %% fillna
+df = df.na.fill({'Item_Weight':0,'Outlet_Size':'Unknown'})
+df.show()
+# %% dropna
+df = df.na.drop(subset=['Item_Weight','Outlet_Size'])
+df.show()
+# %% split function
+df = df.withColumn('Outlet_Type_Split', split(col('Outlet_Type'), ' '))
+df.show()
+# %% explode function
+df_exploded = df.select('Outlet_Type', explode(col('Outlet_Type_Split')).alias('Outlet_Type_Exploded'))
+df_exploded.show()
 # %%
