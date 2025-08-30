@@ -24,8 +24,26 @@ from plotly.subplots import make_subplots
 st.set_page_config(layout="wide")
 # Main code for analysis and visualization of nifty 50 data
 # using streamlit and plotly
-
-st.title("Market Analysis Streamlit App")
+st.markdown(
+    """
+    <style>
+    [data-testid="stSidebar"] {
+        background-color: #f0f8e5; /* Light olive green color */
+    }
+    /* Change the main content background color */
+    [data-testid="stAppViewContainer"] {
+        background-color: #fffdf0; /* Light gray color */
+    }
+    /* Set a complementary color for the titles and headers */
+    h1, h2, h3 {
+        color: #787355; /* A warm, dark gray for readability */
+    }
+    </style>
+    """,
+    unsafe_allow_html=True
+)
+# Apply style directly to the title using a markdown h1 tag with an inline style
+st.markdown("<h1 style='color: #787355;'>Analysis of XAU(gold) price movement</h1>", unsafe_allow_html=True)
 df_nifty50 = pd.DataFrame()
 df_xau = pd.DataFrame()
 

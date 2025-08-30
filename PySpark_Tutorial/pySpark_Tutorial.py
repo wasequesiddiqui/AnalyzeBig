@@ -104,4 +104,30 @@ df.show()
 # %% explode function
 df_exploded = df.select('Outlet_Type', explode(col('Outlet_Type_Split')).alias('Outlet_Type_Exploded'))
 df_exploded.show()
+
+# %% array_contains
+df = df.withColumn('Contains_Supermarket', array_contains(col('Outlet_Type_Split'), 'Supermarket'))
+df.show()
+#%% groupby and aggregation
+df_grouped = df.groupBy('Item_Type').agg(round(avg('Item_Weight'),2).alias('Avg_Item_Weight'),
+                                                 max('Item_Weight').alias('Max_Item_Weight'),
+                                                    min('Item_Weight').alias('Min_Item_Weight'),
+                                                    count('Item_Weight').alias('Count_Item_Weight'),
+                                                    round(sum('Item_Mrp'),2).alias('Sum_Item_MRP'),
+                                                    round(avg('Item_MRP'),2).alias('Avg_Item_MRP')
+                                                 ).orderBy('Avg_Item_MRP', ascending=False)
+df_grouped.show()
+# %% collect list
+df_grouped_list = df.groupBy('Item_Type').agg(collect_list('Item_Fat_Content').alias('Item_Fat_Content_List'))
+df_grouped_list.show(truncate=False)
+
+# %%collect list
+df_grouped_set = df.groupBy('Item_Type').agg(collect_set('Item_Fat_Content').alias('Item_Fat_Content_List'))
+df_grouped_set.show(truncate=False)
+# %% pivot function
+df_pivot = df.groupBy('Item_Type').pivot('Item_Fat_Content').agg(count('Item_Fat_Content').alias('Count'),
+                                                                 round(avg('Item_Weight'),2).alias('Avg_Weight'),
+                                                                 round(sum('Item_MRP'),2).alias('Sum_MRP')
+                                                                 ).orderBy('Item_Type')
+df_pivot.show(truncate=False)
 # %%
