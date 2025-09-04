@@ -21,7 +21,10 @@ from sklearn.metrics import r2_score
 from datetime import datetime, timedelta
 from plotly.subplots import make_subplots
 
-st.set_page_config(layout="wide")
+st.set_page_config(layout="wide",
+                   page_title="Nifty Gold BEES Analysis App",
+                   page_icon="🚀"
+                   )
 # Main code for analysis and visualization of nifty 50 data
 # using streamlit and plotly
 st.markdown(
@@ -38,12 +41,27 @@ st.markdown(
     h1, h2, h3 {
         color: #787355; /* A warm, dark gray for readability */
     }
+    /* Customize the sidebar header */
+    .css-1jc7h9d, .e1ewe9a51, .e1ewe9a52 { /* These are Streamlit's generated CSS classes for the header */
+        background-color: #008080; /* Your desired color, e.g., Teal */
+        color: white; /* Change the text color for better contrast */
+    }
+    [data-testid="stToolbar"] {
+        background-color: #cab161; /* golden background */
+        padding: 10px;
+        border-radius: 5px;
+    }
+    [data-testid="stToolbar"] a {
+        color: #927748; /* deep gold text */
+        text-decoration: none;
+        font-weight: bold;
+    }
     </style>
     """,
     unsafe_allow_html=True
 )
 # Apply style directly to the title using a markdown h1 tag with an inline style
-st.markdown("<h1 style='color: #787355;'>Analysis of XAU(gold) price movement</h1>", unsafe_allow_html=True)
+st.markdown("<h1 style='color: #787355;'>Analytics on Nifty Gold BEES Close Price</h1>", unsafe_allow_html=True)
 df_nifty50 = pd.DataFrame()
 df_xau = pd.DataFrame()
 

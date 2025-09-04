@@ -15,17 +15,6 @@ from sklearn.metrics import r2_score
 from datetime import datetime, timedelta
 from plotly.subplots import make_subplots
 
-st.markdown(
-    """
-    <style>
-    .st-emotion-cache-1l00lku {
-        background-color: #f0f8e5; /* Light olive green color */
-    }
-    </style>
-    """,
-    unsafe_allow_html=True
-)
-
 def get_dates(day_delta=1826):
     """
     Get the start and end dates for the data retrieval.

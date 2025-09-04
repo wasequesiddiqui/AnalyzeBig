@@ -6,6 +6,7 @@ import pandas as pd
 from pyspark.sql.functions import *
 from pyspark.sql import SparkSession
 from pyspark.sql.types import StructType, StructField, StringType, IntegerType
+from pyspark.sql.window import Window
 
 # Change working directory to the script's current directory
 os.chdir(os.path.dirname(os.path.abspath(__file__)))
@@ -130,4 +131,53 @@ df_pivot = df.groupBy('Item_Type').pivot('Item_Fat_Content').agg(count('Item_Fat
                                                                  round(sum('Item_MRP'),2).alias('Sum_MRP')
                                                                  ).orderBy('Item_Type')
 df_pivot.show(truncate=False)
+# %% window function row_number()
+
+windowSpec = Window.partitionBy('Item_Type').orderBy(col('Item_Weight').desc())
+df_window = df.withColumn('Row_Number', row_number().over(windowSpec))
+df_window.filter(col('Row_Number') == 1).show(truncate=False)
+df_window.show()
+
+# %% Rank
+windowSpec = Window.partitionBy('Item_Type').orderBy(col('Item_MRP').desc())
+df_window = df.withColumn('Rank_Item_MRP', rank().over(windowSpec))
+df_window.filter(col('Rank_Item_MRP') == 1).show(truncate=False)
+df_window.show()
+
+
+# %% Dense Rank
+windowSpec = Window.partitionBy('Item_Type').orderBy(col('Item_MRP').desc())
+df_window = df.withColumn('Dense_Rank_Item_MRP', dense_rank().over(windowSpec))
+df_window.filter(col('Dense_Rank_Item_MRP') == 1).show(truncate=False)
+df_window.show()
+
+
+# %% cumulative sum of Item_Outlet_Sales by Item Type
+windowSpec = Window.partitionBy('Outlet_Location_Type'
+                                ,'Outlet_Type'
+                                ,'Outlet_Size'
+                                ,'Item_Fat_Content').orderBy('Item_Type').rowsBetween(Window.unboundedPreceding, 0)
+df_window = df.withColumn('Cumulative_Sum_Item_MRP', round(sum('Item_Outlet_Sales').over(windowSpec),2))
+df_window.show(100,truncate=False)
+
+# %% function to calculate sum of mrp by item type
+def filter_sum(df, col_name, val_to_filter):
+    df_filtered = df.filter(col(col_name) == val_to_filter)
+    sum_mrp = df_filtered.agg(round(sum('Item_MRP'),2).alias('Sum_Item_MRP')).collect()[0]['Sum_Item_MRP']
+    return sum_mrp
+# %%
+print(filter_sum(df, 'Item_Type', 'Dairy'))
+# %% udf function
+def label_item_mrp(mrp):
+    if mrp < 50:
+        return 'Low'
+    elif 50 <= mrp < 150:
+        return 'Medium'
+    else:
+        return 'High'
+    
+label_item_mrp_udf = udf(label_item_mrp, StringType())
+df = df.withColumn('Item_MRP_Label', label_item_mrp_udf(col('Item_MRP')))
+df.select('Item_MRP', 'Item_MRP_Label').show(10)
+
 # %%
