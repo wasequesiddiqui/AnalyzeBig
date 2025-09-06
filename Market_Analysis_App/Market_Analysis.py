@@ -475,7 +475,7 @@ def max_min_band(df,ticker):
         xaxis_title='Date',
         yaxis_title='Annualized Volatility'
     )
-
+    st.divider()
     st.markdown(
     """
     <div style="font-family: 'Segoe UI', Arial, sans-serif; font-size: 1.13rem; color: #222831; background-color: #f5f6fa; padding: 16px 22px; border-radius: 10px; margin-bottom: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
@@ -494,6 +494,7 @@ def max_min_band(df,ticker):
     unsafe_allow_html=True)
 
     st.plotly_chart(fig, use_container_width=True)
+    st.divider()
 
     fig2 = go.Figure()
     fig2.add_trace(go.Scatter(  
@@ -513,8 +514,8 @@ def max_min_band(df,ticker):
         xaxis_title='Date',
         yaxis_title='Price Delta'
     )
-
     st.plotly_chart(fig2, use_container_width=True)
+    st.divider()
     return
 
 def plot_positive_negative_streak(df, title):
@@ -1066,10 +1067,10 @@ def analyse(main_ticker):
     df_latest2Months_close = add_forecasted_price(df_latest2Months_close, "Predicted_Value", forecast_close, "predicted_price","Close Price Predicted Values:")
     df_latest2Months_vol = add_forecasted_price(df_latest2Months_vol, "Predicted_Value", forecast_vol, "predicted_price","Volume Predicted Values:")
 
-
     plot_actual_vs_predicted(df_latest2Months_close, "Close", "Predicted_Value","Close Price Deviation from Prediction" + main_ticker.replace(".NS", ""))
+    st.divider()
     plot_actual_vs_predicted(df_latest2Months_vol, "Volume", "Predicted_Value","Volume Deviation from Prediction" + main_ticker.replace(".NS", ""))
-
+    st.divider()
     df_latest2Months_close['Delta'] = df_latest2Months_close['Close'] - df_latest2Months_close['Predicted_Value']
     df_latest2Months_close['Delta'] = df_latest2Months_close['Delta'].astype(float) 
     df_latest2Months_close['Delta'] = df_latest2Months_close['Delta'].round(4)
@@ -1079,8 +1080,9 @@ def analyse(main_ticker):
     df_latest2Months_vol['Delta'] = df_latest2Months_vol['Delta'].round(4)
 
     plot_bar_graph(df_latest2Months_close, "ds", "Delta", "Close Price Delta "+main_ticker.replace(".NS", ""))
+    st.divider()
     plot_bar_graph(df_latest2Months_vol, "ds", "Delta", "Volume Delta "+main_ticker.replace(".NS", ""))
-
+    st.divider()
     # Split df_xau into 5 equal parts
     arr_split_df = split_dataframe(df_XAU, 5)
 
@@ -1100,11 +1102,14 @@ def analyse(main_ticker):
     df_XAU = probability_of_streak_reset_after_value(df_XAU, 'Negative_Streak')
     plot_probability_of_streak_reset(df_XAU, "Probability of Streak Reset for " + main_ticker.replace(".NS", ""))
     plot_xau_yearly_log_return_split(df_ticker,st)
+    st.divider()
     plot_xau_yearly_avg_return_split(df_ticker, st)
+    st.divider()
     plot_avg_streaks(
         calculate_avg_streaks_monthly(df_ticker, 'Log_Ret_Close')
         , "Average Monthly Streaks for " + main_ticker.replace(".NS", "")
     )
+    st.divider()
     print(df_ticker.info())
     return df_XAU
 
@@ -1323,6 +1328,7 @@ else:
     """,
     unsafe_allow_html=True)
     st.plotly_chart(fig, use_container_width=True)
+    st.divider()
     # Calculate rolling volatility (standard deviation) over a 5-day window
     # final_daily_ret_df = final_daily_ret_df.sort_index(ascending=True)
     # final_daily_ret_df["Volatility_Nifty"] = final_daily_ret_df["Log_Ret_Price_Nifty"].rolling(window=14).std()
