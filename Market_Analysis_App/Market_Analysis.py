@@ -1191,6 +1191,7 @@ else:
     """,
     unsafe_allow_html=True)
     st.dataframe(styled_df_nifty, width=1200, height=500)
+    st.divider()
     st.subheader("XAU DataFrame")
     st.markdown(
     """
@@ -1219,6 +1220,7 @@ else:
                                 suffixes=('_Nifty', '_XAU'))
     final_daily_ret_df = final_daily_ret_df[['Log_Ret_Close_Nifty','Log_Ret_Volume_Nifty','Log_Ret_Close_XAU','Log_Ret_Volume_XAU']]
     final_daily_ret_df_styled = final_daily_ret_df.style.applymap(color_returns, subset=['Log_Ret_Close_Nifty','Log_Ret_Volume_Nifty','Log_Ret_Close_XAU','Log_Ret_Volume_XAU'])
+    st.divider()
     st.subheader("Final Merged DataFrame")
     st.markdown(
     """
@@ -1240,6 +1242,7 @@ else:
     st.dataframe(final_daily_ret_df_styled, 
                  width=1200, 
                  height=500)
+    st.divider()
     st.subheader("Correlation Heatmap")
     st.markdown(
     """
@@ -1259,7 +1262,7 @@ else:
     unsafe_allow_html=True)
     fig = correlation_heatmap(final_daily_ret_df, title="Correlation Heatmap of Nifty 50 and Gold (XAU) Daily Returns")
     st.plotly_chart(fig, use_container_width=True)
-
+    st.divider()
     final_daily_ret_df['Date'] = final_daily_ret_df.index
     st.markdown(
     """
@@ -1285,6 +1288,8 @@ else:
                             x_title="Date",
                             y_title="Log Daily Returns")
     st.plotly_chart(fig, use_container_width=True)
+    st.divider()
+    st.subheader("Nifty 50 vs Gold Regression Scatter Plot")
     fig = px.scatter(
         final_daily_ret_df
         , x="Log_Ret_Close_Nifty"
