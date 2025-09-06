@@ -549,7 +549,7 @@ def plot_positive_negative_streak(df, title):
         xaxis_title='Date',
         yaxis_title='Streak Length'
     )
-
+    st.divider()
     st.markdown(
     """
     <div style="font-family: 'Segoe UI', Arial, sans-serif; font-size: 1.13rem; color: #222831; background-color: #f5f6fa; padding: 16px 22px; border-radius: 10px; margin-bottom: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
@@ -566,7 +566,6 @@ def plot_positive_negative_streak(df, title):
     """,
     unsafe_allow_html=True)
     st.plotly_chart(fig, use_container_width=True)
-
     return df
 
 def probability_of_streak_reset_after_value(df, streak_col):
