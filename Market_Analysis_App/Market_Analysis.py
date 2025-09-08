@@ -1335,6 +1335,3 @@ else:
     # final_daily_ret_df = final_daily_ret_df.sort_index(ascending=False)
     # st.dataframe(final_daily_ret_df)
     analyse("GOLDBEES.NS")
-st.divider()
-
-
