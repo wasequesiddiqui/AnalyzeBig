@@ -90,11 +90,14 @@ def get_date_string(date):
 def get_ticker_data(ticker, start_date, end_date):
     """
     Retrieve historical data for a given ticker symbol.
+    Caching it to avoid reloading unless the date range changes.
     """
-    df = yf.download(ticker, start=start_date, end=end_date)
-    df.columns = df.columns.get_level_values(0)
-    # df.reset_index(inplace=True)
-    return df
+    @st.cache_data(show_spinner=True)  # Use st.cache_data for caching
+    def _load_data(ticker, start_date, end_date):
+        df = yf.download(ticker, start=start_date, end=end_date)
+        df.columns = df.columns.get_level_values(0)
+        return df
+    return _load_data(ticker, start_date, end_date)
 
 def get_log_returns(df, col_name):
     """
@@ -932,57 +935,17 @@ def analyse(main_ticker):
     print(f"Start Date (5 Years ago): {str_start_date}")
 
     df_XAU = get_ticker_data(main_ticker, str_start_date, str_end_date)
-    df_Nifty_50 = get_ticker_data("^NSEI", str_start_date, str_end_date)
-    df_USD_INR = get_ticker_data("USDINR=X", str_start_date, str_end_date)
-    df_USD_BTC = get_ticker_data("BTC-USD", str_start_date, str_end_date)
-    df_US_GLD = get_ticker_data("GLD", str_start_date, str_end_date)
-
     # df_XAU.set_index("Price Date", inplace=True)
     df_XAU = get_log_returns(df_XAU, "Close")
     df_XAU = get_log_returns(df_XAU, "Volume")
     df_XAU = set_df_datatype(df_XAU)
     print(df_XAU.head(5))
 
-    df_Nifty_50 = get_log_returns(df_Nifty_50, "Close")
-    df_Nifty_50 = get_log_returns(df_Nifty_50, "Volume")
-    df_Nifty_50 = set_df_datatype(df_Nifty_50)
+    df_XAU = df_XAU.join(st.session_state['df_nifty50'][['Log_Ret_Close_Nifty', 'Log_Ret_Volume_Nifty']], how='left')
+    df_XAU = df_XAU.join(st.session_state['df_usd_inr'][['Log_Ret_Close_INR', 'Log_Ret_Volume_INR']], how='left')
+    df_XAU = df_XAU.join(st.session_state['df_usd_btc'][['Log_Ret_Close_BTC', 'Log_Ret_Volume_BTC']], how='left')
+    df_XAU = df_XAU.join(st.session_state['df_us_gld'][['Log_Ret_Close_XAU', 'Log_Ret_Volume_XAU']], how='left')
 
-    df_USD_INR = get_log_returns(df_USD_INR, "Close")
-    df_USD_INR = get_log_returns(df_USD_INR, "Volume")
-    df_USD_INR = set_df_datatype(df_USD_INR)
-
-    df_USD_BTC = get_log_returns(df_USD_BTC, "Close")
-    df_USD_BTC = get_log_returns(df_USD_BTC, "Volume")
-    df_USD_BTC = set_df_datatype(df_USD_BTC)
-
-    df_US_GLD = get_log_returns(df_US_GLD, "Close")
-    df_US_GLD = get_log_returns(df_US_GLD, "Volume")
-    df_US_GLD = set_df_datatype(df_US_GLD)
-
-    df_Nifty_50 = rename_columns(df_Nifty_50,{"Close": "Nifty_Close"
-                                            , "Volume": "Nifty_Volume"
-                                            ,"Log_Ret_Close": "Log_Ret_Close_Nifty"
-                                            , "Log_Ret_Volume": "Log_Ret_Volume_Nifty"},"Nifty 50 Data:")
-
-    df_USD_INR = rename_columns(df_USD_INR,{"Close": "INR_Close"
-                                            , "Volume": "INR_Volume"
-                                            ,"Log_Ret_Close": "Log_Ret_Close_INR"
-                                            , "Log_Ret_Volume": "Log_Ret_Volume_INR"},"USD to INR Data:")
-
-    df_USD_BTC =rename_columns(df_USD_BTC,{"Close": "BTC_Close"
-                                            , "Volume": "BTC_Volume"
-                                            ,"Log_Ret_Close": "Log_Ret_Close_BTC"
-                                            , "Log_Ret_Volume": "Log_Ret_Volume_BTC"},"USD to BTC Data:")
-
-    df_US_GLD = rename_columns(df_US_GLD,{"Close": "XAU_Close"
-                                            , "Volume": "XAU_Volume"
-                                            ,"Log_Ret_Close": "Log_Ret_Close_XAU"
-                                            , "Log_Ret_Volume": "Log_Ret_Volume_XAU"},"US GLD Data:")
-
-    df_XAU = df_XAU.join(df_Nifty_50[['Log_Ret_Close_Nifty', 'Log_Ret_Volume_Nifty']], how='left')
-    df_XAU = df_XAU.join(df_USD_INR[['Log_Ret_Close_INR', 'Log_Ret_Volume_INR']], how='left')
-    df_XAU = df_XAU.join(df_USD_BTC[['Log_Ret_Close_BTC', 'Log_Ret_Volume_BTC']], how='left')
-    df_XAU = df_XAU.join(df_US_GLD[['Log_Ret_Close_XAU', 'Log_Ret_Volume_XAU']], how='left')
     df_ticker = df_XAU.copy()
     df_latest2Months = df_XAU[:60]
     df_analysis = df_XAU[60:]
@@ -1155,6 +1118,72 @@ start_date = sb.date_input("Start Date", min_value=st.session_state['start_date'
 end_date = sb.date_input("End Date", min_value=st.session_state['start_date'], max_value=datetime.today(), value=datetime.today())
 btn_refresh = sb.button("Refresh Data", key="refresh")
 
+def set_df_session_state():
+    """Initialize session state variables for dataframes and dates."""
+    if 'df_nifty50' not in st.session_state \
+    or 'df_xau_def' not in st.session_state \
+    or 'df_usd_inr' not in st.session_state \
+    or 'df_usd_btc' not in st.session_state \
+    or 'df_us_gld' not in st.session_state \
+    or 'start_date' not in st.session_state \
+    or 'end_date' not in st.session_state \
+    or st.session_state['start_date'] != start_date \
+    or st.session_state['end_date'] != end_date:
+        
+        st.session_state['start_date'] = start_date
+        st.session_state['end_date'] = end_date
+
+        df_Nifty_50 = get_ticker_data("^NSEI", str_start_date, str_end_date)
+        df_USD_INR = get_ticker_data("USDINR=X", str_start_date, str_end_date)
+        df_USD_BTC = get_ticker_data("BTC-USD", str_start_date, str_end_date)
+        df_US_GLD = get_ticker_data("GLD", str_start_date, str_end_date)
+
+        df_Nifty_50 = get_log_returns(df_Nifty_50, "Close")
+        df_Nifty_50 = get_log_returns(df_Nifty_50, "Volume")
+        df_Nifty_50 = set_df_datatype(df_Nifty_50)
+
+        df_USD_INR = get_log_returns(df_USD_INR, "Close")
+        df_USD_INR = get_log_returns(df_USD_INR, "Volume")
+        df_USD_INR = set_df_datatype(df_USD_INR)
+
+        df_USD_BTC = get_log_returns(df_USD_BTC, "Close")
+        df_USD_BTC = get_log_returns(df_USD_BTC, "Volume")
+        df_USD_BTC = set_df_datatype(df_USD_BTC)
+
+        df_US_GLD = get_log_returns(df_US_GLD, "Close")
+        df_US_GLD = get_log_returns(df_US_GLD, "Volume")
+        df_US_GLD = set_df_datatype(df_US_GLD)
+
+        df_xau_def = get_ticker_data("GOLDBEES.NS", str_start_date, str_end_date)
+        df_xau_def = get_log_returns(df_xau_def, "Close")
+        df_xau_def = get_log_returns(df_xau_def, "Volume")
+
+        df_Nifty_50 = rename_columns(df_Nifty_50,{"Close": "Nifty_Close"
+                                            , "Volume": "Nifty_Volume"
+                                            ,"Log_Ret_Close": "Log_Ret_Close_Nifty"
+                                            , "Log_Ret_Volume": "Log_Ret_Volume_Nifty"},"Nifty 50 Data:")
+
+        df_USD_INR = rename_columns(df_USD_INR,{"Close": "INR_Close"
+                                            , "Volume": "INR_Volume"
+                                            ,"Log_Ret_Close": "Log_Ret_Close_INR"
+                                            , "Log_Ret_Volume": "Log_Ret_Volume_INR"},"USD to INR Data:")
+
+        df_USD_BTC =rename_columns(df_USD_BTC,{"Close": "BTC_Close"
+                                            , "Volume": "BTC_Volume"
+                                            ,"Log_Ret_Close": "Log_Ret_Close_BTC"
+                                            , "Log_Ret_Volume": "Log_Ret_Volume_BTC"},"USD to BTC Data:")
+
+        df_US_GLD = rename_columns(df_US_GLD,{"Close": "XAU_Close"
+                                            , "Volume": "XAU_Volume"
+                                            ,"Log_Ret_Close": "Log_Ret_Close_XAU"
+                                            , "Log_Ret_Volume": "Log_Ret_Volume_XAU"},"US GLD Data:")
+
+        st.session_state['df_xau_def'] = df_xau_def
+        st.session_state['df_nifty50'] = df_Nifty_50
+        st.session_state['df_usd_inr'] = df_USD_INR
+        st.session_state['df_usd_btc'] = df_USD_BTC
+        st.session_state['df_us_gld'] = df_US_GLD
+
 if btn_refresh:
     str_start_date,str_end_date = update_dates_in_session_state(start_date, end_date, sb)
 else:
@@ -1162,19 +1191,17 @@ else:
     # sb.markdown("**Default start date for initial dataframe:** {}".format(str_start_date))
     # sb.markdown("**Default end date for initial dataframe:** {}".format(str_end_date))
 
-df_nifty50 = get_ticker_data("^NSEI", str_start_date, str_end_date)
-df_nifty50 = get_log_returns(df_nifty50, "Close")
-df_nifty50 = get_log_returns(df_nifty50, "Volume")
-
 if end_date < start_date:
     st.error("End date must be after start date.")
     st.stop()
 else:
-    df_xau = get_ticker_data("GC=F", str_start_date, str_end_date)
-    df_xau = get_log_returns(df_xau, "Close")
-    df_xau = get_log_returns(df_xau, "Volume")
-    styled_df_nifty = df_nifty50.style.applymap(color_returns, subset=['Log_Ret_Close','Log_Ret_Volume'])
+    set_df_session_state()
+    df_nifty50 = st.session_state['df_nifty50']
+    df_xau = st.session_state['df_xau_def']
+    styled_df_nifty = df_nifty50.style.applymap(color_returns, subset=['Log_Ret_Close_Nifty','Log_Ret_Volume_Nifty'])
     styled_df_xau = df_xau.style.applymap(color_returns, subset=['Log_Ret_Close','Log_Ret_Volume'])
+    df_nifty50.head()
+    df_xau.head()
     st.subheader("Nifty 50 DataFrame")
     st.markdown(
     """
@@ -1220,10 +1247,9 @@ else:
                                 df_xau,
                                 left_index=True, 
                                 right_index=True, 
-                                how='inner', 
-                                suffixes=('_Nifty', '_XAU'))
-    final_daily_ret_df = final_daily_ret_df[['Log_Ret_Close_Nifty','Log_Ret_Volume_Nifty','Log_Ret_Close_XAU','Log_Ret_Volume_XAU']]
-    final_daily_ret_df_styled = final_daily_ret_df.style.applymap(color_returns, subset=['Log_Ret_Close_Nifty','Log_Ret_Volume_Nifty','Log_Ret_Close_XAU','Log_Ret_Volume_XAU'])
+                                how='inner')
+    final_daily_ret_df = final_daily_ret_df[['Log_Ret_Close_Nifty','Log_Ret_Volume_Nifty','Log_Ret_Close','Log_Ret_Volume']]
+    final_daily_ret_df_styled = final_daily_ret_df.style.applymap(color_returns, subset=['Log_Ret_Close_Nifty','Log_Ret_Volume_Nifty','Log_Ret_Close','Log_Ret_Volume'])
     st.divider()
     st.subheader("Final Merged DataFrame")
     st.markdown(
@@ -1287,7 +1313,7 @@ else:
     
     fig = plotly_line_graph(final_daily_ret_df,
                             x_col='Date',
-                            y_cols=[['Log_Ret_Close_Nifty','Nifty'], ['Log_Ret_Close_XAU','XAU']],
+                            y_cols=[['Log_Ret_Close_Nifty','Nifty'], ['Log_Ret_Close','XAU']],
                             title="Nifty 50 & Gold Return (Logarithmic Daily Returns)",
                             x_title="Date",
                             y_title="Log Daily Returns")
@@ -1297,9 +1323,9 @@ else:
     fig = px.scatter(
         final_daily_ret_df
         , x="Log_Ret_Close_Nifty"
-        , y="Log_Ret_Close_XAU"
+        , y="Log_Ret_Close"
         , title="Nifty 50 vs Gold Price"
-        , labels={"Log_Ret_Close_Nifty": "Nifty 50 Log Daily Returns", "Log_Ret_Close_XAU": "XAU Log Daily Returns"}
+        , labels={"Log_Ret_Close_Nifty": "Nifty 50 Log Daily Returns", "Log_Ret_Close": "XAU Log Daily Returns"}
         , trendline="ols")
     # Extract regression results
     results = px.get_trendline_results(fig)
