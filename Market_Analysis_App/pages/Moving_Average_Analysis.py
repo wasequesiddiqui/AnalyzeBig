@@ -26,6 +26,8 @@ st.set_page_config(layout="wide",
                    page_title="Nifty Gold BEES EMA Analysis",
                    page_icon="🚀"
                    )
+sb = st.sidebar
+sb.title("Best EMA Analysis")
 # lst_days = [13, 21, 34, 55, 89]
 lst_days = [3, 5, 8, 13, 21]
 # Main code for analysis and visualization of nifty 50 data
@@ -181,7 +183,7 @@ def generate_trade_signals(df, days):
     buy_price = 0.0
 
     # Iterate through the DataFrame to generate trade signals
-    for i in range(1, len(df)):
+    for i in range(1, len(df)-1):
         if df[ema_flag_col_name][i] == 1 and df['EMA_Flag_Shifted'][i] == 0 and not trade_signal_buy:
             df[trade_signal_col_name][i] = "BUY"
             trade_signal_buy = True
@@ -274,28 +276,69 @@ def calculate_best_ema(df):
     lst_absolute_profit = []
     lst_per_profit = []
 
+    best_ema_num_buy_signals = 0
+    best_ema_avg_abs_gain = 0.0
+    best_ema_avg_per_gain = 0.0
+    best_ema_avg_days_between_trades = 0.0
+
     for day in lst_days:
         difference_col_name = f"Difference_{day}"
+        trade_signal_col_name = f"Trade_Signal_{day}"
+        buy_price_col_name = f"BUY_Price_{day}"
+        sell_price_col_name = f"SELL_Price_{day}"
+
+        # Calculate total profit
         total_profit = df[difference_col_name].sum()
         per_profit = (total_profit / first_close_value) * 100 if first_close_value != 0 else 0
-        
+
+        # Calculate number of buy signals
+        num_buy_signals = (df[trade_signal_col_name]=="BUY").sum()
+
+        # Calculate average absolute gain
+        buy_prices = df[buy_price_col_name][df[buy_price_col_name] > 0]
+        sell_prices = df[sell_price_col_name][df[sell_price_col_name] > 0]
+        absolute_gains = sell_prices.values - buy_prices.values
+        avg_abs_gain = np.mean(absolute_gains) if len(absolute_gains) > 0 else 0.0
+
+        # Calculate average percentage gain
+        percentage_gains = (absolute_gains / buy_prices.values) * 100 if len(absolute_gains) > 0 else np.array([0.0])
+        avg_per_gain = np.mean(percentage_gains) if len(percentage_gains) > 0 else 0.0
+
+        # Calculate average number of days between trades
+        buy_indices = df[df[trade_signal_col_name] == "BUY"].index
+        sell_indices = df[df[trade_signal_col_name] == "SELL"].index
+
+        # Ensure that there are both buy and sell signals
+        if len(buy_indices) > 0 and len(sell_indices) > 0:
+            # Use only the minimum number of buy or sell signals to avoid index out of bounds
+            min_trades = min(len(buy_indices), len(sell_indices))
+            days_between_trades = sell_indices[:min_trades] - buy_indices[:min_trades]
+            avg_days_between_trades = np.mean(days_between_trades)
+        else:
+            avg_days_between_trades = 0
+
         # Append results to lists for potential further analysis or plotting
         lst_days_ema.append(difference_col_name)
         lst_absolute_profit.append(total_profit)
         lst_per_profit.append(per_profit)
-
-        # Display the profit results using Streamlit
-        # st.markdown(f"<h4>Profit for EMA {day}: {per_profit:.2f}%</h4>", unsafe_allow_html=True)
-        # st.markdown(f"<h4>Total Profit for EMA {day}: {total_profit:.2f}</h4>", unsafe_allow_html=True)
 
         # Determine if this EMA is the best one so far
         if total_profit > max_profit:
             max_profit = total_profit
             max_profit_per = per_profit
             best_ema = day
+            best_ema_num_buy_signals = num_buy_signals
+            best_ema_avg_abs_gain = avg_abs_gain
+            best_ema_avg_per_gain = avg_per_gain
+            best_ema_avg_days_between_trades = avg_days_between_trades
+
     # Highlight the best EMA
-    st.markdown(f"<h5 style='color: #787355;'>Best EMA is {best_ema} days with a profit of {max_profit:.2f} or {max_profit_per:.2f} %</h5>", unsafe_allow_html=True)
-    
+    sb.markdown(f"<h4 style='color: #787355;'>Best EMA is {best_ema} days with a profit of {max_profit:.2f} or {max_profit_per:.2f} %</h5>", unsafe_allow_html=True)
+    sb.markdown(f"<h4 style='color: #787355;'>Number of Buy Signals: {best_ema_num_buy_signals}</h6>", unsafe_allow_html=True)
+    sb.markdown(f"<h4 style='color: #787355;'>Average Absolute Gain: {best_ema_avg_abs_gain:.2f}</h6>", unsafe_allow_html=True)
+    sb.markdown(f"<h4 style='color: #787355;'>Average Percentage Gain: {best_ema_avg_per_gain:.2f}%</h6>", unsafe_allow_html=True)
+    sb.markdown(f"<h4 style='color: #787355;'>Average Days Between Trades: {best_ema_avg_days_between_trades:.2f}</h6>", unsafe_allow_html=True)
+
     # Create a DataFrame to summarize the results
     df_best_ma_analysis = pd.DataFrame({
         'EMA_Days': lst_days_ema,
@@ -305,9 +348,8 @@ def calculate_best_ema(df):
 
     st.markdown("<h5 style='color: #787355;'>EMA Profit Analysis Summary</h5>", unsafe_allow_html=True)
     st.dataframe(df_best_ma_analysis, use_container_width=True)
-    
+
     # Plot the EMA analysis results
-    # Sort by Percentage_Profit in descending order
     df_best_ma_analysis = df_best_ma_analysis.sort_values(by='Percentage_Profit', ascending=False)
     plot_ema_analysis(df_best_ma_analysis)
     return best_ema
