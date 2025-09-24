@@ -280,6 +280,8 @@ def calculate_best_ema(df):
     best_ema_avg_abs_gain = 0.0
     best_ema_avg_per_gain = 0.0
     best_ema_avg_days_between_trades = 0.0
+    best_ema_avg_drawdown_percentage = 0.0
+    best_ema_lowest_drawdown = 0.0
 
     for day in lst_days:
         difference_col_name = f"Difference_{day}"
@@ -317,6 +319,23 @@ def calculate_best_ema(df):
         else:
             avg_days_between_trades = 0
 
+        # Calculate average drawdown percentage after buy signals
+        drawdown_percentages = []
+        for buy_index in buy_indices:
+            # Find the index of the next buy signal after the current one
+            next_buy_index = buy_indices[buy_indices > buy_index].min() if any(buy_indices > buy_index) else len(df)
+
+            # Find the lowest close price after the buy signal, but before the next buy signal
+            subsequent_closes = df['Close'][buy_index:next_buy_index]
+            if not subsequent_closes.empty:
+                lowest_close = subsequent_closes.min()
+                # Calculate the drawdown percentage
+                drawdown_percentage = ((lowest_close - df['Close'][buy_index]) / df['Close'][buy_index]) * 100
+                drawdown_percentages.append(drawdown_percentage)
+
+        avg_drawdown_percentage = np.mean(drawdown_percentages) if drawdown_percentages else 0.0
+        best_ema_lowest_drawdown = min(drawdown_percentages) if drawdown_percentages else 0.0
+
         # Append results to lists for potential further analysis or plotting
         lst_days_ema.append(difference_col_name)
         lst_absolute_profit.append(total_profit)
@@ -331,6 +350,7 @@ def calculate_best_ema(df):
             best_ema_avg_abs_gain = avg_abs_gain
             best_ema_avg_per_gain = avg_per_gain
             best_ema_avg_days_between_trades = avg_days_between_trades
+            best_ema_avg_drawdown_percentage = avg_drawdown_percentage
 
     # Highlight the best EMA
     sb.markdown(f"<h4 style='color: #787355;'>Best EMA is {best_ema} days with a profit of {max_profit:.2f} or {max_profit_per:.2f} %</h5>", unsafe_allow_html=True)
@@ -338,7 +358,8 @@ def calculate_best_ema(df):
     sb.markdown(f"<h4 style='color: #787355;'>Average Absolute Gain: {best_ema_avg_abs_gain:.2f}</h6>", unsafe_allow_html=True)
     sb.markdown(f"<h4 style='color: #787355;'>Average Percentage Gain: {best_ema_avg_per_gain:.2f}%</h6>", unsafe_allow_html=True)
     sb.markdown(f"<h4 style='color: #787355;'>Average Days Between Trades: {best_ema_avg_days_between_trades:.2f}</h6>", unsafe_allow_html=True)
-
+    sb.markdown(f"<h4 style='color: #787355;'>Average Drawdown Percentage: {best_ema_avg_drawdown_percentage:.2f}%</h6>", unsafe_allow_html=True)
+    sb.markdown(f"<h4 style='color: #787355;'>Lowest Drawdown Percentage: {best_ema_lowest_drawdown:.2f}%</h6>", unsafe_allow_html=True)
     # Create a DataFrame to summarize the results
     df_best_ma_analysis = pd.DataFrame({
         'EMA_Days': lst_days_ema,
