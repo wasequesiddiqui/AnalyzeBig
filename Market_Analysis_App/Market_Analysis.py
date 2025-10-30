@@ -60,6 +60,7 @@ st.markdown(
     """,
     unsafe_allow_html=True
 )
+
 # Apply style directly to the title using a markdown h1 tag with an inline style
 st.markdown("<h1 style='color: #787355;'>Analytics on Nifty Gold BEES Close Price</h1>", unsafe_allow_html=True)
 df_nifty50 = pd.DataFrame()
