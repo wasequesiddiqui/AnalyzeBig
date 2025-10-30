@@ -4,15 +4,10 @@ command to run streamlit app: cd C:\Github\AnalyzeBig\Market_Analysis_App
 streamlit run Market_Analysis.py
 """
 import yfinance as yf
-import random
 import numpy as np
 import pandas as pd
-import matplotlib.pyplot as plt
-import tensorflow as tf
-import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
-import Market_Analysis as ma
 
 from prophet import Prophet
 from tensorflow.keras.models import Sequential # type: ignore
