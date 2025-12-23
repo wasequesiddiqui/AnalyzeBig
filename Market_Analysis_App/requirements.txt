@@ -1,7 +1,7 @@
 streamlit
 plotly
 matplotlib
-yfinance==0.2.66
+yfinance
 tensorflow
 prophet
 scikit-learn
