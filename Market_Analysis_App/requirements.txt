@@ -1,3 +1,4 @@
+# Python 3.12 required
 streamlit
 plotly
 matplotlib
@@ -6,3 +7,4 @@ tensorflow
 prophet
 scikit-learn
 statsmodels
+neuralprophet
