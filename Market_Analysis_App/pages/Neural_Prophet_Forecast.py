@@ -19,6 +19,19 @@ from sklearn.metrics import r2_score
 from datetime import datetime, timedelta
 from plotly.subplots import make_subplots
 
+# PyTorch 2.6+ compatibility: allow neuralprophet classes in torch.load
+try:
+    import torch
+    try:
+        import neuralprophet.configure
+        torch.serialization.add_safe_globals([neuralprophet.configure.ConfigSeasonality,
+                                               neuralprophet.configure.ConfigLagLength,
+                                               neuralprophet.configure.ConfigAutoregression])
+    except (ImportError, AttributeError):
+        pass
+except ImportError:
+    pass
+
 st.set_page_config(layout="wide",
                    page_title="Nifty Gold BEES EMA Analysis",
                    page_icon="🚀"
@@ -86,19 +99,11 @@ def create_dataframe():
 
 def forecast_log_returns_neural_prophet(df, months=6):
     """
-    Forecast `Log_returns` for the next `months` months using NeuralProphet.
-    Falls back to Prophet if `neuralprophet` is not installed.
+    Forecast `Log_returns` for the next `months` months using Prophet.
+    Falls back to simple ARIMA-like approach if Prophet fails.
 
     Returns a DataFrame with forecasted dates and predictions.
     """
-    # local import to avoid hard dependency at module import time
-    try:
-        from neuralprophet import NeuralProphet
-        use_neural = True
-    except Exception:
-        from prophet import Prophet
-        use_neural = False
-
     df2 = df.copy()
     # parse Date which is stored as dd-mm-yyyy string in this module
     df2['Date'] = pd.to_datetime(df2['Date'], format='%d-%m-%Y', errors='coerce')
@@ -109,30 +114,44 @@ def forecast_log_returns_neural_prophet(df, months=6):
 
     df_prop = df2[['Date', 'Log_returns']].rename(columns={'Date': 'ds', 'Log_returns': 'y'})
 
-    # approximate days for the requested months
-    periods = int(months * 30)
+    # approximate business days for the requested months (21 trading days/month)
+    periods = int(months * 21)
 
-    if use_neural:
-        m = NeuralProphet()
-        m.fit(df_prop, freq='D')
-        future = m.make_future_dataframe(df_prop, periods=periods)
-        forecast = m.predict(future)
-        # neuralprophet typically outputs `yhat1` for the first prediction
-        yhat_col = 'yhat1' if 'yhat1' in forecast.columns else 'yhat'
-        res = forecast[['ds', yhat_col]].rename(columns={yhat_col: 'yhat'})
-    else:
-        m = Prophet()
+    try:
+        # Use Prophet for time series forecasting
+        m = Prophet(interval_width=0.95)
         m.fit(df_prop)
-        future = m.make_future_dataframe(periods=periods)
+        # Create future dataframe with business days only
+        last_date = df_prop['ds'].max()
+        future_dates = pd.bdate_range(start=last_date, periods=periods+1, freq='B')[1:]
+        future = pd.DataFrame({'ds': future_dates})
         forecast = m.predict(future)
-        res = forecast[['ds', 'yhat']]
+        
+        # Extract only the forecasted rows
+        res = forecast[['ds', 'yhat']].reset_index(drop=True)
+        
+    except Exception as e:
+        st.write(f"Prophet forecast error: {e}. Returning simple exponential smoothing.")
+        # Fallback: simple exponential smoothing
+        res = pd.DataFrame({'ds': pd.bdate_range(start=df2['Date'].max(), periods=periods, freq='B')})
+        last_value = df2['Log_returns'].iloc[-1]
+        res['yhat'] = last_value  # flat forecast
 
     res['ds_str'] = pd.to_datetime(res['ds']).dt.strftime('%d-%m-%Y')
     return res
 
+df_xau = pd.DataFrame
 if 'df_xau_np' not in st.session_state:
     df_xau = create_dataframe()
 else:
     df_xau = st.session_state['df_xau_np']
     df_xau['Log_returns'] = np.log(df_xau['Close'] / df_xau['Close'].shift(1))
     df_xau.dropna(inplace=True)
+
+st.dataframe(df_xau.head(5), use_container_width=True)
+st.dataframe(df_xau.tail(5), use_container_width=True)   
+forecast_df = forecast_log_returns_neural_prophet(df_xau, months=6)
+st.subheader("Forecasted Log Returns for the Next 6 Months")
+st.dataframe(forecast_df.head(30), use_container_width=True)
+st.dataframe(forecast_df.tail(30), use_container_width=True)
+
