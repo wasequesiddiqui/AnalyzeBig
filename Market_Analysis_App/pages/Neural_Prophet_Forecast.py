@@ -127,8 +127,11 @@ def forecast_log_returns_neural_prophet(df, months=6):
         future = pd.DataFrame({'ds': future_dates})
         forecast = m.predict(future)
         
-        # Extract only the forecasted rows
-        res = forecast[['ds', 'yhat']].reset_index(drop=True)
+        # Extract forecasted rows including uncertainty bounds if present
+        cols = ['ds', 'yhat']
+        if 'yhat_lower' in forecast.columns and 'yhat_upper' in forecast.columns:
+            cols += ['yhat_lower', 'yhat_upper']
+        res = forecast[cols].reset_index(drop=True)
         
     except Exception as e:
         st.write(f"Prophet forecast error: {e}. Returning simple exponential smoothing.")
@@ -136,6 +139,9 @@ def forecast_log_returns_neural_prophet(df, months=6):
         res = pd.DataFrame({'ds': pd.bdate_range(start=df2['Date'].max(), periods=periods, freq='B')})
         last_value = df2['Log_returns'].iloc[-1]
         res['yhat'] = last_value  # flat forecast
+        # set bounds equal to the point forecast when Prophet not available
+        res['yhat_lower'] = res['yhat']
+        res['yhat_upper'] = res['yhat']
 
     res['ds_str'] = pd.to_datetime(res['ds']).dt.strftime('%d-%m-%Y')
     return res
@@ -148,10 +154,61 @@ else:
     df_xau['Log_returns'] = np.log(df_xau['Close'] / df_xau['Close'].shift(1))
     df_xau.dropna(inplace=True)
 
-st.dataframe(df_xau.head(5), use_container_width=True)
-st.dataframe(df_xau.tail(5), use_container_width=True)   
+# st.dataframe(df_xau.head(5), use_container_width=True)
+# st.dataframe(df_xau.tail(5), use_container_width=True)   
 forecast_df = forecast_log_returns_neural_prophet(df_xau, months=6)
 st.subheader("Forecasted Log Returns for the Next 6 Months")
-st.dataframe(forecast_df.head(30), use_container_width=True)
-st.dataframe(forecast_df.tail(30), use_container_width=True)
+# st.dataframe(forecast_df.head(30), use_container_width=True)
+# st.dataframe(forecast_df.tail(30), use_container_width=True)
+
+# Compute predicted future prices by applying forecasted log-returns
+if not forecast_df.empty:
+    # ensure chronological order
+    forecast_df = forecast_df.sort_values('ds').reset_index(drop=True)
+    # latest observed close price
+    last_price = df_xau['Close'].iloc[-1]
+    # iterative application of log returns: each predicted price uses the previous predicted price
+    predicted = []
+    predicted_lower = []
+    predicted_upper = []
+    price = float(last_price)
+    price_low = float(last_price)
+    price_up = float(last_price)
+    # use .get to safely access bounds if missing
+    yhat_vals = forecast_df['yhat'].values
+    yhat_lower_vals = forecast_df.get('yhat_lower', pd.Series(yhat_vals)).values
+    yhat_upper_vals = forecast_df.get('yhat_upper', pd.Series(yhat_vals)).values
+    for r, rl, ru in zip(yhat_vals, yhat_lower_vals, yhat_upper_vals):
+        price = price * np.exp(r)
+        price_low = price_low * np.exp(rl)
+        price_up = price_up * np.exp(ru)
+        predicted.append(price)
+        predicted_lower.append(price_low)
+        predicted_upper.append(price_up)
+    forecast_df['predicted_price'] = np.array(predicted).round(4)
+    forecast_df['predicted_price_lower'] = np.array(predicted_lower).round(4)
+    forecast_df['predicted_price_upper'] = np.array(predicted_upper).round(4)
+    # show predicted prices
+    # st.subheader("Predicted Future Prices Based on Forecasted Log Returns")
+    st.dataframe(forecast_df[['ds_str', 'yhat', 'predicted_price']].head(50), use_container_width=True)
+    # plot predicted price path
+    try:
+        ds = pd.to_datetime(forecast_df['ds'])
+        mid = forecast_df['predicted_price']
+
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(x=ds, y=mid, mode='lines', line=dict(color='rgb(34,94,168)', width=2), name='Predicted Price'))
+
+        fig.update_layout(title='Predicted Future Price', xaxis_title='Date', yaxis_title='Predicted Price')
+        # use linear y-axis
+        fig.update_yaxes(type='linear')
+        st.plotly_chart(fig, use_container_width=True)
+    except Exception:
+        # fallback to a simple line chart
+        try:
+            fig2 = px.line(forecast_df, x='ds', y='predicted_price', title='Predicted Future Price')
+            fig2.update_layout(xaxis_title='Date', yaxis_title='Predicted Price')
+            st.plotly_chart(fig2, use_container_width=True)
+        except Exception:
+            st.line_chart(forecast_df.set_index('ds')['predicted_price'])
 
