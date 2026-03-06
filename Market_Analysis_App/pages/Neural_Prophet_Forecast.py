@@ -39,6 +39,19 @@ st.set_page_config(layout="wide",
 
 sb = st.sidebar
 sb.title("Forecasting Statistics")
+# optional optimization settings
+run_opt = sb.checkbox("Run lag/quantile optimization", value=False,
+                      help="Check to search over predefined lags and quantiles.")
+# user-settable hyperparameters (used either directly or during optimization)
+interval = sb.slider("Prediction interval width", 0.5, 1.0, 0.95, step=0.01)
+lookback = sb.number_input("History lookback (months)", min_value=0, max_value=12, value=3, step=1,
+                           help="Only include this many months of recent history; 0 disables filtering.")
+weight_factor = sb.slider("Recent weight factor", 1.0, 20.0, 5.0, step=0.5,
+                          help="Multiplier applied to points within the lookback window to give them higher weight.")
+ar_lags = sb.number_input("Autoregressive lags", min_value=0, max_value=5, value=1, step=1,
+                           help="Number of lagged `y` terms to include as regressors.")
+uncertainty_samples = sb.number_input("Uncertainty samples", min_value=0, max_value=5000, value=1000, step=100,
+                                      help="Number of Monte Carlo samples for uncertainty intervals.")
 # lst_days = [13, 21, 34, 55, 89]
 lst_days = [3, 5, 8, 13, 21]
 # Main code for analysis and visualization of nifty 50 data
@@ -97,12 +110,15 @@ def create_dataframe():
     return df_xau
 
 
-def forecast_log_returns_neural_prophet(df, months=6):
+def forecast_log_returns_neural_prophet(df, months=6,
+                                          interval_width=0.95,
+                                          lookback_months=0,
+                                          recent_weight=1.0,
+                                          ar_lags=0,
+                                          uncertainty_samples=1000):
     """
     Forecast `Log_returns` for the next `months` months using Prophet.
-    Falls back to simple ARIMA-like approach if Prophet fails.
-
-    Returns a DataFrame with forecasted dates and predictions.
+    Provides options for weighting recent data, AR lags and uncertainty sampling.
     """
     df2 = df.copy()
     # parse Date which is stored as dd-mm-yyyy string in this module
@@ -114,17 +130,37 @@ def forecast_log_returns_neural_prophet(df, months=6):
 
     df_prop = df2[['Date', 'Log_returns']].rename(columns={'Date': 'ds', 'Log_returns': 'y'})
 
+    # restrict history and compute weights
+    if lookback_months and lookback_months > 0:
+        cutoff = df_prop['ds'].max() - pd.DateOffset(months=lookback_months)
+        df_prop = df_prop[df_prop['ds'] >= cutoff]
+        if recent_weight and recent_weight != 1.0:
+            df_prop['weight'] = recent_weight
+
+    # add AR regressors
+    if ar_lags and ar_lags > 0:
+        for i in range(1, ar_lags + 1):
+            df_prop[f'y_lag{i}'] = df_prop['y'].shift(i)
+        df_prop.dropna(inplace=True)
+
     # approximate business days for the requested months (21 trading days/month)
     periods = int(months * 21)
 
     try:
         # Use Prophet for time series forecasting
-        m = Prophet(interval_width=0.95)
+        m = Prophet(interval_width=interval_width,
+                    uncertainty_samples=uncertainty_samples)
+        for i in range(1, ar_lags + 1):
+            m.add_regressor(f'y_lag{i}')
         m.fit(df_prop)
         # Create future dataframe with business days only
         last_date = df_prop['ds'].max()
         future_dates = pd.bdate_range(start=last_date, periods=periods+1, freq='B')[1:]
         future = pd.DataFrame({'ds': future_dates})
+        if ar_lags and ar_lags > 0:
+            for i in range(1, ar_lags + 1):
+                # carry last known value forward
+                future[f'y_lag{i}'] = df_prop[f'y_lag{i}'].iloc[-1]
         forecast = m.predict(future)
         
         # Extract forecasted rows including uncertainty bounds if present
@@ -156,7 +192,86 @@ else:
 
 # st.dataframe(df_xau.head(5), use_container_width=True)
 # st.dataframe(df_xau.tail(5), use_container_width=True)   
-forecast_df = forecast_log_returns_neural_prophet(df_xau, months=6)
+if run_opt:
+    # perform grid search over predetermined lags, lookback windows and quantile sets
+    def optimize_lags_quantiles(df, months=6):
+        lag_options = [3,4,5,6,7,8,9,10]
+        lookback_options = [3, 5, 7]
+        quantile_pairs = [(0.05,0.95),(0.01,0.99),(0.02,0.98),(0.03,0.97),(0.04,0.96)]
+        best = None
+        best_score = -np.inf
+        # create holdout set (last 21 business days)
+        df2 = df.copy()
+        df2['Date'] = pd.to_datetime(df2['Date'], format='%d-%m-%Y', errors='coerce')
+        df2['Log_returns'] = np.log(df2['Close']/df2['Close'].shift(1))
+        df2 = df2.dropna(subset=['Date','Log_returns'])
+        if len(df2) <= 21:
+            st.warning("Not enough data to run optimization (need >21 business days).")
+            return None
+        train = df2.iloc[:-21]
+        test = df2.iloc[-21:]
+        actual = np.log(test['Close']/test['Close'].shift(1)).dropna().values
+
+        total = len(lag_options) * len(lookback_options) * len(quantile_pairs)
+        count = 0
+        progress = st.sidebar.progress(0)
+        prog_text = st.sidebar.empty()
+
+        for lag in lag_options:
+            for look in lookback_options:
+                for (low,high) in quantile_pairs:
+                    width = high - low
+                    # run trial using specified lookback and lag
+                    feat = forecast_log_returns_neural_prophet(train, months=1,
+                                                               interval_width=width,
+                                                               lookback_months=look,
+                                                               recent_weight=weight_factor,
+                                                               ar_lags=lag,
+                                                               uncertainty_samples=uncertainty_samples)
+                    y_pred = feat['yhat'].values[:len(actual)]
+                    if len(y_pred) == len(actual):
+                        # compute Pearson correlation as the optimization metric
+                        if len(actual) > 1 and np.std(y_pred) > 0 and np.std(actual) > 0:
+                            r = np.corrcoef(actual, y_pred)[0,1]
+                        else:
+                            r = 0.0
+                        score = r  # use correlation directly
+                        if score > best_score:
+                            best_score = score
+                            best = (lag, look, (low,high), score)
+
+                    count += 1
+                    pct = int(100 * count / total)
+                    try:
+                        progress.progress(pct)
+                        prog_text.text(f"Optimization progress: {pct}% ({count}/{total})")
+                    except Exception:
+                        pass
+
+        # clear progress widgets after done
+        progress.empty()
+        prog_text.empty()
+        return best
+
+    opt_res = optimize_lags_quantiles(df_xau, months=6)
+    if opt_res:
+        lag_best, look_best, quantile_best, score_best = opt_res
+        st.write(f"Best configuration: lag={lag_best}, lookback={look_best} months, quantiles={quantile_best}, r2={score_best:.4f}")
+        # override forecasting parameters with best combination
+        interval = quantile_best[1] - quantile_best[0]
+        lookback = look_best
+        ar_lags = lag_best
+
+# use chosen parameters (either sidebar or optimized) for forecast
+forecast_df = forecast_log_returns_neural_prophet(
+    df_xau,
+    months=6,
+    interval_width=interval,
+    lookback_months=lookback,
+    recent_weight=weight_factor,
+    ar_lags=ar_lags,
+    uncertainty_samples=uncertainty_samples,
+)
 st.subheader("Forecasted Log Returns for the Next 6 Months")
 # st.dataframe(forecast_df.head(30), use_container_width=True)
 # st.dataframe(forecast_df.tail(30), use_container_width=True)
