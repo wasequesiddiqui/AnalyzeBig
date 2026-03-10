@@ -72,12 +72,41 @@ def calculate_financial_score(dataset, row_labels):
     percentage = (score / max_score) * 100 if max_score > 0 else 0
     return score, max_score, percentage
 
+def calculate_financial_score_decline(dataset, row_labels):
+    """
+    Calculates a percentage score based on year-over-year decline for specified row labels in the dataset.
+
+    For each row label, compares the values across consecutive columns (time periods).
+    If the value in the earlier period > value in the later period, scores 1, else 0.
+    Sums the scores across all labels and comparisons, then returns the percentage.
+
+    Parameters:
+    dataset (pandas.DataFrame): The financial dataset (e.g., income statement)
+    row_labels (list): List of row index labels to analyze (e.g., ['EBITDA'])
+
+    Returns:
+    float: Percentage score (0-100)
+    """
+    score = 0
+    max_score = len(row_labels) * 3
+    
+    for label in row_labels:
+        if label in dataset.index:
+            row_values = dataset.loc[label]
+            # Compare consecutive columns (assuming columns are in chronological order)
+            for i in range(len(row_values) - 1):
+                if row_values.iloc[i] <= row_values.iloc[i + 1]:
+                    score += 1
+    
+    percentage = (score / max_score) * 100 if max_score > 0 else 0
+    return score, max_score, percentage
+
 def calculate_financial_growth_score(dataset, row_labels):
     """
     Calculates a percentage score based on year-over-year growth for specified row labels in the dataset.
 
     For each row label, compares the values across consecutive columns (time periods).
-    If the value in the earlier period > value in the later period, scores 1, else 0.
+    If the value in the earlier period < value in the later period, scores 1, else 0.
     Sums the scores across all labels and comparisons, then returns the percentage.
 
     Parameters:
@@ -101,6 +130,34 @@ def calculate_financial_growth_score(dataset, row_labels):
     percentage = (score / max_score) * 100 if max_score > 0 else 0
     return score, max_score, percentage
 
+def calculate_financial_degrowth_score(dataset, row_labels):
+    """
+    Calculates a percentage score based on year-over-year growth for specified row labels in the dataset.
+
+    For each row label, compares the values across consecutive columns (time periods).
+    If the value in the earlier period > value in the later period, scores 1, else 0.
+    Sums the scores across all labels and comparisons, then returns the percentage.
+
+    Parameters:
+    dataset (pandas.DataFrame): The financial dataset (e.g., income statement)
+    row_labels (list): List of row index labels to analyze (e.g., ['EBITDA'])
+
+    Returns:
+    float: Percentage score (0-100)
+    """
+    score = 0
+    max_score = len(row_labels) * 2 * (dataset.shape[1] - 1)  # 2 points for each growth comparison per label
+    
+    for label in row_labels:
+        if label in dataset.index:
+            row_values = dataset.loc[label]
+            # Compare consecutive columns (assuming columns are in chronological order)
+            for i in range(len(row_values) - 2):
+                if row_values.iloc[i] >= row_values.iloc[i + 1]:
+                    score += 2
+    
+    percentage = (score / max_score) * 100 if max_score > 0 else 0
+    return score, max_score, percentage
 
 def year_over_year_changes(dataset):
     """
@@ -226,6 +283,64 @@ bs_score_growth, bs_max_score_growth, bs_percentage_growth = calculate_financial
                                                                              , 'Income Tax Payable'
                                                                              ,'Cash And Cash Equivalents'
                                                                              , 'Total Assets'])
+print(f"\nFinancial Score (BS): {bs_score_growth}/{bs_max_score_growth} ({bs_percentage_growth:.2f}%)")
+
+# Overall growth score can be calculated as a weighted average of the three growth scores
+growth_overall_score_growth = (bs_score_growth + cf_score_growth + pnl_score_growth)
+growth_max_score_growth = (bs_max_score_growth + cf_max_score_growth + pnl_max_score_growth)
+growth_percentage_growth = (growth_overall_score_growth / growth_max_score_growth) * 100 if growth_max_score_growth > 0 else 0
+print(f"\nOverall Financial Growth Score: {growth_overall_score_growth}/{growth_max_score_growth} ({growth_percentage_growth:.2f}%)")
+
+pnl_score, pnl_max_score, pnl_percentage = calculate_financial_score_decline(income_statement_data, ['Interest Expense'
+                                                                             ,'Other Income Expense'
+                                                                             ,'Operating Expense'
+                                                                             , 'Selling General And Administration'
+                                                                             , 'Cost Of Revenue'
+                                                                             , 'Reconciled Depreciation'])
+print(f"\nFinancial Score (P&L): {pnl_score}/{pnl_max_score} ({pnl_percentage:.2f}%)")
+
+cf_score, cf_max_score, cf_percentage = calculate_financial_score_decline(cashflow_data, ['Sale Of Investment'
+                                                                             ,'Issuance Of Debt'
+                                                                             , 'Capital Expenditure'
+                                                                             ,'Net Short Term Debt Issuance'
+                                                                             ,'Net Long Term Debt Issuance'
+                                                                             ,'Depreciation And Amortization'
+                                                                             , 'Stock Based Compensation'])
+print(f"\nFinancial Score (CF): {cf_score}/{cf_max_score} ({cf_percentage:.2f}%)")
+
+bs_score, bs_max_score, bs_percentage = calculate_financial_score_decline(balance_sheet_data, ['Net Debt'
+                                                                             ,'Total Debt'
+                                                                             ,'Capital Lease Obligations'
+                                                                             ,'Current Accrued Expenses'
+                                                                             , 'Inventory'])
+print(f"\nFinancial Score (BS): {bs_score}/{bs_max_score} ({bs_percentage:.2f}%)")
+
+# Overall score can be calculated as a weighted average of the three scores
+growth_overall_score = (bs_score + cf_score + pnl_score)
+growth_max_score = (bs_max_score + cf_max_score + pnl_max_score)
+growth_percentage = (growth_overall_score / growth_max_score) * 100 if growth_max_score > 0 else 0
+print(f"\nOverall Financial Growth Score: {growth_overall_score}/{growth_max_score} ({growth_percentage:.2f}%)")
+
+pnl_score_growth, pnl_max_score_growth, pnl_percentage_growth = calculate_financial_degrowth_score(income_statement_changes, ['Interest Expense'
+                                                                             ,'Other Income Expense'
+                                                                             ,'Operating Expense'
+                                                                             , 'Selling General And Administration'
+                                                                             , 'Cost Of Revenue'
+                                                                             , 'Reconciled Depreciation'])
+print(f"\nFinancial Score (P&L): {pnl_score_growth}/{pnl_max_score_growth} ({pnl_percentage_growth:.2f}%)")
+cf_score_growth, cf_max_score_growth, cf_percentage_growth = calculate_financial_degrowth_score(cashflow_changes, ['Sale Of Investment'
+                                                                             ,'Issuance Of Debt'
+                                                                             , 'Capital Expenditure'
+                                                                             ,'Net Short Term Debt Issuance'
+                                                                             ,'Net Long Term Debt Issuance'
+                                                                             ,'Depreciation And Amortization'
+                                                                             , 'Stock Based Compensation'])
+print(f"\nFinancial Score (CF): {cf_score_growth}/{cf_max_score_growth} ({cf_percentage_growth:.2f}%)")
+bs_score_growth, bs_max_score_growth, bs_percentage_growth = calculate_financial_degrowth_score(balance_sheet_changes, ['Net Debt'
+                                                                             ,'Total Debt'
+                                                                             ,'Capital Lease Obligations'
+                                                                             ,'Current Accrued Expenses'
+                                                                             , 'Inventory'])
 print(f"\nFinancial Score (BS): {bs_score_growth}/{bs_max_score_growth} ({bs_percentage_growth:.2f}%)")
 
 # Overall growth score can be calculated as a weighted average of the three growth scores
