@@ -215,136 +215,162 @@ def year_over_year_changes(dataset):
     else:
         return pd.DataFrame(index=dataset.index)
 
-ticker = "INFY.NS"
+def evaluate_ticker(ticker_string):
+    ticker = ticker_string.upper()
+    cashflow_data = get_cashflow_dataset(ticker)
+    balance_sheet_data = get_balance_sheet_dataset(ticker)
+    income_statement_data = get_income_statement_dataset(ticker)
+    print("Cashflow Data:")
+    print(cashflow_data)
+    print("\nBalance Sheet Data:")
+    print(balance_sheet_data)
+    print("\nIncome Statement Data:")
+    print(income_statement_data)
+    ticker_scores = {}
+    ticker_scores['Ticker_Name'] = ticker
+    pnl_score, pnl_max_score, pnl_percentage = calculate_financial_score(income_statement_data, ['EBITDA'
+                                                                                ,'EBIT'
+                                                                                ,'Basic EPS'
+                                                                                , 'Net Income'
+                                                                                , 'Total Revenue'
+                                                                                , 'Operating Income'])
+    print(f"\nFinancial Score (P&L): {pnl_score}/{pnl_max_score} ({pnl_percentage:.2f}%)")
 
-cashflow_data = get_cashflow_dataset(ticker)
-balance_sheet_data = get_balance_sheet_dataset(ticker)
-income_statement_data = get_income_statement_dataset(ticker)
-print("Cashflow Data:")
-print(cashflow_data)
-print("\nBalance Sheet Data:")
-print(balance_sheet_data)
-print("\nIncome Statement Data:")
-print(income_statement_data)
+
+    cf_score, cf_max_score, cf_percentage = calculate_financial_score(cashflow_data, ['Free Cash Flow'
+                                                                                ,'Changes In Cash'
+                                                                                , 'Net Income From Continuing Operations'
+                                                                                , 'Operating Gains Losses'])
+    print(f"\nFinancial Score (CF): {cf_score}/{cf_max_score} ({cf_percentage:.2f}%)")
+
+    bs_score, bs_max_score, bs_percentage = calculate_financial_score(balance_sheet_data, ['Stockholders Equity'
+                                                                                ,'Retained Earnings'
+                                                                                , 'Income Tax Payable'
+                                                                                ,'Cash And Cash Equivalents'
+                                                                                , 'Total Assets'])
+    print(f"\nFinancial Score (BS): {bs_score}/{bs_max_score} ({bs_percentage:.2f}%)")
+
+    # Overall score can be calculated as a weighted average of the three scores
+    growth_overall_score = (bs_score + cf_score + pnl_score)
+    growth_max_score = (bs_max_score + cf_max_score + pnl_max_score)
+    growth_percentage = (growth_overall_score / growth_max_score) * 100 if growth_max_score > 0 else 0
+    print(f"\nOverall Financial Growth Score: {growth_overall_score}/{growth_max_score} ({growth_percentage:.2f}%)")
+
+    ticker_scores["PnL_Growth"] = pnl_percentage
+    ticker_scores["CF_Growth"] = cf_percentage
+    ticker_scores["BS_Growth"] = bs_percentage
+    ticker_scores["Overall_Growth"] = growth_percentage
+
+    cashflow_changes = year_over_year_changes(cashflow_data)
+    balance_sheet_changes = year_over_year_changes(balance_sheet_data)
+    income_statement_changes = year_over_year_changes(income_statement_data)
+    print("\nYear-over-Year Changes in Cashflow Data:")
+    print(cashflow_changes)
+    print("\nYear-over-Year Changes in Balance Sheet Data:")
+    print(balance_sheet_changes)
+    print("\nYear-over-Year Changes in Income Statement Data:")
+    print(income_statement_changes)
+
+    pnl_score_growth, pnl_max_score_growth, pnl_percentage_growth = calculate_financial_growth_score(income_statement_changes, ['EBITDA'
+                                                                                ,'EBIT'
+                                                                                ,'Basic EPS'
+                                                                                , 'Net Income'
+                                                                                , 'Total Revenue'
+                                                                                , 'Operating Income'])
+    print(f"\nFinancial Score (P&L): {pnl_score_growth}/{pnl_max_score_growth} ({pnl_percentage_growth:.2f}%)")
+    cf_score_growth, cf_max_score_growth, cf_percentage_growth = calculate_financial_growth_score(cashflow_changes, ['Free Cash Flow'
+                                                                                ,'Changes In Cash'
+                                                                                , 'Net Income From Continuing Operations'
+                                                                                , 'Operating Gains Losses'])
+    print(f"\nFinancial Score (CF): {cf_score_growth}/{cf_max_score_growth} ({cf_percentage_growth:.2f}%)")
+    bs_score_growth, bs_max_score_growth, bs_percentage_growth = calculate_financial_growth_score(balance_sheet_changes, ['Stockholders Equity'
+                                                                                ,'Retained Earnings'
+                                                                                , 'Income Tax Payable'
+                                                                                ,'Cash And Cash Equivalents'
+                                                                                , 'Total Assets'])
+    print(f"\nFinancial Score (BS): {bs_score_growth}/{bs_max_score_growth} ({bs_percentage_growth:.2f}%)")
+
+    # Overall growth score can be calculated as a weighted average of the three growth scores
+    growth_overall_score_growth = (bs_score_growth + cf_score_growth + pnl_score_growth)
+    growth_max_score_growth = (bs_max_score_growth + cf_max_score_growth + pnl_max_score_growth)
+    growth_percentage_growth = (growth_overall_score_growth / growth_max_score_growth) * 100 if growth_max_score_growth > 0 else 0
+    print(f"\nOverall Financial Growth Score: {growth_overall_score_growth}/{growth_max_score_growth} ({growth_percentage_growth:.2f}%)")
+
+    ticker_scores["PnL_Growth_Velocity"] =  pnl_percentage_growth
+    ticker_scores["CF_Growth_Velocity"] = cf_percentage_growth
+    ticker_scores["BS_Growth_Velocity"] = bs_percentage_growth
+    ticker_scores["Overall_Growth_Velocity"] = growth_percentage_growth
 
 
-pnl_score, pnl_max_score, pnl_percentage = calculate_financial_score(income_statement_data, ['EBITDA'
-                                                                             ,'EBIT'
-                                                                             ,'Basic EPS'
-                                                                             , 'Net Income'
-                                                                             , 'Total Revenue'
-                                                                             , 'Operating Income'])
-print(f"\nFinancial Score (P&L): {pnl_score}/{pnl_max_score} ({pnl_percentage:.2f}%)")
+    pnl_score, pnl_max_score, pnl_percentage = calculate_financial_score_decline(income_statement_data, ['Interest Expense'
+                                                                                ,'Other Income Expense'
+                                                                                ,'Operating Expense'
+                                                                                , 'Selling General And Administration'
+                                                                                , 'Cost Of Revenue'
+                                                                                , 'Reconciled Depreciation'])
+    print(f"\nFinancial Score (P&L): {pnl_score}/{pnl_max_score} ({pnl_percentage:.2f}%)")
 
+    cf_score, cf_max_score, cf_percentage = calculate_financial_score_decline(cashflow_data, ['Sale Of Investment'
+                                                                                ,'Issuance Of Debt'
+                                                                                , 'Capital Expenditure'
+                                                                                ,'Net Short Term Debt Issuance'
+                                                                                ,'Net Long Term Debt Issuance'
+                                                                                ,'Depreciation And Amortization'
+                                                                                , 'Stock Based Compensation'])
+    print(f"\nFinancial Score (CF): {cf_score}/{cf_max_score} ({cf_percentage:.2f}%)")
 
-cf_score, cf_max_score, cf_percentage = calculate_financial_score(cashflow_data, ['Free Cash Flow'
-                                                                             ,'Changes In Cash'
-                                                                             , 'Net Income From Continuing Operations'
-                                                                             , 'Operating Gains Losses'])
-print(f"\nFinancial Score (CF): {cf_score}/{cf_max_score} ({cf_percentage:.2f}%)")
+    bs_score, bs_max_score, bs_percentage = calculate_financial_score_decline(balance_sheet_data, ['Net Debt'
+                                                                                ,'Total Debt'
+                                                                                ,'Capital Lease Obligations'
+                                                                                ,'Current Accrued Expenses'
+                                                                                , 'Inventory'])
+    print(f"\nFinancial Score (BS): {bs_score}/{bs_max_score} ({bs_percentage:.2f}%)")
 
-bs_score, bs_max_score, bs_percentage = calculate_financial_score(balance_sheet_data, ['Stockholders Equity'
-                                                                             ,'Retained Earnings'
-                                                                             , 'Income Tax Payable'
-                                                                             ,'Cash And Cash Equivalents'
-                                                                             , 'Total Assets'])
-print(f"\nFinancial Score (BS): {bs_score}/{bs_max_score} ({bs_percentage:.2f}%)")
+    # Overall score can be calculated as a weighted average of the three scores
+    growth_overall_score = (bs_score + cf_score + pnl_score)
+    growth_max_score = (bs_max_score + cf_max_score + pnl_max_score)
+    growth_percentage = (growth_overall_score / growth_max_score) * 100 if growth_max_score > 0 else 0
+    print(f"\nOverall Financial Growth Score: {growth_overall_score}/{growth_max_score} ({growth_percentage:.2f}%)")
 
-# Overall score can be calculated as a weighted average of the three scores
-growth_overall_score = (bs_score + cf_score + pnl_score)
-growth_max_score = (bs_max_score + cf_max_score + pnl_max_score)
-growth_percentage = (growth_overall_score / growth_max_score) * 100 if growth_max_score > 0 else 0
-print(f"\nOverall Financial Growth Score: {growth_overall_score}/{growth_max_score} ({growth_percentage:.2f}%)")
+    ticker_scores["PnL_Degrowth"] =  pnl_percentage
+    ticker_scores["CF_Degrowth"] = cf_percentage
+    ticker_scores["BS_Degrowth"] = bs_percentage
+    ticker_scores["Overall_Degrowth"] = growth_percentage
 
-cashflow_changes = year_over_year_changes(cashflow_data)
-balance_sheet_changes = year_over_year_changes(balance_sheet_data)
-income_statement_changes = year_over_year_changes(income_statement_data)
-print("\nYear-over-Year Changes in Cashflow Data:")
-print(cashflow_changes)
-print("\nYear-over-Year Changes in Balance Sheet Data:")
-print(balance_sheet_changes)
-print("\nYear-over-Year Changes in Income Statement Data:")
-print(income_statement_changes)
+    pnl_score_growth, pnl_max_score_growth, pnl_percentage_growth = calculate_financial_degrowth_score(income_statement_changes, ['Interest Expense'
+                                                                                ,'Other Income Expense'
+                                                                                ,'Operating Expense'
+                                                                                , 'Selling General And Administration'
+                                                                                , 'Cost Of Revenue'
+                                                                                , 'Reconciled Depreciation'])
+    print(f"\nFinancial Score (P&L): {pnl_score_growth}/{pnl_max_score_growth} ({pnl_percentage_growth:.2f}%)")
+    cf_score_growth, cf_max_score_growth, cf_percentage_growth = calculate_financial_degrowth_score(cashflow_changes, ['Sale Of Investment'
+                                                                                ,'Issuance Of Debt'
+                                                                                , 'Capital Expenditure'
+                                                                                ,'Net Short Term Debt Issuance'
+                                                                                ,'Net Long Term Debt Issuance'
+                                                                                ,'Depreciation And Amortization'
+                                                                                , 'Stock Based Compensation'])
+    print(f"\nFinancial Score (CF): {cf_score_growth}/{cf_max_score_growth} ({cf_percentage_growth:.2f}%)")
+    bs_score_growth, bs_max_score_growth, bs_percentage_growth = calculate_financial_degrowth_score(balance_sheet_changes, ['Net Debt'
+                                                                                ,'Total Debt'
+                                                                                ,'Capital Lease Obligations'
+                                                                                ,'Current Accrued Expenses'
+                                                                                , 'Inventory'])
+    print(f"\nFinancial Score (BS): {bs_score_growth}/{bs_max_score_growth} ({bs_percentage_growth:.2f}%)")
 
-pnl_score_growth, pnl_max_score_growth, pnl_percentage_growth = calculate_financial_growth_score(income_statement_changes, ['EBITDA'
-                                                                             ,'EBIT'
-                                                                             ,'Basic EPS'
-                                                                             , 'Net Income'
-                                                                             , 'Total Revenue'
-                                                                             , 'Operating Income'])
-print(f"\nFinancial Score (P&L): {pnl_score_growth}/{pnl_max_score_growth} ({pnl_percentage_growth:.2f}%)")
-cf_score_growth, cf_max_score_growth, cf_percentage_growth = calculate_financial_growth_score(cashflow_changes, ['Free Cash Flow'
-                                                                             ,'Changes In Cash'
-                                                                             , 'Net Income From Continuing Operations'
-                                                                             , 'Operating Gains Losses'])
-print(f"\nFinancial Score (CF): {cf_score_growth}/{cf_max_score_growth} ({cf_percentage_growth:.2f}%)")
-bs_score_growth, bs_max_score_growth, bs_percentage_growth = calculate_financial_growth_score(balance_sheet_changes, ['Stockholders Equity'
-                                                                             ,'Retained Earnings'
-                                                                             , 'Income Tax Payable'
-                                                                             ,'Cash And Cash Equivalents'
-                                                                             , 'Total Assets'])
-print(f"\nFinancial Score (BS): {bs_score_growth}/{bs_max_score_growth} ({bs_percentage_growth:.2f}%)")
+    # Overall growth score can be calculated as a weighted average of the three growth scores
+    growth_overall_score_growth = (bs_score_growth + cf_score_growth + pnl_score_growth)
+    growth_max_score_growth = (bs_max_score_growth + cf_max_score_growth + pnl_max_score_growth)
+    growth_percentage_growth = (growth_overall_score_growth / growth_max_score_growth) * 100 if growth_max_score_growth > 0 else 0
+    print(f"\nOverall Financial Growth Score: {growth_overall_score_growth}/{growth_max_score_growth} ({growth_percentage_growth:.2f}%)")
 
-# Overall growth score can be calculated as a weighted average of the three growth scores
-growth_overall_score_growth = (bs_score_growth + cf_score_growth + pnl_score_growth)
-growth_max_score_growth = (bs_max_score_growth + cf_max_score_growth + pnl_max_score_growth)
-growth_percentage_growth = (growth_overall_score_growth / growth_max_score_growth) * 100 if growth_max_score_growth > 0 else 0
-print(f"\nOverall Financial Growth Score: {growth_overall_score_growth}/{growth_max_score_growth} ({growth_percentage_growth:.2f}%)")
+    ticker_scores["PnL_Degrowth_Velocity"] =  pnl_percentage_growth
+    ticker_scores["CF_Degrowth_Velocity"] = cf_percentage_growth
+    ticker_scores["BS_Degrowth_Velocity"] = bs_percentage_growth
+    ticker_scores["Overall_Degrowth_Velocity"] = growth_percentage_growth
 
-pnl_score, pnl_max_score, pnl_percentage = calculate_financial_score_decline(income_statement_data, ['Interest Expense'
-                                                                             ,'Other Income Expense'
-                                                                             ,'Operating Expense'
-                                                                             , 'Selling General And Administration'
-                                                                             , 'Cost Of Revenue'
-                                                                             , 'Reconciled Depreciation'])
-print(f"\nFinancial Score (P&L): {pnl_score}/{pnl_max_score} ({pnl_percentage:.2f}%)")
-
-cf_score, cf_max_score, cf_percentage = calculate_financial_score_decline(cashflow_data, ['Sale Of Investment'
-                                                                             ,'Issuance Of Debt'
-                                                                             , 'Capital Expenditure'
-                                                                             ,'Net Short Term Debt Issuance'
-                                                                             ,'Net Long Term Debt Issuance'
-                                                                             ,'Depreciation And Amortization'
-                                                                             , 'Stock Based Compensation'])
-print(f"\nFinancial Score (CF): {cf_score}/{cf_max_score} ({cf_percentage:.2f}%)")
-
-bs_score, bs_max_score, bs_percentage = calculate_financial_score_decline(balance_sheet_data, ['Net Debt'
-                                                                             ,'Total Debt'
-                                                                             ,'Capital Lease Obligations'
-                                                                             ,'Current Accrued Expenses'
-                                                                             , 'Inventory'])
-print(f"\nFinancial Score (BS): {bs_score}/{bs_max_score} ({bs_percentage:.2f}%)")
-
-# Overall score can be calculated as a weighted average of the three scores
-growth_overall_score = (bs_score + cf_score + pnl_score)
-growth_max_score = (bs_max_score + cf_max_score + pnl_max_score)
-growth_percentage = (growth_overall_score / growth_max_score) * 100 if growth_max_score > 0 else 0
-print(f"\nOverall Financial Growth Score: {growth_overall_score}/{growth_max_score} ({growth_percentage:.2f}%)")
-
-pnl_score_growth, pnl_max_score_growth, pnl_percentage_growth = calculate_financial_degrowth_score(income_statement_changes, ['Interest Expense'
-                                                                             ,'Other Income Expense'
-                                                                             ,'Operating Expense'
-                                                                             , 'Selling General And Administration'
-                                                                             , 'Cost Of Revenue'
-                                                                             , 'Reconciled Depreciation'])
-print(f"\nFinancial Score (P&L): {pnl_score_growth}/{pnl_max_score_growth} ({pnl_percentage_growth:.2f}%)")
-cf_score_growth, cf_max_score_growth, cf_percentage_growth = calculate_financial_degrowth_score(cashflow_changes, ['Sale Of Investment'
-                                                                             ,'Issuance Of Debt'
-                                                                             , 'Capital Expenditure'
-                                                                             ,'Net Short Term Debt Issuance'
-                                                                             ,'Net Long Term Debt Issuance'
-                                                                             ,'Depreciation And Amortization'
-                                                                             , 'Stock Based Compensation'])
-print(f"\nFinancial Score (CF): {cf_score_growth}/{cf_max_score_growth} ({cf_percentage_growth:.2f}%)")
-bs_score_growth, bs_max_score_growth, bs_percentage_growth = calculate_financial_degrowth_score(balance_sheet_changes, ['Net Debt'
-                                                                             ,'Total Debt'
-                                                                             ,'Capital Lease Obligations'
-                                                                             ,'Current Accrued Expenses'
-                                                                             , 'Inventory'])
-print(f"\nFinancial Score (BS): {bs_score_growth}/{bs_max_score_growth} ({bs_percentage_growth:.2f}%)")
-
-# Overall growth score can be calculated as a weighted average of the three growth scores
-growth_overall_score_growth = (bs_score_growth + cf_score_growth + pnl_score_growth)
-growth_max_score_growth = (bs_max_score_growth + cf_max_score_growth + pnl_max_score_growth)
-growth_percentage_growth = (growth_overall_score_growth / growth_max_score_growth) * 100 if growth_max_score_growth > 0 else 0
-print(f"\nOverall Financial Growth Score: {growth_overall_score_growth}/{growth_max_score_growth} ({growth_percentage_growth:.2f}%)")
+    df_scores = pd.DataFrame([ticker_scores])
+    print("\nTicker Scores:")
+    print(df_scores)
+    return df_scores
