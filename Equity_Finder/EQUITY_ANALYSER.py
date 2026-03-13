@@ -76,8 +76,10 @@ def calculate_financial_score_decline(dataset, row_labels):
     """
     Calculates a percentage score based on year-over-year decline for specified row labels in the dataset.
 
-    For each row label, compares the values across consecutive columns (time periods).
-    If the value in the earlier period > value in the later period, scores 1, else 0.
+    For each row label, evaluates only if at least one value is non-zero.
+    If all values in a row are zero, that row receives a perfect score.
+    Otherwise, compares values across consecutive columns (time periods).
+    If the value in the earlier period <= value in the later period, scores 1, else 0.
     Sums the scores across all labels and comparisons, then returns the percentage.
 
     Parameters:
@@ -85,7 +87,7 @@ def calculate_financial_score_decline(dataset, row_labels):
     row_labels (list): List of row index labels to analyze (e.g., ['EBITDA'])
 
     Returns:
-    float: Percentage score (0-100)
+    tuple: (score, max_score, percentage)
     """
     score = 0
     max_score = len(row_labels) * 3
@@ -93,10 +95,17 @@ def calculate_financial_score_decline(dataset, row_labels):
     for label in row_labels:
         if label in dataset.index:
             row_values = dataset.loc[label]
-            # Compare consecutive columns (assuming columns are in chronological order)
-            for i in range(len(row_values) - 1):
-                if row_values.iloc[i] <= row_values.iloc[i + 1]:
-                    score += 1
+            
+            # Check if all values are zero
+            if (row_values == 0).all():
+                # If all values are zero, give perfect score for this label
+                score += 3
+            else:
+                # Otherwise, evaluate normally
+                # Compare consecutive columns (assuming columns are in chronological order)
+                for i in range(len(row_values) - 1):
+                    if row_values.iloc[i] <= row_values.iloc[i + 1]:
+                        score += 1
     
     percentage = (score / max_score) * 100 if max_score > 0 else 0
     return score, max_score, percentage
@@ -132,10 +141,12 @@ def calculate_financial_growth_score(dataset, row_labels):
 
 def calculate_financial_degrowth_score(dataset, row_labels):
     """
-    Calculates a percentage score based on year-over-year growth for specified row labels in the dataset.
+    Calculates a percentage score based on year-over-year degrowth for specified row labels in the dataset.
 
-    For each row label, compares the values across consecutive columns (time periods).
-    If the value in the earlier period > value in the later period, scores 1, else 0.
+    For each row label, evaluates only if at least one value is non-zero.
+    If all values in a row are zero, that row receives a perfect score (100%).
+    Otherwise, compares values across consecutive columns (time periods).
+    If the value in the earlier period >= value in the later period, scores 2, else 0.
     Sums the scores across all labels and comparisons, then returns the percentage.
 
     Parameters:
@@ -143,7 +154,7 @@ def calculate_financial_degrowth_score(dataset, row_labels):
     row_labels (list): List of row index labels to analyze (e.g., ['EBITDA'])
 
     Returns:
-    float: Percentage score (0-100)
+    tuple: (score, max_score, percentage)
     """
     score = 0
     max_score = len(row_labels) * 2 * (dataset.shape[1] - 1)  # 2 points for each growth comparison per label
@@ -151,10 +162,17 @@ def calculate_financial_degrowth_score(dataset, row_labels):
     for label in row_labels:
         if label in dataset.index:
             row_values = dataset.loc[label]
-            # Compare consecutive columns (assuming columns are in chronological order)
-            for i in range(len(row_values) - 2):
-                if row_values.iloc[i] >= row_values.iloc[i + 1]:
-                    score += 2
+            
+            # Check if all values are zero
+            if (row_values == 0).all():
+                # If all values are zero, give perfect score for this label
+                score += 2 * (dataset.shape[1] - 1)
+            else:
+                # Otherwise, evaluate normally
+                # Compare consecutive columns (assuming columns are in chronological order)
+                for i in range(len(row_values) - 2):
+                    if row_values.iloc[i] >= row_values.iloc[i + 1]:
+                        score += 2
     
     percentage = (score / max_score) * 100 if max_score > 0 else 0
     return score, max_score, percentage
@@ -226,8 +244,11 @@ def evaluate_ticker(ticker_string):
     print(balance_sheet_data)
     print("\nIncome Statement Data:")
     print(income_statement_data)
+    overall_score = 0
+    overall_max_score = 0
     ticker_scores = {}
     ticker_scores['Ticker_Name'] = ticker
+
     pnl_score, pnl_max_score, pnl_percentage = calculate_financial_score(income_statement_data, ['EBITDA'
                                                                                 ,'EBIT'
                                                                                 ,'Basic EPS'
@@ -254,6 +275,8 @@ def evaluate_ticker(ticker_string):
     growth_overall_score = (bs_score + cf_score + pnl_score)
     growth_max_score = (bs_max_score + cf_max_score + pnl_max_score)
     growth_percentage = (growth_overall_score / growth_max_score) * 100 if growth_max_score > 0 else 0
+    overall_score += growth_overall_score
+    overall_max_score += growth_max_score
     print(f"\nOverall Financial Growth Score: {growth_overall_score}/{growth_max_score} ({growth_percentage:.2f}%)")
 
     ticker_scores["PnL_Growth"] = pnl_percentage
@@ -294,6 +317,8 @@ def evaluate_ticker(ticker_string):
     growth_overall_score_growth = (bs_score_growth + cf_score_growth + pnl_score_growth)
     growth_max_score_growth = (bs_max_score_growth + cf_max_score_growth + pnl_max_score_growth)
     growth_percentage_growth = (growth_overall_score_growth / growth_max_score_growth) * 100 if growth_max_score_growth > 0 else 0
+    overall_score += growth_overall_score_growth
+    overall_max_score += growth_max_score_growth
     print(f"\nOverall Financial Growth Score: {growth_overall_score_growth}/{growth_max_score_growth} ({growth_percentage_growth:.2f}%)")
 
     ticker_scores["PnL_Growth_Velocity"] =  pnl_percentage_growth
@@ -330,6 +355,8 @@ def evaluate_ticker(ticker_string):
     growth_overall_score = (bs_score + cf_score + pnl_score)
     growth_max_score = (bs_max_score + cf_max_score + pnl_max_score)
     growth_percentage = (growth_overall_score / growth_max_score) * 100 if growth_max_score > 0 else 0
+    overall_score += (growth_overall_score/2)  # weight degrowth score at 50% of growth score
+    overall_max_score += (growth_max_score/2)   # weight degrowth score at 50% of growth score
     print(f"\nOverall Financial Growth Score: {growth_overall_score}/{growth_max_score} ({growth_percentage:.2f}%)")
 
     ticker_scores["PnL_Degrowth"] =  pnl_percentage
@@ -363,12 +390,16 @@ def evaluate_ticker(ticker_string):
     growth_overall_score_growth = (bs_score_growth + cf_score_growth + pnl_score_growth)
     growth_max_score_growth = (bs_max_score_growth + cf_max_score_growth + pnl_max_score_growth)
     growth_percentage_growth = (growth_overall_score_growth / growth_max_score_growth) * 100 if growth_max_score_growth > 0 else 0
+    overall_score += (growth_overall_score_growth/2)  # weight degrowth score at 50% of growth score
+    overall_max_score += (growth_max_score_growth/2)   # weight degrowth score at 50% of growth score
+    overall_percentage = (overall_score / overall_max_score) * 100 if overall_max_score > 0 else 0
     print(f"\nOverall Financial Growth Score: {growth_overall_score_growth}/{growth_max_score_growth} ({growth_percentage_growth:.2f}%)")
 
     ticker_scores["PnL_Degrowth_Velocity"] =  pnl_percentage_growth
     ticker_scores["CF_Degrowth_Velocity"] = cf_percentage_growth
     ticker_scores["BS_Degrowth_Velocity"] = bs_percentage_growth
     ticker_scores["Overall_Degrowth_Velocity"] = growth_percentage_growth
+    ticker_scores["Final_Overall_Score"] = overall_percentage
 
     df_scores = pd.DataFrame([ticker_scores])
     print("\nTicker Scores:")
