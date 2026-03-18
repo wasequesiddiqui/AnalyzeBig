@@ -24,85 +24,80 @@ sb = st.sidebar
 sb.title("Evaluating the Ticker:")
 
 # Textbox to capture ticker value(s)
-ticker_input = sb.text_input("Enter Ticker Symbol(s):", value="INFY.NS", placeholder="e.g., INFY.NS or INFY.NS, TCS.NS, RELIANCE.NS")
+final_tickers = ea.get_nifty50_non_banking_tickers()
+final_nifty_next50_tickers = ea.get_nifty_next_50_non_banking_tickers()
+final_tickers.extend(final_nifty_next50_tickers)
+final_tickers_str = ", ".join(final_tickers)
+ticker_input = sb.text_input("Enter Ticker Symbol(s):", value=final_tickers_str, placeholder="e.g., INFY.NS or INFY.NS, TCS.NS, RELIANCE.NS")
 
 # Button to trigger evaluation
 if sb.button("Evaluate"):
-    st.header(f"Evaluating Ticker(s): {ticker_input}")
+    st.header(f"Evaluating Ticker(s)")
     try:
         # Split the input by comma and strip whitespace
         tickers = [t.strip() for t in ticker_input.split(',')]
+        total_tickers = len(tickers)
+        
+        # UI Elements for progress
+        status_text = st.empty()
+        progress_bar = st.progress(0)
         
         # Collect results from all tickers
         all_results = []
         
-        for ticker in tickers:
+        for i, ticker in enumerate(tickers):
+            # Update status and progress
+            status_text.text(f"Currently evaluating: {ticker} ({i+1}/{total_tickers})")
+            progress_bar.progress((i + 1) / total_tickers)
+            
             try:
                 result_df = ea.evaluate_ticker(ticker)
                 all_results.append(result_df)
             except Exception as e:
                 st.error(f"An error occurred while evaluating {ticker}: {e}")
         
+        # Clear progress indicators once done
+        status_text.success(f"Evaluation complete for {total_tickers} tickers!")
+        progress_bar.empty()
+
         # Combine all results
         if all_results:
             combined_results = pd.concat(all_results, ignore_index=True)
+            combined_results = combined_results.sort_values(by='Final_Overall_Score', ascending=False).reset_index(drop=True)
+            
             st.dataframe(combined_results)
             
-            # Create Sankey diagram
-            st.subheader("Sankey Diagram - Overall Score Distribution")
+            st.subheader("Sankey Diagram - Scores by Ticker")
             
-            # Prepare data for Sankey - only use Overall score columns
-            sources = []
-            targets = []
-            values = []
-            colors = []
+            # --- FIXED SANKEY LOGIC ---
+            metric_cols = [c for c in combined_results.columns if c.startswith('Overall')]
+            unique_tickers = list(combined_results['Ticker_Name'].unique())
             
-            # Get only Overall columns (including Final_Overall_Score)
-            metric_columns = [col for col in combined_results.columns if 'Overall' in col or 'Final' in col]
+            # Combine nodes and build the diagram
+            all_nodes = metric_cols + unique_tickers
+            sources, targets, values, colors = [], [], [], []
             
-            for idx, row in combined_results.iterrows():
-                ticker_name = row['Ticker_Name']
-                
-                for col in metric_columns:
-                    sources.append(ticker_name)
-                    targets.append(col)
-                    value = row[col]
-                    values.append(value)
-                    
-                    # Color based on score (green for high, red for low)
-                    if pd.notna(value):
-                        if value >= 75:
-                            colors.append('rgba(0, 200, 0, 0.8)')  # Green
-                        elif value >= 50:
-                            colors.append('rgba(255, 165, 0, 0.8)')  # Orange
-                        else:
-                            colors.append('rgba(200, 0, 0, 0.8)')  # Red
-                    else:
-                        colors.append('rgba(128, 128, 128, 0.8)')  # Gray for NaN
+            for _, row in combined_results.iterrows():
+                t_idx = all_nodes.index(row['Ticker_Name'])
+                for col in metric_cols:
+                    val = row[col]
+                    if pd.notna(val):
+                        col_idx = all_nodes.index(col)
+                        # Color logic
+                        color = 'rgba(0, 200, 0, 0.6)' if val >= 65 else ('rgba(255, 165, 0, 0.6)' if val >= 40 else 'rgba(200, 0, 0, 0.6)')
+                        
+                        sources.append(col_idx)
+                        targets.append(t_idx)
+                        values.append(val)
+                        colors.append(color)
             
-            # Create Sankey diagram
             fig = go.Figure(data=[go.Sankey(
-                node=dict(
-                    pad=15,
-                    thickness=20,
-                    line=dict(color='black', width=0.5),
-                    label=list(combined_results['Ticker_Name'].unique()) + metric_columns
-                ),
-                link=dict(
-                    source=[combined_results['Ticker_Name'].unique().tolist().index(s) for s in sources],
-                    target=[len(combined_results['Ticker_Name'].unique()) + metric_columns.index(t) for t in targets],
-                    value=values,
-                    color=colors
-                )
+                node=dict(pad=15, thickness=20, label=all_nodes,
+                          color=['rgba(100, 149, 237, 0.8)'] * len(metric_cols) + ['rgba(200, 100, 100, 0.8)'] * len(unique_tickers)),
+                link=dict(source=sources, target=targets, value=values, color=colors)
             )])
             
-            fig.update_layout(
-                title="Ticker Overall Scores Distribution",
-                font=dict(size=12),
-                height=600,
-                width=1200
-            )
-            
             st.plotly_chart(fig, use_container_width=True)
+            
     except Exception as e:
         st.error(f"An error occurred: {e}")

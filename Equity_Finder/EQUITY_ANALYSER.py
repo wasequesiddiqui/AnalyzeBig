@@ -1,5 +1,7 @@
 import yfinance as yf
 import pandas as pd
+import requests
+import io
 
 def get_cashflow_dataset(ticker_symbol):
     """
@@ -405,3 +407,91 @@ def evaluate_ticker(ticker_string):
     print("\nTicker Scores:")
     print(df_scores)
     return df_scores
+
+def get_nifty50_non_banking_tickers():
+    url = "https://nsearchives.nseindia.com/content/indices/ind_nifty50list.csv"
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36"
+    }
+
+    try:
+        response = requests.get(url, headers=headers, timeout=10)
+        response.raise_for_status()
+        df = pd.read_csv(io.StringIO(response.text))
+
+        # Identify the correct column for sector/industry
+        col = 'Industry' if 'Industry' in df.columns else 'Sector'
+        
+        # Define keywords to exclude (Banking, Financial Services, Insurance)
+        exclude_keywords = ['FINANCIAL SERVICES', 'BANK', 'BANKING', 'INSURANCE']
+        
+        # Filter: Keep rows where the Industry does NOT contain any exclude keywords
+        non_banking_df = df[~df[col].str.upper().str.contains('|'.join(exclude_keywords), na=False)]
+
+        valid_tickers = []
+        print(f"Validating {len(non_banking_df)} non-banking stocks...")
+
+        for symbol in non_banking_df['Symbol']:
+            ticker_symbol = f"{symbol}.NS"
+            try:
+                # Fast check: period='1d' downloads the most recent trading row
+                ticker_obj = yf.Ticker(ticker_symbol)
+                data = ticker_obj.history(period="1d")
+
+                if not data.empty:
+                    valid_tickers.append(ticker_symbol)
+                else:
+                    print(f"Skipping {ticker_symbol}: No data on yfinance.")
+            except:
+                continue
+
+        return valid_tickers
+
+    except Exception as e:
+        print(f"Error: {e}")
+        return []
+
+def get_nifty_next_50_non_banking_tickers():
+    # Your requested URL
+    url = "https://nsearchives.nseindia.com/content/indices/ind_niftynext50list.csv"
+    
+    headers = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/119.0.0.0 Safari/537.36",
+        "Referer": "https://www.nseindia.com"
+    }
+
+    try:
+        with requests.Session() as session:
+            # Establish session cookies
+            session.get("https://www.nseindia.com", headers=headers, timeout=10)
+            
+            # Fetch the CSV
+            response = session.get(url, headers=headers, timeout=10)
+            response.raise_for_status()
+            
+            # Load into DataFrame
+            df = pd.read_csv(io.StringIO(response.text))
+            
+            # Identify the sector/industry column
+            col = 'Industry' if 'Industry' in df.columns else 'Sector'
+            
+            # Keywords to exclude (Banks, NBFCs, Insurance, etc.)
+            exclude_keywords = ['FINANCIAL SERVICES', 'BANK', 'BANKING', 'INSURANCE']
+            
+            # Filter out the BFSI sector
+            non_bfsi_df = df[~df[col].str.upper().str.contains('|'.join(exclude_keywords), na=False)]
+            
+            # Format for yfinance
+            tickers = [f"{symbol}.NS" for symbol in non_bfsi_df['Symbol']]
+            return tickers
+
+    except Exception as e:
+        print(f"Error filtering NIFTY Next 50: {e}")
+        return []
+
+final_tickers = get_nifty50_non_banking_tickers()
+print(f"Total non-BFSI Stocks: {len(final_tickers)}")
+print(final_tickers)
+next_50_filtered = get_nifty_next_50_non_banking_tickers()
+print(f"Fetched {len(next_50_filtered)} non-banking tickers from NIFTY Next 50.")
+print(next_50_filtered)
