@@ -52,6 +52,26 @@ if sb.button("Evaluate"):
             
             try:
                 result_df = ea.evaluate_ticker(ticker)
+
+                # 2. Fetch Fundamental Data via yfinance
+                t_obj = yf.Ticker(ticker)
+                info = t_obj.info
+                
+                # Extracting specific metrics with fallbacks to None
+                result_df['P/E_Ratio'] = info.get('trailingPE')
+                result_df['P/B_Ratio'] = info.get('priceToBook')
+                result_df['Revenue'] = info.get('totalRevenue')
+                result_df['Profit'] = info.get('netIncomeToCommon')
+
+                # Shareholders Equity is typically (Total Assets - Total Liabilities) 
+                # or available as 'bookValue' * 'sharesOutstanding'
+                book_val = info.get('bookValue')
+                shares = info.get('sharesOutstanding')
+                if book_val and shares:
+                    result_df['Shareholders_Equity'] = book_val * shares
+                else:
+                    result_df['Shareholders_Equity'] = None
+
                 all_results.append(result_df)
             except Exception as e:
                 st.error(f"An error occurred while evaluating {ticker}: {e}")
@@ -64,20 +84,47 @@ if sb.button("Evaluate"):
         if all_results:
             combined_results = pd.concat(all_results, ignore_index=True)
             combined_results = combined_results.sort_values(by='Final_Overall_Score', ascending=False).reset_index(drop=True)
+            numeric_cols = combined_results.select_dtypes(include=[np.number]).columns
+            combined_results[numeric_cols] = combined_results[numeric_cols].round(2)
             
-            st.dataframe(combined_results)
+            # 2. Function to format large numbers to M/B
+            def format_currency(value):
+                if pd.isna(value) or value == 0:
+                    return "N/A"
+                abs_val = abs(value)
+                if abs_val >= 1_000_000_000:
+                    return f"{value / 1_000_000_000:,.2f} B"
+                elif abs_val >= 1_000_000:
+                    return f"{value / 1_000_000:,.2f} M"
+                else:
+                    return f"{value:,.2f}"
+                
+            # Create a display-specific dataframe
+            display_df = combined_results.copy()
+            target_currency_cols = ['Revenue', 'Profit', 'Shareholders_Equity']
+
+            for col in target_currency_cols:
+                if col in display_df.columns:
+                    display_df[col] = display_df[col].apply(format_currency)
+
+            # Sort by Score
+            display_df = display_df.sort_values(by='Final_Overall_Score', ascending=False).reset_index(drop=True)
+
+            st.write("### Fundamental Analysis & Scores")
+            st.dataframe(display_df)
             
             st.subheader("Sankey Diagram - Scores by Ticker")
+            sankey_df = combined_results.head(15)  # Slice the top 15
             
             # --- FIXED SANKEY LOGIC ---
-            metric_cols = [c for c in combined_results.columns if c.startswith('Overall')]
-            unique_tickers = list(combined_results['Ticker_Name'].unique())
+            metric_cols = [c for c in sankey_df.columns if c.startswith('Overall')]
+            unique_tickers = list(sankey_df['Ticker_Name'].unique())
             
             # Combine nodes and build the diagram
             all_nodes = metric_cols + unique_tickers
             sources, targets, values, colors = [], [], [], []
             
-            for _, row in combined_results.iterrows():
+            for _, row in sankey_df.iterrows():
                 t_idx = all_nodes.index(row['Ticker_Name'])
                 for col in metric_cols:
                     val = row[col]
