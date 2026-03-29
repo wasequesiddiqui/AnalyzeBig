@@ -20,6 +20,14 @@ from sklearn.metrics import r2_score
 from datetime import datetime, timedelta
 from plotly.subplots import make_subplots
 
+# --- 1. INITIALIZE SESSION STATE ---
+if 'combined_results' not in st.session_state:
+    st.session_state.combined_results = None
+if 'display_df' not in st.session_state:
+    st.session_state.display_df = None
+if 'last_ticker_input' not in st.session_state:
+    st.session_state.last_ticker_input = ""
+
 sb = st.sidebar
 sb.title("Evaluating the Ticker:")
 
@@ -28,123 +36,163 @@ final_tickers = ea.get_nifty50_non_banking_tickers()
 final_nifty_next50_tickers = ea.get_nifty_next_50_non_banking_tickers()
 final_tickers.extend(final_nifty_next50_tickers)
 final_tickers_str = ", ".join(final_tickers)
-ticker_input = sb.text_input("Enter Ticker Symbol(s):", value=final_tickers_str, placeholder="e.g., INFY.NS or INFY.NS, TCS.NS, RELIANCE.NS")
+ticker_input = sb.text_area(
+    "Enter Ticker Symbol(s):", 
+    value=final_tickers_str, 
+    placeholder="e.g., INFY.NS, TCS.NS, RELIANCE.NS",
+    height=400  # Adjust this value to make the box taller or shorter
+)
+
+evaluate_clicked = sb.button("Evaluate")
 
 # Button to trigger evaluation
-if sb.button("Evaluate"):
-    st.header(f"Evaluating Ticker(s)")
-    try:
-        # Split the input by comma and strip whitespace
-        tickers = [t.strip() for t in ticker_input.split(',')]
-        total_tickers = len(tickers)
-        
-        # UI Elements for progress
-        status_text = st.empty()
-        progress_bar = st.progress(0)
-        
-        # Collect results from all tickers
-        all_results = []
-        
-        for i, ticker in enumerate(tickers):
-            # Update status and progress
-            status_text.text(f"Currently evaluating: {ticker} ({i+1}/{total_tickers})")
-            progress_bar.progress((i + 1) / total_tickers)
-            
-            try:
-                result_df = ea.evaluate_ticker(ticker)
+if evaluate_clicked:
+    # Check if input is identical to the last run AND we have data
+    input_unchanged = (ticker_input.strip() == st.session_state.last_ticker_input.strip())
+    data_exists = st.session_state.combined_results is not None
 
-                # 2. Fetch Fundamental Data via yfinance
-                t_obj = yf.Ticker(ticker)
-                info = t_obj.info
+    if input_unchanged and data_exists:
+        st.toast("Input unchanged. Loading results from cache...", icon="⚡")
+    else:
+        # If input changed or no data exists, run the heavy analysis
+        st.toast("New input detected. Starting fresh evaluation...", icon="🔍")
+        try:
+            tickers = [t.strip() for t in ticker_input.split(',')]
+            total_tickers = len(tickers)
+            
+            status_text = st.empty()
+            progress_bar = st.progress(0)
+            all_results = []
+            
+            for i, ticker in enumerate(tickers):
+                status_text.text(f"Evaluating: {ticker} ({i+1}/{total_tickers})")
+                progress_bar.progress((i + 1) / total_tickers)
                 
-                # Extracting specific metrics with fallbacks to None
-                result_df['P/E_Ratio'] = info.get('trailingPE')
-                result_df['P/B_Ratio'] = info.get('priceToBook')
-                result_df['Revenue'] = info.get('totalRevenue')
-                result_df['Profit'] = info.get('netIncomeToCommon')
+                try:
+                    result_df = ea.evaluate_ticker(ticker)
+                    t_obj = yf.Ticker(ticker)
+                    info = t_obj.info
 
-                # Shareholders Equity is typically (Total Assets - Total Liabilities) 
-                # or available as 'bookValue' * 'sharesOutstanding'
-                book_val = info.get('bookValue')
-                shares = info.get('sharesOutstanding')
-                if book_val and shares:
-                    result_df['Shareholders_Equity'] = book_val * shares
-                else:
-                    result_df['Shareholders_Equity'] = None
+                    result_df['Industry'] = info.get('industry', 'N/A')
+                    result_df['Sector'] = info.get('sector', 'N/A')
+                    result_df['P/E_Ratio'] = info.get('trailingPE')
+                    result_df['P/B_Ratio'] = info.get('priceToBook')
+                    result_df['Revenue'] = info.get('totalRevenue')
+                    result_df['Profit'] = info.get('netIncomeToCommon')
 
-                all_results.append(result_df)
-            except Exception as e:
-                st.error(f"An error occurred while evaluating {ticker}: {e}")
-        
-        # Clear progress indicators once done
-        status_text.success(f"Evaluation complete for {total_tickers} tickers!")
-        progress_bar.empty()
+                    book_val = info.get('bookValue')
+                    shares = info.get('sharesOutstanding')
+                    result_df['Shareholders_Equity'] = (book_val * shares) if book_val and shares else None
 
-        # Combine all results
-        if all_results:
-            combined_results = pd.concat(all_results, ignore_index=True)
-            combined_results = combined_results.sort_values(by='Final_Overall_Score', ascending=False).reset_index(drop=True)
-            numeric_cols = combined_results.select_dtypes(include=[np.number]).columns
-            combined_results[numeric_cols] = combined_results[numeric_cols].round(2)
+                    all_results.append(result_df)
+                except Exception as e:
+                    st.error(f"Error with {ticker}: {e}")
             
-            # 2. Function to format large numbers to M/B
-            def format_currency(value):
-                if pd.isna(value) or value == 0:
-                    return "N/A"
-                abs_val = abs(value)
-                if abs_val >= 1_000_000_000:
-                    return f"{value / 1_000_000_000:,.2f} B"
-                elif abs_val >= 1_000_000:
-                    return f"{value / 1_000_000:,.2f} M"
-                else:
+            if all_results:
+                combined = pd.concat(all_results, ignore_index=True)
+                combined = combined.sort_values(by='Final_Overall_Score', ascending=False).reset_index(drop=True)
+                
+                # Save results AND the input string to session state
+                st.session_state.combined_results = combined
+                st.session_state.last_ticker_input = ticker_input.strip()
+
+                # Create and save formatted display version
+                display = combined.copy()
+                def format_currency(value):
+                    if pd.isna(value) or value == 0: return "N/A"
+                    if abs(value) >= 1_000_000_000: return f"{value / 1_000_000_000:,.2f} B"
+                    if abs(value) >= 1_000_000: return f"{value / 1_000_000:,.2f} M"
                     return f"{value:,.2f}"
+
+                for col in ['Revenue', 'Profit', 'Shareholders_Equity']:
+                    if col in display.columns:
+                        display[col] = display[col].apply(format_currency)
                 
-            # Create a display-specific dataframe
-            display_df = combined_results.copy()
-            target_currency_cols = ['Revenue', 'Profit', 'Shareholders_Equity']
+                st.session_state.display_df = display
 
-            for col in target_currency_cols:
-                if col in display_df.columns:
-                    display_df[col] = display_df[col].apply(format_currency)
+            status_text.success("Evaluation complete!")
+            progress_bar.empty()
 
-            # Sort by Score
-            display_df = display_df.sort_values(by='Final_Overall_Score', ascending=False).reset_index(drop=True)
+        except Exception as e:
+            st.error(f"An error occurred: {e}")
 
-            st.write("### Fundamental Analysis & Scores")
-            st.dataframe(display_df)
-            
-            st.subheader("Sankey Diagram - Scores by Ticker")
-            sankey_df = combined_results.head(15)  # Slice the top 15
-            
-            # --- FIXED SANKEY LOGIC ---
-            metric_cols = [c for c in sankey_df.columns if c.startswith('Overall')]
-            unique_tickers = list(sankey_df['Ticker_Name'].unique())
-            
-            # Combine nodes and build the diagram
-            all_nodes = metric_cols + unique_tickers
-            sources, targets, values, colors = [], [], [], []
-            
-            for _, row in sankey_df.iterrows():
-                t_idx = all_nodes.index(row['Ticker_Name'])
-                for col in metric_cols:
-                    val = row[col]
-                    if pd.notna(val):
-                        col_idx = all_nodes.index(col)
-                        # Color logic
-                        color = 'rgba(0, 200, 0, 0.6)' if val >= 65 else ('rgba(255, 165, 0, 0.6)' if val >= 40 else 'rgba(200, 0, 0, 0.6)')
-                        
-                        sources.append(col_idx)
-                        targets.append(t_idx)
-                        values.append(val)
-                        colors.append(color)
-            
-            fig = go.Figure(data=[go.Sankey(
-                node=dict(pad=15, thickness=20, label=all_nodes,
-                          color=['rgba(100, 149, 237, 0.8)'] * len(metric_cols) + ['rgba(200, 100, 100, 0.8)'] * len(unique_tickers)),
-                link=dict(source=sources, target=targets, value=values, color=colors)
-            )])
-            
-            st.plotly_chart(fig, use_container_width=True)
-            
-    except Exception as e:
-        st.error(f"An error occurred: {e}")
+# --- 3. DISPLAY LOGIC ---
+if st.session_state.combined_results is not None:
+    df_num = st.session_state.combined_results
+    df_disp = st.session_state.display_df
+
+    st.write("### Fundamental Analysis & Scores")
+    st.dataframe(df_disp, use_container_width=True)
+
+    # --- Industry Performance Graphs (Corrected for Graph Objects) ---
+    st.divider()
+    st.header("Industry Benchmarking")
+
+    # Aggregate by industry for the graphs
+    industry_grouped = df_num.groupby('Industry').agg({
+        'Shareholders_Equity': 'mean',
+        'P/B_Ratio': 'mean',
+        'Final_Overall_Score': 'mean'
+    }).reset_index().sort_values(by='Final_Overall_Score', ascending=False)
+
+    fig_industry = make_subplots(
+        rows=3, cols=1, 
+        subplot_titles=("Avg Market Cap (Equity)", "Avg Price-to-Book (P/B)", "Avg Overall Score"),
+        vertical_spacing=0.18 
+    )
+
+    # 1. Market Cap Trace
+    fig_industry.add_trace(
+        go.Bar(
+            x=industry_grouped['Industry'], 
+            y=industry_grouped['Shareholders_Equity'], 
+            marker_color='teal',
+            text=industry_grouped['Shareholders_Equity'], # Pass the data
+            texttemplate='%{text:.2s}',                  # Format as "2s" (e.g. 1.5B)
+            textposition='outside',
+            name="Equity"
+        ), 
+        row=1, col=1
+    )
+
+    # 2. P/B Ratio Trace
+    fig_industry.add_trace(
+        go.Bar(
+            x=industry_grouped['Industry'], 
+            y=industry_grouped['P/B_Ratio'], 
+            marker_color='indianred',
+            text=industry_grouped['P/B_Ratio'],           # Pass the data
+            texttemplate='%{text:.2f}',                  # Format as float
+            textposition='outside',
+            name="P/B"
+        ), 
+        row=2, col=1
+    )
+
+    # 3. Overall Score Trace
+    fig_industry.add_trace(
+        go.Bar(
+            x=industry_grouped['Industry'], 
+            y=industry_grouped['Final_Overall_Score'], 
+            marker_color='mediumseagreen',
+            text=industry_grouped['Final_Overall_Score'], # Pass the data
+            texttemplate='%{text:.2f}',                  # Format as float
+            textposition='outside',
+            name="Score"
+        ), 
+        row=3, col=1
+    )
+
+    # Layout adjustments
+    fig_industry.update_layout(
+        height=1300, 
+        showlegend=False, 
+        margin=dict(b=150, t=100), # Increased bottom margin for labels
+        uniformtext_mode='hide', 
+        uniformtext_minsize=8
+    )
+
+    fig_industry.update_xaxes(tickangle=45)
+    st.plotly_chart(fig_industry, use_container_width=True)
+else:
+    st.info("Enter tickers and click 'Evaluate' to generate the report.")
