@@ -1196,8 +1196,8 @@ else:
     set_df_session_state()
     df_nifty50 = st.session_state['df_nifty50']
     df_xau = st.session_state['df_xau_def']
-    styled_df_nifty = df_nifty50.style.applymap(color_returns, subset=['Log_Ret_Close_Nifty','Log_Ret_Volume_Nifty'])
-    styled_df_xau = df_xau.style.applymap(color_returns, subset=['Log_Ret_Close','Log_Ret_Volume'])
+    styled_df_nifty = df_nifty50.style.map(color_returns, subset=['Log_Ret_Close_Nifty','Log_Ret_Volume_Nifty'])
+    styled_df_xau = df_xau.style.map(color_returns, subset=['Log_Ret_Close','Log_Ret_Volume'])
     df_nifty50.head()
     df_xau.head()
     st.subheader("Nifty 50 DataFrame")
@@ -1247,7 +1247,7 @@ else:
                                 right_index=True, 
                                 how='inner')
     final_daily_ret_df = final_daily_ret_df[['Log_Ret_Close_Nifty','Log_Ret_Volume_Nifty','Log_Ret_Close','Log_Ret_Volume']]
-    final_daily_ret_df_styled = final_daily_ret_df.style.applymap(color_returns, subset=['Log_Ret_Close_Nifty','Log_Ret_Volume_Nifty','Log_Ret_Close','Log_Ret_Volume'])
+    final_daily_ret_df_styled = final_daily_ret_df.style.map(color_returns, subset=['Log_Ret_Close_Nifty','Log_Ret_Volume_Nifty','Log_Ret_Close','Log_Ret_Volume'])
     st.divider()
     st.subheader("Final Merged DataFrame")
     st.markdown(
