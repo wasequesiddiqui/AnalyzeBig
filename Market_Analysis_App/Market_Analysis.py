@@ -658,13 +658,14 @@ def update_dates_in_session_state(start_date, end_date, sb):
     sb.markdown(f"**End Date:** {str_end_date}")
     return str_start_date, str_end_date
 
-def plot_xau_yearly_log_return_split(df, streamlit_obj):
+def plot_xau_yearly_log_return_split(df, streamlit_obj, ticker="XAU"):
     """
-    Plots a stacked bar chart showing the year-wise percentage split of positive and negative log returns for XAU.
+    Plots a stacked bar chart showing the year-wise percentage split of positive and negative log returns for the selected ticker.
     
     Args:
         df (pd.DataFrame): A DataFrame containing price data, with a 'Close' or similar column.
         streamlit_obj (streamlit): The streamlit object to render the chart.
+        ticker (str): The ticker symbol to display in the title.
     """
     # Ensure Date column or index is datetime
     df_ticker = df.copy()
@@ -720,7 +721,7 @@ def plot_xau_yearly_log_return_split(df, streamlit_obj):
     fig.update_layout(
         barmode='stack',
         title={
-            'text': 'Year-wise Percentage Split of Positive and Negative Log Returns (XAU)',
+            'text': f'Year-wise Percentage Split of Positive and Negative Log Returns ({ticker})',
             'y':0.9,
             'x':0.5,
             'xanchor': 'center',
@@ -748,14 +749,15 @@ def plot_xau_yearly_log_return_split(df, streamlit_obj):
     # Render the chart in Streamlit
     streamlit_obj.plotly_chart(fig, use_container_width=True)
 
-def plot_xau_yearly_avg_return_split(df, streamlit_obj):
+def plot_xau_yearly_avg_return_split(df, streamlit_obj, ticker="XAU"):
     """
-    Plots a stacked bar chart showing the year-wise average value of positive and negative log returns for XAU.
+    Plots a stacked bar chart showing the year-wise average value of positive and negative log returns for the selected ticker.
     Negative returns are shown as absolute values.
     
     Args:
         df (pd.DataFrame): A DataFrame containing price data, with a 'Close' or similar column.
         streamlit_obj (streamlit): The streamlit object to render the chart.
+        ticker (str): The ticker symbol to display in the title.
     """
     # Ensure Date column or index is datetime
     df_ticker = df.copy()
@@ -808,7 +810,7 @@ def plot_xau_yearly_avg_return_split(df, streamlit_obj):
     fig.update_layout(
         barmode='stack',
         title={
-            'text': 'Year-wise Average Positive and Negative Log Returns (XAU)',
+            'text': f'Year-wise Average Positive and Negative Log Returns ({ticker})',
             'y':0.9,
             'x':0.5,
             'xanchor': 'center',
@@ -1061,9 +1063,9 @@ def analyse(main_ticker):
     df_XAU = probability_of_streak_reset_after_value(df_XAU, 'Positive_Streak')
     df_XAU = probability_of_streak_reset_after_value(df_XAU, 'Negative_Streak')
     plot_probability_of_streak_reset(df_XAU, "Probability of Streak Reset for " + main_ticker.replace(".NS", ""))
-    plot_xau_yearly_log_return_split(df_ticker,st)
+    plot_xau_yearly_log_return_split(df_ticker,st, main_ticker.replace(".NS", ""))
     st.divider()
-    plot_xau_yearly_avg_return_split(df_ticker, st)
+    plot_xau_yearly_avg_return_split(df_ticker, st, main_ticker.replace(".NS", ""))
     st.divider()
     plot_avg_streaks(
         calculate_avg_streaks_monthly(df_ticker, 'Log_Ret_Close')
@@ -1109,12 +1111,31 @@ def correlation_heatmap(df, title):
 
 sb = st.sidebar
 sb.title("Market Analysis Settings")
-st.divider()
-st.header("Select the date range for analysis")
+sb.markdown("### Select the date range for analysis")
 start_date, end_date = get_dates()
 start_date = sb.date_input("Start Date", min_value=st.session_state['start_date'], max_value=datetime.today(), value=st.session_state['start_date'])
 end_date = sb.date_input("End Date", min_value=st.session_state['start_date'], max_value=datetime.today(), value=datetime.today())
 btn_refresh = sb.button("Refresh Data", key="refresh")
+
+# Ticker selection dropdown
+sb.markdown("### Select the ticker for analysis")
+available_tickers = [
+    "GOLDBEES.NS",
+    "SHARIABEES.NS",
+    "ITETF.NS",
+    "^CNXPHARMA",
+    "^CNXENERGY",
+    "^CNXFMCG"
+]
+selected_ticker = sb.selectbox(
+    "Choose a ticker:",
+    available_tickers,
+    index=0 if 'selected_ticker' not in st.session_state else available_tickers.index(st.session_state['selected_ticker'])
+)
+btn_run_analysis = sb.button("Run Analysis", key="run_analysis")
+
+st.divider()
+st.header("Select the date range for analysis")
 
 def set_df_session_state():
     """Initialize session state variables for dataframes and dates."""
@@ -1125,11 +1146,15 @@ def set_df_session_state():
     or 'df_us_gld' not in st.session_state \
     or 'start_date' not in st.session_state \
     or 'end_date' not in st.session_state \
+    or 'selected_ticker' not in st.session_state \
     or st.session_state['start_date'] != start_date \
-    or st.session_state['end_date'] != end_date:
+    or st.session_state['end_date'] != end_date \
+    or st.session_state['selected_ticker'] != selected_ticker \
+    or btn_run_analysis:
         
         st.session_state['start_date'] = start_date
         st.session_state['end_date'] = end_date
+        st.session_state['selected_ticker'] = selected_ticker
 
         df_Nifty_50 = get_ticker_data("^NSEI", str_start_date, str_end_date)
         df_USD_INR = get_ticker_data("USDINR=X", str_start_date, str_end_date)
@@ -1152,7 +1177,7 @@ def set_df_session_state():
         df_US_GLD = get_log_returns(df_US_GLD, "Volume")
         df_US_GLD = set_df_datatype(df_US_GLD)
 
-        df_xau_def = get_ticker_data("GOLDBEES.NS", str_start_date, str_end_date)
+        df_xau_def = get_ticker_data(selected_ticker, str_start_date, str_end_date)
         df_xau_def = get_log_returns(df_xau_def, "Close")
         df_xau_def = get_log_returns(df_xau_def, "Volume")
 
@@ -1182,7 +1207,7 @@ def set_df_session_state():
         st.session_state['df_usd_btc'] = df_USD_BTC
         st.session_state['df_us_gld'] = df_US_GLD
 
-if btn_refresh:
+if btn_refresh or btn_run_analysis:
     str_start_date,str_end_date = update_dates_in_session_state(start_date, end_date, sb)
 else:
     str_start_date, str_end_date = update_dates_in_session_state(start_date, end_date, sb)
@@ -1221,13 +1246,13 @@ else:
     unsafe_allow_html=True)
     st.dataframe(styled_df_nifty, width=1200, height=500)
     st.divider()
-    st.subheader("XAU DataFrame")
+    st.subheader(f"{selected_ticker} DataFrame")
     st.markdown(
-    """
+    f"""
     <div style="font-family: 'Segoe UI', Arial, sans-serif; font-size: 1.15rem; color: #222831; background-color: #f5f6fa; padding: 18px 24px; border-radius: 10px; margin-bottom: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
-        <b style="font-size:1.25rem; color:#FF851B;">XAU DataFrame Overview</b><br><br>
-        The <span style="color:#FF851B;"><b>XAU DataFrame</b></span> (<code>df_xau</code>) contains historical daily data for <b>Gold (XAU)</b>, a key global benchmark for gold prices.<br>
-        This DataFrame is sourced directly from Yahoo Finance using the ticker symbol <code>GC=F</code> for the date range you select.<br><br>
+        <b style="font-size:1.25rem; color:#FF851B;">{selected_ticker} DataFrame Overview</b><br><br>
+        The <span style="color:#FF851B;"><b>{selected_ticker} DataFrame</b></span> (<code>df_xau</code>) contains historical daily data for <b>{selected_ticker}</b>.<br>
+        This DataFrame is sourced directly from Yahoo Finance using the ticker symbol <code>{selected_ticker}</code> for the date range you select.<br><br>
         <span style="color:#393e46;">It includes:</span>
         <ul style="margin-top: 0.5em; margin-bottom: 0.5em;">
             <li><b>Open, High, Low, Close, Volume</b>: Standard daily price and volume data</li>
@@ -1236,7 +1261,7 @@ else:
             <li><b>Log_Ret_Price</b>: Logarithmic daily returns of the closing price</li>
             <li><b>Log_Ret_Volume</b>: Logarithmic daily returns of the trading volume</li>
         </ul>
-        <span style="color:#393e46;">This structured data enables robust analysis of gold price trends, volatility, and its correlation with other financial assets.</span>
+        <span style="color:#393e46;">This structured data enables robust analysis of price trends, volatility, and its correlation with other financial assets.</span>
     </div>
     """,
     unsafe_allow_html=True)
@@ -1251,19 +1276,19 @@ else:
     st.divider()
     st.subheader("Final Merged DataFrame")
     st.markdown(
-    """
+    f"""
     <div style="font-family: 'Segoe UI', Arial, sans-serif; font-size: 1.15rem; color: #222831; background-color: #f5f6fa; padding: 18px 24px; border-radius: 10px; margin-bottom: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
         <b style="font-size:1.25rem; color:#6f42c1;">Merged DataFrame Overview</b><br><br>
-        The <span style="color:#6f42c1;"><b>Final Merged DataFrame</b></span> combines daily data from both the <b>Nifty 50</b> index and <b>Gold (XAU)</b> for the selected date range.<br>
-        This DataFrame is created by merging the Nifty and XAU DataFrames on their date index, allowing for direct comparison and joint analysis.<br><br>
+        The <span style="color:#6f42c1;"><b>Final Merged DataFrame</b></span> combines daily data from both the <b>Nifty 50</b> index and <b>{selected_ticker}</b> for the selected date range.<br>
+        This DataFrame is created by merging the Nifty and {selected_ticker} DataFrames on their date index, allowing for direct comparison and joint analysis.<br><br>
         <span style="color:#393e46;">It includes:</span>
         <ul style="margin-top: 0.5em; margin-bottom: 0.5em;">
             <li><b>Log_Ret_Price_Nifty</b>: Logarithmic daily returns of the Nifty 50 closing price</li>
             <li><b>Log_Ret_Volume_Nifty</b>: Logarithmic daily returns of the Nifty 50 trading volume</li>
-            <li><b>Log_Ret_Close_XAU</b>: Logarithmic daily returns of the Gold (XAU) closing price</li>
-            <li><b>Log_Ret_Volume_XAU</b>: Logarithmic daily returns of the Gold (XAU) trading volume</li>
+            <li><b>Log_Ret_Close</b>: Logarithmic daily returns of the {selected_ticker} closing price</li>
+            <li><b>Log_Ret_Volume</b>: Logarithmic daily returns of the {selected_ticker} trading volume</li>
         </ul>
-        <span style="color:#393e46;">This merged dataset enables you to analyze correlations, co-movements, and volatility between the Indian equity market and global gold prices, supporting deeper financial insights and strategy development.</span>
+        <span style="color:#393e46;">This merged dataset enables you to analyze correlations, co-movements, and volatility between the Indian equity market and {selected_ticker}, supporting deeper financial insights and strategy development.</span>
     </div>
     """,
     unsafe_allow_html=True)
@@ -1288,42 +1313,42 @@ else:
     </div>
     """,
     unsafe_allow_html=True)
-    fig = correlation_heatmap(final_daily_ret_df, title="Correlation Heatmap of Nifty 50 and Gold (XAU) Daily Returns")
+    fig = correlation_heatmap(final_daily_ret_df, title=f"Correlation Heatmap of Nifty 50 and {selected_ticker} Daily Returns")
     st.plotly_chart(fig, use_container_width=True)
     st.divider()
     final_daily_ret_df['Date'] = final_daily_ret_df.index
     st.markdown(
-    """
+    f"""
     <div style="font-family: 'Segoe UI', Arial, sans-serif; font-size: 1.12rem; color: #222831; background-color: #f5f6fa; padding: 16px 22px; border-radius: 10px; margin-bottom: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
-        <b style="font-size:1.18rem; color:#0074D9;">Nifty 50 & Gold Log Returns Line Chart: Use Case</b><br><br>
-        This interactive line chart visualizes the <b>logarithmic daily returns</b> of the <span style="color:#0074D9;"><b>Nifty 50</b></span> index and <span style="color:#FF851B;"><b>Gold (XAU)</b></span> over your selected date range.<br><br>
+        <b style="font-size:1.18rem; color:#0074D9;">Nifty 50 & {selected_ticker} Log Returns Line Chart: Use Case</b><br><br>
+        This interactive line chart visualizes the <b>logarithmic daily returns</b> of the <span style="color:#0074D9;"><b>Nifty 50</b></span> index and <span style="color:#FF851B;"><b>{selected_ticker}</b></span> over your selected date range.<br><br>
         <span style="color:#393e46;">Use this chart to:</span>
         <ul style="margin-top: 0.5em; margin-bottom: 0.5em;">
-            <li>Compare the performance and volatility of Indian equities (Nifty 50) and global gold prices (XAU) side by side.</li>
+            <li>Compare the performance and volatility of Indian equities (Nifty 50) and {selected_ticker} side by side.</li>
             <li>Identify periods of high or low correlation, divergence, or co-movement between the two assets.</li>
             <li>Spot trends, sudden spikes, or drops in returns that may signal important market events or shifts in investor sentiment.</li>
             <li>Support investment analysis, risk management, and portfolio diversification decisions by understanding how these assets behave over time.</li>
         </ul>
-        <span style="color:#393e46;">This visualization is a powerful tool for analysts and investors seeking to understand the dynamic relationship between stock market returns and gold as a safe-haven asset.</span>
+        <span style="color:#393e46;">This visualization is a powerful tool for analysts and investors seeking to understand the dynamic relationship between stock market returns and {selected_ticker}.</span>
     </div>
     """,
     unsafe_allow_html=True)
     
     fig = plotly_line_graph(final_daily_ret_df,
                             x_col='Date',
-                            y_cols=[['Log_Ret_Close_Nifty','Nifty'], ['Log_Ret_Close','XAU']],
-                            title="Nifty 50 & Gold Return (Logarithmic Daily Returns)",
+                            y_cols=[['Log_Ret_Close_Nifty','Nifty'], ['Log_Ret_Close',selected_ticker]],
+                            title=f"Nifty 50 & {selected_ticker} Return (Logarithmic Daily Returns)",
                             x_title="Date",
                             y_title="Log Daily Returns")
     st.plotly_chart(fig, use_container_width=True)
     st.divider()
-    st.subheader("Nifty 50 vs Gold Regression Scatter Plot")
+    st.subheader(f"Nifty 50 vs {selected_ticker} Regression Scatter Plot")
     fig = px.scatter(
         final_daily_ret_df
         , x="Log_Ret_Close_Nifty"
         , y="Log_Ret_Close"
-        , title="Nifty 50 vs Gold Price"
-        , labels={"Log_Ret_Close_Nifty": "Nifty 50 Log Daily Returns", "Log_Ret_Close": "XAU Log Daily Returns"}
+        , title=f"Nifty 50 vs {selected_ticker} Price"
+        , labels={"Log_Ret_Close_Nifty": "Nifty 50 Log Daily Returns", "Log_Ret_Close": f"{selected_ticker} Log Daily Returns"}
         , trendline="ols")
     # Extract regression results
     results = px.get_trendline_results(fig)
@@ -1332,21 +1357,21 @@ else:
 
     # Update the chart title to include the R² value
     fig.update_layout(
-        title=f"Nifty 50 vs Gold Price (R² = {r_squared:.4f})"
+        title=f"Nifty 50 vs {selected_ticker} Price (R² = {r_squared:.4f})"
     )
     st.markdown(
-    """
+    f"""
     <div style="font-family: 'Segoe UI', Arial, sans-serif; font-size: 1.12rem; color: #222831; background-color: #f5f6fa; padding: 16px 22px; border-radius: 10px; margin-bottom: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
-        <b style="font-size:1.18rem; color:#e83e8c;">Nifty 50 vs Gold Regression Scatter Plot: Use Case</b><br><br>
-        This interactive scatter plot visualizes the relationship between the <b>logarithmic daily returns</b> of the <span style="color:#0074D9;"><b>Nifty 50</b></span> index and <span style="color:#FF851B;"><b>Gold (XAU)</b></span>.<br><br>
+        <b style="font-size:1.18rem; color:#e83e8c;">Nifty 50 vs {selected_ticker} Regression Scatter Plot: Use Case</b><br><br>
+        This interactive scatter plot visualizes the relationship between the <b>logarithmic daily returns</b> of the <span style="color:#0074D9;"><b>Nifty 50</b></span> index and <span style="color:#FF851B;"><b>{selected_ticker}</b></span>.<br><br>
         <span style="color:#393e46;">Use this chart to:</span>
         <ul style="margin-top: 0.5em; margin-bottom: 0.5em;">
-            <li>Assess the linear relationship between Nifty 50 and Gold returns using the regression trendline.</li>
-            <li>Interpret the <b>R² value</b> in the chart title to understand how much of the variation in Gold returns can be explained by Nifty 50 returns.</li>
+            <li>Assess the linear relationship between Nifty 50 and {selected_ticker} returns using the regression trendline.</li>
+            <li>Interpret the <b>R² value</b> in the chart title to understand how much of the variation in {selected_ticker} returns can be explained by Nifty 50 returns.</li>
             <li>Identify periods of strong or weak correlation, and spot outliers or unusual co-movements.</li>
             <li>Support portfolio diversification and risk management by analyzing the dependency between these two assets.</li>
         </ul>
-        <span style="color:#393e46;">This visualization is valuable for analysts and investors seeking to quantify and visualize the statistical relationship between Indian equities and gold as a global asset.</span>
+        <span style="color:#393e46;">This visualization is valuable for analysts and investors seeking to quantify and visualize the statistical relationship between Indian equities and {selected_ticker}.</span>
     </div>
     """,
     unsafe_allow_html=True)
@@ -1355,7 +1380,7 @@ else:
     # Calculate rolling volatility (standard deviation) over a 5-day window
     # final_daily_ret_df = final_daily_ret_df.sort_index(ascending=True)
     # final_daily_ret_df["Volatility_Nifty"] = final_daily_ret_df["Log_Ret_Price_Nifty"].rolling(window=14).std()
-    # final_daily_ret_df["Volatility_XAU"] = final_daily_ret_df["Log_Ret_Close_XAU"].rolling(window=14).std()
+    # final_daily_ret_df["Volatility_Close"] = final_daily_ret_df["Log_Ret_Close"].rolling(window=14).std()
     # final_daily_ret_df = final_daily_ret_df.sort_index(ascending=False)
     # st.dataframe(final_daily_ret_df)
-    analyse("GOLDBEES.NS")
+    analyse(selected_ticker)
