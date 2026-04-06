@@ -89,8 +89,4 @@ print(f"\nMerged DataFrame has {len(df_merged)} rows.")
 df_merged.head(20)
 df_merged.tail(20)
 
-# df_merged['Index Name'].unique()
-# print("\n--- Summary Results ---")
-# for sector, data in all_results.items():
-#     print(f"\n{sector} - Latest 5 Records:")
-#     print(data.tail())
+df_merged['Index Name'].unique()

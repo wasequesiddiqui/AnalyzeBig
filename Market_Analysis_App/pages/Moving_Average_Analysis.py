@@ -9,11 +9,6 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
-from prophet import Prophet
-from tensorflow.keras.models import Sequential # type: ignore
-from tensorflow.keras.layers import Dense, LSTM, Dropout # type: ignore
-from sklearn.preprocessing import MinMaxScaler
-from sklearn.metrics import r2_score
 from datetime import datetime, timedelta
 from plotly.subplots import make_subplots
 

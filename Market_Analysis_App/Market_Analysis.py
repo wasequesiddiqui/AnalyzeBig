@@ -184,12 +184,21 @@ def plot_forecast(forecast, figure_title):
     """
     Plot the forecasted data.
     """
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(x=forecast['ds'], y=forecast['yhat'], mode='lines', name='Forecast'))
-    fig.add_trace(go.Scatter(x=forecast['ds'], y=forecast['yhat_lower'], mode='lines', name='Lower Bound'))
-    fig.add_trace(go.Scatter(x=forecast['ds'], y=forecast['yhat_upper'], mode='lines', name='Upper Bound'))
-    fig.update_layout(title=f'Forecast for {figure_title}', xaxis_title='Date', yaxis_title=figure_title)
-    return fig
+    try:
+        if forecast is None or len(forecast) == 0:
+            st.warning(f"Insufficient data to generate forecast plot for {figure_title}.")
+            return None
+        
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(x=forecast['ds'], y=forecast['yhat'], mode='lines', name='Forecast'))
+        fig.add_trace(go.Scatter(x=forecast['ds'], y=forecast['yhat_lower'], mode='lines', name='Lower Bound'))
+        fig.add_trace(go.Scatter(x=forecast['ds'], y=forecast['yhat_upper'], mode='lines', name='Upper Bound'))
+        fig.update_layout(title=f'Forecast for {figure_title}', xaxis_title='Date', yaxis_title=figure_title)
+        return fig
+    except Exception as e:
+        st.error(f"Error creating forecast plot for {figure_title}: {str(e)}")
+        print(f"Error in plot_forecast: {str(e)}")
+        return None
 
 def predict_close_val(last_close_value,df):
     """
@@ -228,45 +237,59 @@ def plot_actual_vs_predicted(df, actual_col, predicted_col,title_txt=""):
     """
     Plot the actual vs predicted values.
     """
-    fig = go.Figure()
-    fig.add_trace(go.Scatter(x=df['ds'], y=df[actual_col], mode='lines', name='Actual'))
-    fig.add_trace(go.Scatter(x=df['ds'], y=df[predicted_col], mode='lines', name='Predicted'))
-    fig.update_layout(title=title_txt, xaxis_title='Date', yaxis_title='Close Price')
-    st.markdown(
-    """
-    <div style="font-family: 'Segoe UI', Arial, sans-serif; font-size: 1.13rem; color: #222831; background-color: #f5f6fa; padding: 16px 22px; border-radius: 10px; margin-bottom: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
-        <b style="font-size:1.18rem; color:#0074D9;">Actual vs Predicted Chart: Explanation</b><br><br>
-        This chart compares <span style="background-color:#e3f6fd; color:#0074D9; font-weight:bold;">actual values</span> with <span style="background-color:#ffe0e0; color:#db3c02; font-weight:bold;">predicted values</span> over time.<br><br>
-        <span style="color:#393e46;">Key highlights:</span>
-        <ul style="margin-top: 0.5em; margin-bottom: 0.5em;">
-            <li>Visualizes how closely the <span style="background-color:#e3f6fd; color:#0074D9; font-weight:bold;">model predictions</span> track the <span style="background-color:#e3f6fd; color:#0074D9; font-weight:bold;">actual observed data</span> for each date.</li>
-            <li>Helps identify periods of <span style="background-color:#ffe0e0; color:#db3c02; font-weight:bold;">high accuracy</span> and <span style="background-color:#ffe0e0; color:#db3c02; font-weight:bold;">model deviation</span>.</li>
-            <li>Useful for <span style="background-color:#e0ffe0; color:#00c90a; font-weight:bold;">model validation</span>, <span style="background-color:#e0ffe0; color:#00c90a; font-weight:bold;">forecasting analysis</span>, and improving predictive strategies.</li>
-        </ul>
-        <span style="color:#393e46;">Use this chart to evaluate prediction performance and refine your forecasting approach.</span>
-    </div>
-    """,
-    unsafe_allow_html=True)
-    
-    st.plotly_chart(fig, use_container_width=True)
-    return
+    try:
+        if df is None or len(df) == 0 or actual_col not in df.columns or predicted_col not in df.columns:
+            st.warning(f"Insufficient data to generate actual vs predicted plot for {title_txt}.")
+            return
+        
+        fig = go.Figure()
+        fig.add_trace(go.Scatter(x=df['ds'], y=df[actual_col], mode='lines', name='Actual'))
+        fig.add_trace(go.Scatter(x=df['ds'], y=df[predicted_col], mode='lines', name='Predicted'))
+        fig.update_layout(title=title_txt, xaxis_title='Date', yaxis_title='Close Price')
+        st.markdown(
+        """
+        <div style="font-family: 'Segoe UI', Arial, sans-serif; font-size: 1.13rem; color: #222831; background-color: #f5f6fa; padding: 16px 22px; border-radius: 10px; margin-bottom: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
+            <b style="font-size:1.18rem; color:#0074D9;">Actual vs Predicted Chart: Explanation</b><br><br>
+            This chart compares <span style="background-color:#e3f6fd; color:#0074D9; font-weight:bold;">actual values</span> with <span style="background-color:#ffe0e0; color:#db3c02; font-weight:bold;">predicted values</span> over time.<br><br>
+            <span style="color:#393e46;">Key highlights:</span>
+            <ul style="margin-top: 0.5em; margin-bottom: 0.5em;">
+                <li>Visualizes how closely the <span style="background-color:#e3f6fd; color:#0074D9; font-weight:bold;">model predictions</span> track the <span style="background-color:#e3f6fd; color:#0074D9; font-weight:bold;">actual observed data</span> for each date.</li>
+                <li>Helps identify periods of <span style="background-color:#ffe0e0; color:#db3c02; font-weight:bold;">high accuracy</span> and <span style="background-color:#ffe0e0; color:#db3c02; font-weight:bold;">model deviation</span>.</li>
+                <li>Useful for <span style="background-color:#e0ffe0; color:#00c90a; font-weight:bold;">model validation</span>, <span style="background-color:#e0ffe0; color:#00c90a; font-weight:bold;">forecasting analysis</span>, and improving predictive strategies.</li>
+            </ul>
+            <span style="color:#393e46;">Use this chart to evaluate prediction performance and refine your forecasting approach.</span>
+        </div>
+        """,
+        unsafe_allow_html=True)
+        
+        st.plotly_chart(fig, use_container_width=True)
+    except Exception as e:
+        st.error(f"Error creating actual vs predicted plot for {title_txt}: {str(e)}")
+        print(f"Error in plot_actual_vs_predicted: {str(e)}")
 
 def plot_bar_graph(df, x_col, y_col, title):
     """
     Plot a bar graph.
     """
-    colors = [ "#3e8a00" if val >= 0 else "#a63700" for val in df[y_col] ]
-    fig = go.Figure()
-    fig.add_trace(go.Bar(
-        x=df[x_col], 
-        y=df[y_col],
-        marker_color=colors,
-        text=df[y_col].apply(lambda x: f"{x:,.2f}"),
-        textposition='auto',
-        name=title))
-    fig.update_layout(title=title, xaxis_title=x_col, yaxis_title=y_col)
-    st.plotly_chart(fig, use_container_width=True)
-    return
+    try:
+        if df is None or len(df) == 0 or x_col not in df.columns or y_col not in df.columns:
+            st.warning(f"Insufficient data to generate bar graph for {title}.")
+            return
+        
+        colors = [ "#3e8a00" if val >= 0 else "#a63700" for val in df[y_col] ]
+        fig = go.Figure()
+        fig.add_trace(go.Bar(
+            x=df[x_col], 
+            y=df[y_col],
+            marker_color=colors,
+            text=df[y_col].apply(lambda x: f"{x:,.2f}"),
+            textposition='auto',
+            name=title))
+        fig.update_layout(title=title, xaxis_title=x_col, yaxis_title=y_col)
+        st.plotly_chart(fig, use_container_width=True)
+    except Exception as e:
+        st.error(f"Error creating bar graph for {title}: {str(e)}")
+        print(f"Error in plot_bar_graph: {str(e)}")
 
 def rename_columns(df, col_mapping,message=""):
     """
@@ -314,260 +337,281 @@ def calculate_r2_for_all(filtered_arr_split_df,main_ticker):
     """
     Calculate R^2 values for all pairs of columns in the DataFrame.
     """
-    df_correlation_progress = pd.DataFrame()
-    lst_r2_nifty = []
-    lst_r2_inr = []
-    lst_r2_btc = []
-    lst_r2_xau = []
-    lst_year = []
+    try:
+        df_correlation_progress = pd.DataFrame()
+        lst_r2_nifty = []
+        lst_r2_inr = []
+        lst_r2_btc = []
+        lst_r2_xau = []
+        lst_year = []
 
-    for df in filtered_arr_split_df:
-        year = df['Date_Val'].iloc[0].year
-        print("Dataframe shape for year ", year, ":", df.shape)
-        lst_year.append(year)
+        for df in filtered_arr_split_df:
+            year = df['Date_Val'].iloc[0].year
+            print("Dataframe shape for year ", year, ":", df.shape)
+            lst_year.append(year)
 
-    fig_correl = make_subplots(
-    rows=2, 
-    cols=3,
-    subplot_titles=tuple(lst_year),
-    horizontal_spacing=0.15
-    )
-
-    row_counter = 1
-    col_counter = 1
-
-    for df in filtered_arr_split_df:
-        
-        df_correl = df[['Log_Ret_Close', 'Log_Ret_Close_Nifty', 'Log_Ret_Close_INR', 'Log_Ret_Close_BTC', 'Log_Ret_Close_XAU']].corr().round(4)
-        r2_nifty = calculate_r2(df, 'Log_Ret_Close', 'Log_Ret_Close_Nifty')
-        lst_r2_nifty.append(r2_nifty)
-        r2_inr = calculate_r2(df, 'Log_Ret_Close', 'Log_Ret_Close_INR')
-        lst_r2_inr.append(r2_inr)
-        r2_btc = calculate_r2(df, 'Log_Ret_Close', 'Log_Ret_Close_BTC')
-        lst_r2_btc.append(r2_btc)
-        r2_xau = calculate_r2(df, 'Log_Ret_Close', 'Log_Ret_Close_XAU')
-        lst_r2_xau.append(r2_xau)
-        fig_correl.add_trace(
-            go.Heatmap(
-                z=df_correl.values,
-                x=df_correl.columns,
-                y=df_correl.index,
-                colorscale='rdylgn',
-                showscale=False,
-                zmin=-1, 
-                zmax=1,
-                text=df_correl.values,
-                texttemplate="%{text:.2f}"
-            ),
-            row=row_counter, col=col_counter
+        fig_correl = make_subplots(
+        rows=2, 
+        cols=3,
+        subplot_titles=tuple(lst_year),
+        horizontal_spacing=0.15
         )
-        col_counter+=1
-        if(col_counter > 3):
-            col_counter = 1
-            row_counter += 1
-    
-    fig_correl.update_layout(
-    title="Correlation Heatmaps for daily returns of XAU, Nifty, INR, BTC",
-    height=600,
-    autosize=True)
 
-    fig_correl.write_html(main_ticker+"_"+"Correlation_Heatmaps.html", auto_open=True)
+        row_counter = 1
+        col_counter = 1
 
-    df_correlation_progress['Year'] = lst_year
-    df_correlation_progress['R2_Nifty'] = lst_r2_nifty
-    df_correlation_progress['R2_INR'] = lst_r2_inr
-    df_correlation_progress['R2_BTC'] = lst_r2_btc
-    df_correlation_progress['R2_XAU'] = lst_r2_xau
+        for df in filtered_arr_split_df:
+            
+            df_correl = df[['Log_Ret_Close', 'Log_Ret_Close_Nifty', 'Log_Ret_Close_INR', 'Log_Ret_Close_BTC', 'Log_Ret_Close_XAU']].corr().round(4)
+            r2_nifty = calculate_r2(df, 'Log_Ret_Close', 'Log_Ret_Close_Nifty')
+            lst_r2_nifty.append(r2_nifty)
+            r2_inr = calculate_r2(df, 'Log_Ret_Close', 'Log_Ret_Close_INR')
+            lst_r2_inr.append(r2_inr)
+            r2_btc = calculate_r2(df, 'Log_Ret_Close', 'Log_Ret_Close_BTC')
+            lst_r2_btc.append(r2_btc)
+            r2_xau = calculate_r2(df, 'Log_Ret_Close', 'Log_Ret_Close_XAU')
+            lst_r2_xau.append(r2_xau)
+            fig_correl.add_trace(
+                go.Heatmap(
+                    z=df_correl.values,
+                    x=df_correl.columns,
+                    y=df_correl.index,
+                    colorscale='rdylgn',
+                    showscale=False,
+                    zmin=-1, 
+                    zmax=1,
+                    text=df_correl.values,
+                    texttemplate="%{text:.2f}"
+                ),
+                row=row_counter, col=col_counter
+            )
+            col_counter+=1
+            if(col_counter > 3):
+                col_counter = 1
+                row_counter += 1
+        
+        fig_correl.update_layout(
+        title="Correlation Heatmaps for daily returns of XAU, Nifty, INR, BTC",
+        height=600,
+        autosize=True)
 
-    # Create a 2x2 subplot figure
-    fig = make_subplots(
-        rows=2, cols=2,
-        subplot_titles=("R² Nifty", "R² INR", "R² BTC", "R² XAU")
-    )
+        fig_correl.write_html(main_ticker+"_"+"Correlation_Heatmaps.html", auto_open=True)
 
-    # Add bar for R2_Nifty
-    fig.add_trace(
-        go.Bar(x=df_correlation_progress['Year'], y=df_correlation_progress['R2_Nifty'], name='R² Nifty', marker_color="#3e8a00"),
-        row=1, col=1
-    )
-    # Add bar for R2_INR
-    fig.add_trace(
-        go.Bar(x=df_correlation_progress['Year'], y=df_correlation_progress['R2_INR'], name='R² INR', marker_color="#a63700"),
-        row=1, col=2
-    )
-    # Add bar for R2_BTC
-    fig.add_trace(
-        go.Bar(x=df_correlation_progress['Year'], y=df_correlation_progress['R2_BTC'], name='R² BTC', marker_color="#0074D9"),
-        row=2, col=1
-    )
-    # Add bar for R2_XAU
-    fig.add_trace(
-        go.Bar(x=df_correlation_progress['Year'], y=df_correlation_progress['R2_XAU'], name='R² XAU', marker_color="#FF851B"),
-        row=2, col=2
-    )
+        df_correlation_progress['Year'] = lst_year
+        df_correlation_progress['R2_Nifty'] = lst_r2_nifty
+        df_correlation_progress['R2_INR'] = lst_r2_inr
+        df_correlation_progress['R2_BTC'] = lst_r2_btc
+        df_correlation_progress['R2_XAU'] = lst_r2_xau
 
-    fig.update_layout(
-        height=700, width=900,
-        title_text="R² Values for Nifty, INR, BTC, XAU by Year"
-    )
+        # Create a 2x2 subplot figure
+        fig = make_subplots(
+            rows=2, cols=2,
+            subplot_titles=("R² Nifty", "R² INR", "R² BTC", "R² XAU")
+        )
 
-    fig.write_html(main_ticker+"_"+"R2_Values_Matrix.html", auto_open=True)
+        # Add bar for R2_Nifty
+        fig.add_trace(
+            go.Bar(x=df_correlation_progress['Year'], y=df_correlation_progress['R2_Nifty'], name='R² Nifty', marker_color="#3e8a00"),
+            row=1, col=1
+        )
+        # Add bar for R2_INR
+        fig.add_trace(
+            go.Bar(x=df_correlation_progress['Year'], y=df_correlation_progress['R2_INR'], name='R² INR', marker_color="#a63700"),
+            row=1, col=2
+        )
+        # Add bar for R2_BTC
+        fig.add_trace(
+            go.Bar(x=df_correlation_progress['Year'], y=df_correlation_progress['R2_BTC'], name='R² BTC', marker_color="#0074D9"),
+            row=2, col=1
+        )
+        # Add bar for R2_XAU
+        fig.add_trace(
+            go.Bar(x=df_correlation_progress['Year'], y=df_correlation_progress['R2_XAU'], name='R² XAU', marker_color="#FF851B"),
+            row=2, col=2
+        )
 
-    return df_correlation_progress
+        fig.update_layout(
+            height=700, width=900,
+            title_text="R² Values for Nifty, INR, BTC, XAU by Year"
+        )
+
+        fig.write_html(main_ticker+"_"+"R2_Values_Matrix.html", auto_open=True)
+
+        return df_correlation_progress
+    except Exception as e:
+        print(f"Error in calculate_r2_for_all: {str(e)}")
+        st.error(f"Error calculating R² values: {str(e)}")
+        return pd.DataFrame()
 
 def max_min_band(df,ticker):
     """
     Calculate the maximum and minimum price bands for the DataFrame.
     """
-    df = df.sort_index(ascending=True)
-    df['Max_Price'] = df[['Close', 'High', 'Low', 'Open']].max(axis=1)
-    df['Min_Price'] = df[['Close', 'High', 'Low', 'Open']].min(axis=1)
-    df['Max_Price'] = df['Max_Price'].astype(float)
-    df['Min_Price'] = df['Min_Price'].astype(float)
-    df['Max_Price'] = df['Max_Price'].round(4)
-    df['Min_Price'] = df['Min_Price'].round(4)
-    df['Max_Min_Band'] = df['Max_Price'] - df['Min_Price']
-    df['Max_Min_Band'] = df['Max_Min_Band'].astype(float)
-    df['Max_Min_Band'] = df['Max_Min_Band'].round(4)
+    try:
+        if df is None or len(df) == 0:
+            st.warning(f"Insufficient data to calculate max-min band for {ticker}.")
+            return
+        
+        df = df.sort_index(ascending=True)
+        df['Max_Price'] = df[['Close', 'High', 'Low', 'Open']].max(axis=1)
+        df['Min_Price'] = df[['Close', 'High', 'Low', 'Open']].min(axis=1)
+        df['Max_Price'] = df['Max_Price'].astype(float)
+        df['Min_Price'] = df['Min_Price'].astype(float)
+        df['Max_Price'] = df['Max_Price'].round(4)
+        df['Min_Price'] = df['Min_Price'].round(4)
+        df['Max_Min_Band'] = df['Max_Price'] - df['Min_Price']
+        df['Max_Min_Band'] = df['Max_Min_Band'].astype(float)
+        df['Max_Min_Band'] = df['Max_Min_Band'].round(4)
 
-    df['Max_Price_Rolling_Vol'] = df['Max_Price'].rolling(window=23).std() * (252 ** 0.5)
-    df['Max_Price_Rolling_Vol'] = df['Max_Price_Rolling_Vol'].round(6)
-    df['Max_Price_Rolling_Vol'] = df['Max_Price_Rolling_Vol'].astype(float)
+        df['Max_Price_Rolling_Vol'] = df['Max_Price'].rolling(window=23).std() * (252 ** 0.5)
+        df['Max_Price_Rolling_Vol'] = df['Max_Price_Rolling_Vol'].round(6)
+        df['Max_Price_Rolling_Vol'] = df['Max_Price_Rolling_Vol'].astype(float)
 
-    df['Min_Price_Rolling_Vol'] = df['Min_Price'].rolling(window=23).std() * (252 ** 0.5)
-    df['Min_Price_Rolling_Vol'] = df['Min_Price_Rolling_Vol'].round(6)
-    df['Min_Price_Rolling_Vol'] = df['Min_Price_Rolling_Vol'].astype(float)
-    
-    max_value = df['Max_Price'].max()
-    print("Max Price Value:", max_value)
-    df['Delta_from_Max'] = df['Max_Price'] - max_value
-    df['Delta_from_Max'] = df['Delta_from_Max'].astype(float)
-    df['Delta_from_Max'] = df['Delta_from_Max'].round(4)
+        df['Min_Price_Rolling_Vol'] = df['Min_Price'].rolling(window=23).std() * (252 ** 0.5)
+        df['Min_Price_Rolling_Vol'] = df['Min_Price_Rolling_Vol'].round(6)
+        df['Min_Price_Rolling_Vol'] = df['Min_Price_Rolling_Vol'].astype(float)
+        
+        max_value = df['Max_Price'].max()
+        print("Max Price Value:", max_value)
+        df['Delta_from_Max'] = df['Max_Price'] - max_value
+        df['Delta_from_Max'] = df['Delta_from_Max'].astype(float)
+        df['Delta_from_Max'] = df['Delta_from_Max'].round(4)
 
-    min_value = df['Min_Price'].min()
-    print("Min Price Value:", min_value)
-    df['Delta_from_Min'] = df['Min_Price'] - min_value
-    df['Delta_from_Min'] = df['Delta_from_Min'].astype(float)
-    df['Delta_from_Min'] = df['Delta_from_Min'].round(4)
+        min_value = df['Min_Price'].min()
+        print("Min Price Value:", min_value)
+        df['Delta_from_Min'] = df['Min_Price'] - min_value
+        df['Delta_from_Min'] = df['Delta_from_Min'].astype(float)
+        df['Delta_from_Min'] = df['Delta_from_Min'].round(4)
 
-    # Filter df for dates after the first 252 days (i.e., keep rows starting from index 252)
-    df_after_252 = df.iloc[252:]
-    df_last_90 = df.tail(90)
+        # Filter df for dates after the first 252 days (i.e., keep rows starting from index 252)
+        df_after_252 = df.iloc[252:]
+        df_last_90 = df.tail(90)
 
-    print("Latest 90 days : ")
-    print(df_last_90.tail(5))
+        print("Latest 90 days : ")
+        print(df_last_90.tail(5))
 
-    fig = go.Figure()
+        fig = go.Figure()
 
-    fig.add_trace(go.Scatter(
-        x=df_after_252.index,
-        y=df_after_252['Max_Price_Rolling_Vol'],
-        mode='lines',
-        name='Max Price Rolling Volatility'
-    ))
-    fig.add_trace(go.Scatter(
-        x=df_after_252.index,
-        y=df_after_252['Min_Price_Rolling_Vol'],
-        mode='lines',
-        name='Min Price Rolling Volatility'
-    ))
-    fig.update_layout(
-        title='252-Day Rolling Volatility: Max vs Min Price',
-        xaxis_title='Date',
-        yaxis_title='Annualized Volatility'
-    )
-    st.divider()
-    st.markdown(
-    """
-    <div style="font-family: 'Segoe UI', Arial, sans-serif; font-size: 1.13rem; color: #222831; background-color: #f5f6fa; padding: 16px 22px; border-radius: 10px; margin-bottom: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
-        <b style="font-size:1.18rem; color:#0074D9;">Max-Min Price Band Chart: Explanation</b><br><br>
-        This chart visualizes the <span style="background-color:#e3f6fd; color:#0074D9; font-weight:bold;">maximum</span> and <span style="background-color:#ffe0e0; color:#db3c02; font-weight:bold;">minimum</span> price bands for each trading day, along with their <span style="background-color:#e0ffe0; color:#00c90a; font-weight:bold;">rolling volatility</span>.<br><br>
-        <span style="color:#393e46;">Key highlights:</span>
-        <ul style="margin-top: 0.5em; margin-bottom: 0.5em;">
-            <li>Shows the <span style="background-color:#e3f6fd; color:#0074D9; font-weight:bold;">highest</span> and <span style="background-color:#ffe0e0; color:#db3c02; font-weight:bold;">lowest</span> prices (from Open, High, Low, Close) for each day.</li>
-            <li>Plots the <span style="background-color:#e0ffe0; color:#00c90a; font-weight:bold;">annualized rolling volatility</span> of these price bands over a 252-day window, helping you spot periods of high or low market uncertainty.</li>
-            <li>Includes a focused view of the <span style="background-color:#ffe0e0; color:#db3c02; font-weight:bold;">last 90 days</span> to highlight recent price movements and deviations from historical extremes.</li>
-            <li>Useful for <span style="background-color:#e0ffe0; color:#00c90a; font-weight:bold;">risk management</span>, <span style="background-color:#e0ffe0; color:#00c90a; font-weight:bold;">volatility analysis</span>, and identifying breakout or reversal zones.</li>
-        </ul>
-        <span style="color:#393e46;">Use this chart to understand price ranges, volatility trends, and how current prices compare to historical highs and lows.</span>
-    </div>
-    """,
-    unsafe_allow_html=True)
+        fig.add_trace(go.Scatter(
+            x=df_after_252.index,
+            y=df_after_252['Max_Price_Rolling_Vol'],
+            mode='lines',
+            name='Max Price Rolling Volatility'
+        ))
+        fig.add_trace(go.Scatter(
+            x=df_after_252.index,
+            y=df_after_252['Min_Price_Rolling_Vol'],
+            mode='lines',
+            name='Min Price Rolling Volatility'
+        ))
+        fig.update_layout(
+            title='252-Day Rolling Volatility: Max vs Min Price',
+            xaxis_title='Date',
+            yaxis_title='Annualized Volatility'
+        )
+        st.divider()
+        st.markdown(
+        """
+        <div style="font-family: 'Segoe UI', Arial, sans-serif; font-size: 1.13rem; color: #222831; background-color: #f5f6fa; padding: 16px 22px; border-radius: 10px; margin-bottom: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
+            <b style="font-size:1.18rem; color:#0074D9;">Max-Min Price Band Chart: Explanation</b><br><br>
+            This chart visualizes the <span style="background-color:#e3f6fd; color:#0074D9; font-weight:bold;">maximum</span> and <span style="background-color:#ffe0e0; color:#db3c02; font-weight:bold;">minimum</span> price bands for each trading day, along with their <span style="background-color:#e0ffe0; color:#00c90a; font-weight:bold;">rolling volatility</span>.<br><br>
+            <span style="color:#393e46;">Key highlights:</span>
+            <ul style="margin-top: 0.5em; margin-bottom: 0.5em;">
+                <li>Shows the <span style="background-color:#e3f6fd; color:#0074D9; font-weight:bold;">highest</span> and <span style="background-color:#ffe0e0; color:#db3c02; font-weight:bold;">lowest</span> prices (from Open, High, Low, Close) for each day.</li>
+                <li>Plots the <span style="background-color:#e0ffe0; color:#00c90a; font-weight:bold;">annualized rolling volatility</span> of these price bands over a 252-day window, helping you spot periods of high or low market uncertainty.</li>
+                <li>Includes a focused view of the <span style="background-color:#ffe0e0; color:#db3c02; font-weight:bold;">last 90 days</span> to highlight recent price movements and deviations from historical extremes.</li>
+                <li>Useful for <span style="background-color:#e0ffe0; color:#00c90a; font-weight:bold;">risk management</span>, <span style="background-color:#e0ffe0; color:#00c90a; font-weight:bold;">volatility analysis</span>, and identifying breakout or reversal zones.</li>
+            </ul>
+            <span style="color:#393e46;">Use this chart to understand price ranges, volatility trends, and how current prices compare to historical highs and lows.</span>
+        </div>
+        """,
+        unsafe_allow_html=True)
 
-    st.plotly_chart(fig, use_container_width=True)
-    st.divider()
+        st.plotly_chart(fig, use_container_width=True)
+        st.divider()
 
-    fig2 = go.Figure()
-    fig2.add_trace(go.Scatter(  
-        x=df_last_90.index,
-        y=df_last_90['Delta_from_Max'],
-        mode='lines',
-        name='Delta from Max Price'
-    ))
-    fig2.add_trace(go.Scatter(
-        x=df_last_90.index,
-        y=df_last_90['Delta_from_Min'],
-        mode='lines',
-        name='Delta from Min Price'
-    ))
-    fig2.update_layout(
-        title='Last 90 Days: Delta from Max and Min Price',
-        xaxis_title='Date',
-        yaxis_title='Price Delta'
-    )
-    st.plotly_chart(fig2, use_container_width=True)
-    st.divider()
-    return
+        fig2 = go.Figure()
+        fig2.add_trace(go.Scatter(  
+            x=df_last_90.index,
+            y=df_last_90['Delta_from_Max'],
+            mode='lines',
+            name='Delta from Max Price'
+        ))
+        fig2.add_trace(go.Scatter(
+            x=df_last_90.index,
+            y=df_last_90['Delta_from_Min'],
+            mode='lines',
+            name='Delta from Min Price'
+        ))
+        fig2.update_layout(
+            title='Last 90 Days: Delta from Max and Min Price',
+            xaxis_title='Date',
+            yaxis_title='Price Delta'
+        )
+        st.plotly_chart(fig2, use_container_width=True)
+        st.divider()
+    except Exception as e:
+        st.error(f"Error calculating max-min band for {ticker}: {str(e)}")
+        print(f"Error in max_min_band: {str(e)}")
 
 def plot_positive_negative_streak(df, title):
     """
     Plot the positive and negative streaks in the DataFrame.
     """
-    df = df.sort_index(ascending=True)
-    positive = df['Log_Ret_Close'] >= 0
-    negative = df['Log_Ret_Close'] < 0
-    df['Positive_Streak'] = positive.groupby((~positive).cumsum()).cumcount()
-    df['Positive_Streak'] = df['Positive_Streak'] * positive  # Set to 0 where not positive
-    df['Negative_Streak'] = negative.groupby((~negative).cumsum()).cumcount()
-    df['Negative_Streak'] = df['Negative_Streak'] * negative  # Set to 0 where not negative
-    df_latest_45 = df.tail(45)
-    
-    fig = go.Figure()
-    fig.add_trace(go.Bar(
-        x=df_latest_45.index,
-        y=df_latest_45['Positive_Streak'],
-        name='Positive Streak',
-        marker_color='green'
-    ))
-    fig.add_trace(go.Bar(
-        x=df_latest_45.index,
-        y=df_latest_45['Negative_Streak'],
-        name='Negative Streak',
-        marker_color='red'
-    ))
-    fig.update_layout(
-        title=title,
-        xaxis_title='Date',
-        yaxis_title='Streak Length'
-    )
-    st.divider()
-    st.markdown(
-    """
-    <div style="font-family: 'Segoe UI', Arial, sans-serif; font-size: 1.13rem; color: #222831; background-color: #f5f6fa; padding: 16px 22px; border-radius: 10px; margin-bottom: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
-        <b style="font-size:1.18rem; color:#008000;">Positive & Negative Streaks Chart: Explanation</b><br><br>
-        This chart visualizes <span style="background-color:#e3f6fd; color:#008000; font-weight:bold;">positive streaks</span> and <span style="background-color:#ffe0e0; color:#db3c02; font-weight:bold;">negative streaks</span> in daily returns.<br><br>
-        <span style="color:#393e46;">Key highlights:</span>
-        <ul style="margin-top: 0.5em; margin-bottom: 0.5em;">
-            <li>Shows the length of consecutive <span style="background-color:#e3f6fd; color:#008000; font-weight:bold;">positive</span> and <span style="background-color:#ffe0e0; color:#db3c02; font-weight:bold;">negative</span> return streaks for each day.</li>
-            <li>Helps identify <span style="background-color:#ffe0e0; color:#db3c02; font-weight:bold;">momentum</span> and <span style="background-color:#e0ffe0; color:#00c90a; font-weight:bold;">trend persistence</span> in asset returns.</li>
-            <li>Useful for <span style="background-color:#e0ffe0; color:#00c90a; font-weight:bold;">timing strategies</span> and understanding the behavior of market rallies and corrections.</li>
-        </ul>
-        <span style="color:#393e46;">Use this chart to analyze streak patterns and gain insights into market dynamics and investor sentiment.</span>
-    </div>
-    """,
-    unsafe_allow_html=True)
-    st.plotly_chart(fig, use_container_width=True)
-    return df
+    try:
+        if df is None or len(df) == 0 or 'Log_Ret_Close' not in df.columns:
+            st.warning(f"Insufficient data to generate streak plot for {title}.")
+            return df
+        
+        df = df.sort_index(ascending=True)
+        positive = df['Log_Ret_Close'] >= 0
+        negative = df['Log_Ret_Close'] < 0
+        df['Positive_Streak'] = positive.groupby((~positive).cumsum()).cumcount()
+        df['Positive_Streak'] = df['Positive_Streak'] * positive  # Set to 0 where not positive
+        df['Negative_Streak'] = negative.groupby((~negative).cumsum()).cumcount()
+        df['Negative_Streak'] = df['Negative_Streak'] * negative  # Set to 0 where not negative
+        df_latest_45 = df.tail(45)
+        
+        fig = go.Figure()
+        fig.add_trace(go.Bar(
+            x=df_latest_45.index,
+            y=df_latest_45['Positive_Streak'],
+            name='Positive Streak',
+            marker_color='green'
+        ))
+        fig.add_trace(go.Bar(
+            x=df_latest_45.index,
+            y=df_latest_45['Negative_Streak'],
+            name='Negative Streak',
+            marker_color='red'
+        ))
+        fig.update_layout(
+            title=title,
+            xaxis_title='Date',
+            yaxis_title='Streak Length'
+        )
+        st.divider()
+        st.markdown(
+        """
+        <div style="font-family: 'Segoe UI', Arial, sans-serif; font-size: 1.13rem; color: #222831; background-color: #f5f6fa; padding: 16px 22px; border-radius: 10px; margin-bottom: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
+            <b style="font-size:1.18rem; color:#008000;">Positive & Negative Streaks Chart: Explanation</b><br><br>
+            This chart visualizes <span style="background-color:#e3f6fd; color:#008000; font-weight:bold;">positive streaks</span> and <span style="background-color:#ffe0e0; color:#db3c02; font-weight:bold;">negative streaks</span> in daily returns.<br><br>
+            <span style="color:#393e46;">Key highlights:</span>
+            <ul style="margin-top: 0.5em; margin-bottom: 0.5em;">
+                <li>Shows the length of consecutive <span style="background-color:#e3f6fd; color:#008000; font-weight:bold;">positive</span> and <span style="background-color:#ffe0e0; color:#db3c02; font-weight:bold;">negative</span> return streaks for each day.</li>
+                <li>Helps identify <span style="background-color:#ffe0e0; color:#db3c02; font-weight:bold;">momentum</span> and <span style="background-color:#e0ffe0; color:#00c90a; font-weight:bold;">trend persistence</span> in asset returns.</li>
+                <li>Useful for <span style="background-color:#e0ffe0; color:#00c90a; font-weight:bold;">timing strategies</span> and understanding the behavior of market rallies and corrections.</li>
+            </ul>
+            <span style="color:#393e46;">Use this chart to analyze streak patterns and gain insights into market dynamics and investor sentiment.</span>
+        </div>
+        """,
+        unsafe_allow_html=True)
+        st.plotly_chart(fig, use_container_width=True)
+        return df
+    except Exception as e:
+        st.error(f"Error creating streak plot for {title}: {str(e)}")
+        print(f"Error in plot_positive_negative_streak: {str(e)}")
+        return df
 
 def probability_of_streak_reset_after_value(df, streak_col):
     """
@@ -599,51 +643,58 @@ def plot_probability_of_streak_reset(df,title):
     """
     Plot the probability of streak reset for each unique streak value.
     """
-    df_latest = df.tail(45)
-    fig = go.Figure()
+    try:
+        if df is None or len(df) == 0 or 'Date_Val' not in df.columns:
+            st.warning(f"Insufficient data to generate streak reset probability plot for {title}.")
+            return
+        
+        df_latest = df.tail(45)
+        fig = go.Figure()
 
-    # Plot Positive Streak Reset Probability
-    fig.add_trace(go.Scatter(
-        x=df_latest['Date_Val'],
-        y=df_latest['Reset_Probability_Positive_Streak'],
-        mode='lines+markers',
-        name='Positive Streak Reset Probability',
-        marker_color='#808000'  # Olive green
-    ))
+        # Plot Positive Streak Reset Probability
+        fig.add_trace(go.Scatter(
+            x=df_latest['Date_Val'],
+            y=df_latest['Reset_Probability_Positive_Streak'],
+            mode='lines+markers',
+            name='Positive Streak Reset Probability',
+            marker_color='#808000'  # Olive green
+        ))
 
-    # Plot Negative Streak Reset Probability
-    fig.add_trace(go.Scatter(
-        x=df_latest['Date_Val'],
-        y=df_latest['Reset_Probability_Negative_Streak'],
-        mode='lines+markers',
-        name='Negative Streak Reset Probability',
-        marker_color='#FF9933'  # Sunset saffron
-    ))
+        # Plot Negative Streak Reset Probability
+        fig.add_trace(go.Scatter(
+            x=df_latest['Date_Val'],
+            y=df_latest['Reset_Probability_Negative_Streak'],
+            mode='lines+markers',
+            name='Negative Streak Reset Probability',
+            marker_color='#FF9933'  # Sunset saffron
+        ))
 
-    fig.update_layout(
-        title='Reset Probability for Positive and Negative Streaks',
-        xaxis_title='Streak Value',
-        yaxis_title='Reset Probability',
-        yaxis=dict(tickformat=".00%")
+        fig.update_layout(
+            title='Reset Probability for Positive and Negative Streaks',
+            xaxis_title='Streak Value',
+            yaxis_title='Reset Probability',
+            yaxis=dict(tickformat=".00%")
+        )
+        st.markdown(
+        """
+        <div style="font-family: 'Segoe UI', Arial, sans-serif; font-size: 1.13rem; color: #222831; background-color: #f5f6fa; padding: 16px 22px; border-radius: 10px; margin-bottom: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
+            <b style="font-size:1.18rem; color:#808000;">Probability of Streak Reset Chart: Explanation</b><br><br>
+            This chart visualizes the <span style="background-color:#e3f6fd; color:#808000; font-weight:bold;">reset probability</span> for both <span style="background-color:#e3f6fd; color:#008000; font-weight:bold;">positive streaks</span> and <span style="background-color:#ffe0e0; color:#FF9933; font-weight:bold;">negative streaks</span> in daily returns.<br><br>
+            <span style="color:#393e46;">Key highlights:</span>
+            <ul style="margin-top: 0.5em; margin-bottom: 0.5em;">
+                <li>Shows how likely a <span style="background-color:#e3f6fd; color:#808000; font-weight:bold;">streak</span> of consecutive positive or negative returns is to end (reset to zero) after reaching a certain length.</li>
+                <li>Helps identify <span style="background-color:#ffe0e0; color:#db3c02; font-weight:bold;">momentum</span> and <span style="background-color:#e0ffe0; color:#00c90a; font-weight:bold;">mean-reversion</span> patterns in asset returns.</li>
+                <li>Useful for <span style="background-color:#e0ffe0; color:#00c90a; font-weight:bold;">risk management</span> and <span style="background-color:#e0ffe0; color:#00c90a; font-weight:bold;">strategy development</span> by understanding the persistence of trends.</li>
+            </ul>
+            <span style="color:#393e46;">Use this chart to analyze the behavior of streaks and improve your understanding of market dynamics.</span>
+        </div>
+        """,
+        unsafe_allow_html=True
     )
-    st.markdown(
-    """
-    <div style="font-family: 'Segoe UI', Arial, sans-serif; font-size: 1.13rem; color: #222831; background-color: #f5f6fa; padding: 16px 22px; border-radius: 10px; margin-bottom: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
-        <b style="font-size:1.18rem; color:#808000;">Probability of Streak Reset Chart: Explanation</b><br><br>
-        This chart visualizes the <span style="background-color:#e3f6fd; color:#808000; font-weight:bold;">reset probability</span> for both <span style="background-color:#e3f6fd; color:#008000; font-weight:bold;">positive streaks</span> and <span style="background-color:#ffe0e0; color:#FF9933; font-weight:bold;">negative streaks</span> in daily returns.<br><br>
-        <span style="color:#393e46;">Key highlights:</span>
-        <ul style="margin-top: 0.5em; margin-bottom: 0.5em;">
-            <li>Shows how likely a <span style="background-color:#e3f6fd; color:#808000; font-weight:bold;">streak</span> of consecutive positive or negative returns is to end (reset to zero) after reaching a certain length.</li>
-            <li>Helps identify <span style="background-color:#ffe0e0; color:#db3c02; font-weight:bold;">momentum</span> and <span style="background-color:#e0ffe0; color:#00c90a; font-weight:bold;">mean-reversion</span> patterns in asset returns.</li>
-            <li>Useful for <span style="background-color:#e0ffe0; color:#00c90a; font-weight:bold;">risk management</span> and <span style="background-color:#e0ffe0; color:#00c90a; font-weight:bold;">strategy development</span> by understanding the persistence of trends.</li>
-        </ul>
-        <span style="color:#393e46;">Use this chart to analyze the behavior of streaks and improve your understanding of market dynamics.</span>
-    </div>
-    """,
-    unsafe_allow_html=True
-)
-    st.plotly_chart(fig, use_container_width=True)
-    return
+        st.plotly_chart(fig, use_container_width=True)
+    except Exception as e:
+        st.error(f"Error creating streak reset probability plot for {title}: {str(e)}")
+        print(f"Error in plot_probability_of_streak_reset: {str(e)}")
 
 def update_dates_in_session_state(start_date, end_date, sb):
     """
@@ -667,87 +718,96 @@ def plot_xau_yearly_log_return_split(df, streamlit_obj, ticker="XAU"):
         streamlit_obj (streamlit): The streamlit object to render the chart.
         ticker (str): The ticker symbol to display in the title.
     """
-    # Ensure Date column or index is datetime
-    df_ticker = df.copy()
+    try:
+        if df is None or len(df) == 0 or 'Log_Ret_Close' not in df.columns:
+            streamlit_obj.warning(f"Insufficient data to generate yearly log return split plot for {ticker}.")
+            return
+        
+        # Ensure Date column or index is datetime
+        df_ticker = df.copy()
 
-    # Use 'Date_Val' to find the date column. If it doesn't exist, check the index.
-    if 'Date_Val' in df_ticker.columns and not pd.api.types.is_datetime64_any_dtype(df_ticker['Date_Val']):
-        df_ticker['Date_Val'] = pd.to_datetime(df_ticker['Date_Val'])
-    elif isinstance(df_ticker.index, pd.DatetimeIndex):
-        df_ticker['Date_Val'] = df_ticker.index
-    else:
-        # Handle case where neither a 'Date_Val' column nor a DatetimeIndex exists
-        raise ValueError("DataFrame must have a 'Date_Val' column or a DatetimeIndex.")
-    
-    # Get the year from the date
-    df_ticker['Year'] = df_ticker['Date_Val'].dt.year
+        # Use 'Date_Val' to find the date column. If it doesn't exist, check the index.
+        if 'Date_Val' in df_ticker.columns and not pd.api.types.is_datetime64_any_dtype(df_ticker['Date_Val']):
+            df_ticker['Date_Val'] = pd.to_datetime(df_ticker['Date_Val'])
+        elif isinstance(df_ticker.index, pd.DatetimeIndex):
+            df_ticker['Date_Val'] = df_ticker.index
+        else:
+            # Handle case where neither a 'Date_Val' column nor a DatetimeIndex exists
+            streamlit_obj.warning("DataFrame must have a 'Date_Val' column or a DatetimeIndex.")
+            return
+        
+        # Get the year from the date
+        df_ticker['Year'] = df_ticker['Date_Val'].dt.year
 
-    # --- Debugging print statement to see what years are being processed ---
-    print(f"Unique years found in the DataFrame: {df_ticker['Year'].unique()}")
+        # --- Debugging print statement to see what years are being processed ---
+        print(f"Unique years found in the DataFrame: {df_ticker['Year'].unique()}")
 
-    # Categorize returns as 'Positive' or 'Negative'
-    df_ticker['Return_Type'] = df_ticker['Log_Ret_Close'].apply(lambda x: 'Positive' if x > 0 else 'Negative')
+        # Categorize returns as 'Positive' or 'Negative'
+        df_ticker['Return_Type'] = df_ticker['Log_Ret_Close'].apply(lambda x: 'Positive' if x > 0 else 'Negative')
 
-    # Group by year and return type, then count
-    yearly_counts = df_ticker.groupby(['Year', 'Return_Type']).size().unstack(fill_value=0)
+        # Group by year and return type, then count
+        yearly_counts = df_ticker.groupby(['Year', 'Return_Type']).size().unstack(fill_value=0)
 
-    # Calculate percentage split
-    yearly_percent = yearly_counts.div(yearly_counts.sum(axis=1), axis=0) * 100
+        # Calculate percentage split
+        yearly_percent = yearly_counts.div(yearly_counts.sum(axis=1), axis=0) * 100
 
-    # Create stacked bar chart
-    fig = go.Figure()
-    if 'Positive' in yearly_percent.columns:
-        fig.add_bar(
-            x=yearly_percent.index,
-            y=yearly_percent['Positive'],
-            name='Positive Returns',
-            marker_color='#00c90a',
-            text=yearly_percent['Positive'].round(2).astype(str) + '%',
-            textposition='inside',
-            insidetextfont=dict(color='white')
+        # Create stacked bar chart
+        fig = go.Figure()
+        if 'Positive' in yearly_percent.columns:
+            fig.add_bar(
+                x=yearly_percent.index,
+                y=yearly_percent['Positive'],
+                name='Positive Returns',
+                marker_color='#00c90a',
+                text=yearly_percent['Positive'].round(2).astype(str) + '%',
+                textposition='inside',
+                insidetextfont=dict(color='white')
+            )
+        if 'Negative' in yearly_percent.columns:
+            fig.add_bar(
+                x=yearly_percent.index,
+                y=yearly_percent['Negative'],
+                name='Negative Returns',
+                marker_color='#db3c02',
+                text=yearly_percent['Negative'].round(2).astype(str) + '%',
+                textposition='inside',
+                insidetextfont=dict(color='white')
+            )
+        
+        # Update layout for better aesthetics
+        fig.update_layout(
+            barmode='stack',
+            title={
+                'text': f'Year-wise Percentage Split of Positive and Negative Log Returns ({ticker})',
+                'y':0.9,
+                'x':0.5,
+                'xanchor': 'center',
+                'yanchor': 'top'
+            },
+            xaxis_title='Year',
+            yaxis_title='Percentage of Days',
+            legend_title='Return Type',
+            font=dict(family="Arial, sans-serif", size=12, color="black"),
+            plot_bgcolor='white',
+            paper_bgcolor='white',
+            xaxis=dict(
+                gridcolor='lightgrey',
+                showgrid=True,
+                zeroline=False
+            ),
+            yaxis=dict(
+                ticksuffix='%',
+                gridcolor='lightgrey',
+                showgrid=True,
+                zeroline=False
+            )
         )
-    if 'Negative' in yearly_percent.columns:
-        fig.add_bar(
-            x=yearly_percent.index,
-            y=yearly_percent['Negative'],
-            name='Negative Returns',
-            marker_color='#db3c02',
-            text=yearly_percent['Negative'].round(2).astype(str) + '%',
-            textposition='inside',
-            insidetextfont=dict(color='white')
-        )
-    
-    # Update layout for better aesthetics
-    fig.update_layout(
-        barmode='stack',
-        title={
-            'text': f'Year-wise Percentage Split of Positive and Negative Log Returns ({ticker})',
-            'y':0.9,
-            'x':0.5,
-            'xanchor': 'center',
-            'yanchor': 'top'
-        },
-        xaxis_title='Year',
-        yaxis_title='Percentage of Days',
-        legend_title='Return Type',
-        font=dict(family="Arial, sans-serif", size=12, color="black"),
-        plot_bgcolor='white',
-        paper_bgcolor='white',
-        xaxis=dict(
-            gridcolor='lightgrey',
-            showgrid=True,
-            zeroline=False
-        ),
-        yaxis=dict(
-            ticksuffix='%',
-            gridcolor='lightgrey',
-            showgrid=True,
-            zeroline=False
-        )
-    )
 
-    # Render the chart in Streamlit
-    streamlit_obj.plotly_chart(fig, use_container_width=True)
+        # Render the chart in Streamlit
+        streamlit_obj.plotly_chart(fig, use_container_width=True)
+    except Exception as e:
+        streamlit_obj.error(f"Error creating yearly log return split plot for {ticker}: {str(e)}")
+        print(f"Error in plot_xau_yearly_log_return_split: {str(e)}")
 
 def plot_xau_yearly_avg_return_split(df, streamlit_obj, ticker="XAU"):
     """
@@ -759,84 +819,93 @@ def plot_xau_yearly_avg_return_split(df, streamlit_obj, ticker="XAU"):
         streamlit_obj (streamlit): The streamlit object to render the chart.
         ticker (str): The ticker symbol to display in the title.
     """
-    # Ensure Date column or index is datetime
-    df_ticker = df.copy()
+    try:
+        if df is None or len(df) == 0 or 'Log_Ret_Close' not in df.columns:
+            streamlit_obj.warning(f"Insufficient data to generate yearly average return split plot for {ticker}.")
+            return
+        
+        # Ensure Date column or index is datetime
+        df_ticker = df.copy()
 
-    # Use 'Date_Val' to find the date column. If it doesn't exist, check the index.
-    if 'Date_Val' in df_ticker.columns and not pd.api.types.is_datetime64_any_dtype(df_ticker['Date_Val']):
-        df_ticker['Date_Val'] = pd.to_datetime(df_ticker['Date_Val'])
-    elif isinstance(df_ticker.index, pd.DatetimeIndex):
-        df_ticker['Date_Val'] = df_ticker.index
-    else:
-        # Handle case where neither a 'Date_Val' column nor a DatetimeIndex exists
-        raise ValueError("DataFrame must have a 'Date_Val' column or a DatetimeIndex.")
-    
-    # Get the year from the date
-    df_ticker['Year'] = df_ticker['Date_Val'].dt.year
+        # Use 'Date_Val' to find the date column. If it doesn't exist, check the index.
+        if 'Date_Val' in df_ticker.columns and not pd.api.types.is_datetime64_any_dtype(df_ticker['Date_Val']):
+            df_ticker['Date_Val'] = pd.to_datetime(df_ticker['Date_Val'])
+        elif isinstance(df_ticker.index, pd.DatetimeIndex):
+            df_ticker['Date_Val'] = df_ticker.index
+        else:
+            # Handle case where neither a 'Date_Val' column nor a DatetimeIndex exists
+            streamlit_obj.warning("DataFrame must have a 'Date_Val' column or a DatetimeIndex.")
+            return
+        
+        # Get the year from the date
+        df_ticker['Year'] = df_ticker['Date_Val'].dt.year
 
-    # Categorize returns as 'Positive' or 'Negative'
-    df_ticker['Return_Type'] = df_ticker['Log_Ret_Close'].apply(lambda x: 'Positive' if x > 0 else 'Negative')
+        # Categorize returns as 'Positive' or 'Negative'
+        df_ticker['Return_Type'] = df_ticker['Log_Ret_Close'].apply(lambda x: 'Positive' if x > 0 else 'Negative')
 
-    # Group by year and return type, then calculate the mean return
-    yearly_avg_returns = df_ticker.groupby(['Year', 'Return_Type'])['Log_Ret_Close'].mean().unstack(fill_value=0)
+        # Group by year and return type, then calculate the mean return
+        yearly_avg_returns = df_ticker.groupby(['Year', 'Return_Type'])['Log_Ret_Close'].mean().unstack(fill_value=0)
 
-    # Convert average returns to percentage
-    yearly_avg_returns_percent = yearly_avg_returns * 100
+        # Convert average returns to percentage
+        yearly_avg_returns_percent = yearly_avg_returns * 100
 
-    # Create stacked bar chart
-    fig = go.Figure()
-    if 'Positive' in yearly_avg_returns_percent.columns:
-        fig.add_bar(
-            x=yearly_avg_returns_percent.index,
-            y=yearly_avg_returns_percent['Positive'],
-            name='Average Positive Returns',
-            marker_color='#00c90a', # Green for positive
-            text=yearly_avg_returns_percent['Positive'].round(2).astype(str) + '%',
-            textposition='inside',
-            insidetextfont=dict(color='white')
+        # Create stacked bar chart
+        fig = go.Figure()
+        if 'Positive' in yearly_avg_returns_percent.columns:
+            fig.add_bar(
+                x=yearly_avg_returns_percent.index,
+                y=yearly_avg_returns_percent['Positive'],
+                name='Average Positive Returns',
+                marker_color='#00c90a', # Green for positive
+                text=yearly_avg_returns_percent['Positive'].round(2).astype(str) + '%',
+                textposition='inside',
+                insidetextfont=dict(color='white')
+            )
+        if 'Negative' in yearly_avg_returns_percent.columns:
+            fig.add_bar(
+                x=yearly_avg_returns_percent.index,
+                y=yearly_avg_returns_percent['Negative'].abs(), # Use absolute value for the plot
+                name='Average Negative Returns',
+                marker_color='#db3c02', # Red for negative
+                text=yearly_avg_returns_percent['Negative'].abs().round(2).astype(str) + '%', # Show absolute value in text
+                textposition='inside',
+                insidetextfont=dict(color='white')
+            )
+        
+        # Update layout for better aesthetics
+        fig.update_layout(
+            barmode='stack',
+            title={
+                'text': f'Year-wise Average Positive and Negative Log Returns ({ticker})',
+                'y':0.9,
+                'x':0.5,
+                'xanchor': 'center',
+                'yanchor': 'top'
+            },
+            xaxis_title='Year',
+            yaxis_title='Average Log Return Percentage',
+            legend_title='Return Type',
+            font=dict(family="Arial, sans-serif", size=12, color="black"),
+            plot_bgcolor='white',
+            paper_bgcolor='white',
+            xaxis=dict(
+                gridcolor='lightgrey',
+                showgrid=True,
+                zeroline=False
+            ),
+            yaxis=dict(
+                ticksuffix='%',
+                gridcolor='lightgrey',
+                showgrid=True,
+                zeroline=False
+            )
         )
-    if 'Negative' in yearly_avg_returns_percent.columns:
-        fig.add_bar(
-            x=yearly_avg_returns_percent.index,
-            y=yearly_avg_returns_percent['Negative'].abs(), # Use absolute value for the plot
-            name='Average Negative Returns',
-            marker_color='#db3c02', # Red for negative
-            text=yearly_avg_returns_percent['Negative'].abs().round(2).astype(str) + '%', # Show absolute value in text
-            textposition='inside',
-            insidetextfont=dict(color='white')
-        )
-    
-    # Update layout for better aesthetics
-    fig.update_layout(
-        barmode='stack',
-        title={
-            'text': f'Year-wise Average Positive and Negative Log Returns ({ticker})',
-            'y':0.9,
-            'x':0.5,
-            'xanchor': 'center',
-            'yanchor': 'top'
-        },
-        xaxis_title='Year',
-        yaxis_title='Average Log Return Percentage',
-        legend_title='Return Type',
-        font=dict(family="Arial, sans-serif", size=12, color="black"),
-        plot_bgcolor='white',
-        paper_bgcolor='white',
-        xaxis=dict(
-            gridcolor='lightgrey',
-            showgrid=True,
-            zeroline=False
-        ),
-        yaxis=dict(
-            ticksuffix='%',
-            gridcolor='lightgrey',
-            showgrid=True,
-            zeroline=False
-        )
-    )
 
-    # Render the chart in Streamlit
-    streamlit_obj.plotly_chart(fig, use_container_width=True)
+        # Render the chart in Streamlit
+        streamlit_obj.plotly_chart(fig, use_container_width=True)
+    except Exception as e:
+        streamlit_obj.error(f"Error creating yearly average return split plot for {ticker}: {str(e)}")
+        print(f"Error in plot_xau_yearly_avg_return_split: {str(e)}")
 
 def calculate_avg_streaks_monthly(df, return_column):
     """
@@ -903,27 +972,34 @@ def plot_avg_streaks(df, title):
     """
     Plots the average monthly positive and negative streaks.
     """
-    fig = go.Figure()
-    fig.add_trace(go.Bar(
-        x=df['month_year'],
-        y=df['Avg_Positive_Streak'],
-        name='Average Positive Streak',
-        marker_color="#3e8a00"
-    ))
-    fig.add_trace(go.Bar(
-        x=df['month_year'],
-        y=df['Avg_Negative_Streak'],
-        name='Average Negative Streak',
-        marker_color="#a63700"
-    ))
-    fig.update_layout(
-        title=title,
-        xaxis_title='Month-Year',
-        yaxis_title='Average Streak Length (Days)',
-        barmode='group'
-    )
-    st.plotly_chart(fig, use_container_width=True)
-    return
+    try:
+        if df is None or len(df) == 0 or 'month_year' not in df.columns:
+            st.warning(f"Insufficient data to generate average streaks plot for {title}.")
+            return
+        
+        fig = go.Figure()
+        fig.add_trace(go.Bar(
+            x=df['month_year'],
+            y=df['Avg_Positive_Streak'],
+            name='Average Positive Streak',
+            marker_color="#3e8a00"
+        ))
+        fig.add_trace(go.Bar(
+            x=df['month_year'],
+            y=df['Avg_Negative_Streak'],
+            name='Average Negative Streak',
+            marker_color="#a63700"
+        ))
+        fig.update_layout(
+            title=title,
+            xaxis_title='Month-Year',
+            yaxis_title='Average Streak Length (Days)',
+            barmode='group'
+        )
+        st.plotly_chart(fig, use_container_width=True)
+    except Exception as e:
+        st.error(f"Error creating average streaks plot for {title}: {str(e)}")
+        print(f"Error in plot_avg_streaks: {str(e)}")
 
 def analyse(main_ticker):
     str_start_date,str_end_date = get_dates()
@@ -1029,9 +1105,18 @@ def analyse(main_ticker):
     df_latest2Months_close = add_forecasted_price(df_latest2Months_close, "Predicted_Value", forecast_close, "predicted_price","Close Price Predicted Values:")
     df_latest2Months_vol = add_forecasted_price(df_latest2Months_vol, "Predicted_Value", forecast_vol, "predicted_price","Volume Predicted Values:")
 
-    plot_actual_vs_predicted(df_latest2Months_close, "Close", "Predicted_Value","Close Price Deviation from Prediction" + main_ticker.replace(".NS", ""))
+    try:
+        plot_actual_vs_predicted(df_latest2Months_close, "Close", "Predicted_Value","Close Price Deviation from Prediction" + main_ticker.replace(".NS", ""))
+    except Exception as e:
+        st.error(f"Error plotting actual vs predicted close prices: {str(e)}")
+        print(f"Error: {str(e)}")
     st.divider()
-    plot_actual_vs_predicted(df_latest2Months_vol, "Volume", "Predicted_Value","Volume Deviation from Prediction" + main_ticker.replace(".NS", ""))
+    
+    try:
+        plot_actual_vs_predicted(df_latest2Months_vol, "Volume", "Predicted_Value","Volume Deviation from Prediction" + main_ticker.replace(".NS", ""))
+    except Exception as e:
+        st.error(f"Error plotting actual vs predicted volumes: {str(e)}")
+        print(f"Error: {str(e)}")
     st.divider()
     df_latest2Months_close['Delta'] = df_latest2Months_close['Close'] - df_latest2Months_close['Predicted_Value']
     df_latest2Months_close['Delta'] = df_latest2Months_close['Delta'].astype(float) 
@@ -1041,9 +1126,18 @@ def analyse(main_ticker):
     df_latest2Months_vol['Delta'] = df_latest2Months_vol['Delta'].astype(float)
     df_latest2Months_vol['Delta'] = df_latest2Months_vol['Delta'].round(4)
 
-    plot_bar_graph(df_latest2Months_close, "ds", "Delta", "Close Price Delta "+main_ticker.replace(".NS", ""))
+    try:
+        plot_bar_graph(df_latest2Months_close, "ds", "Delta", "Close Price Delta "+main_ticker.replace(".NS", ""))
+    except Exception as e:
+        st.error(f"Error plotting close price delta: {str(e)}")
+        print(f"Error: {str(e)}")
     st.divider()
-    plot_bar_graph(df_latest2Months_vol, "ds", "Delta", "Volume Delta "+main_ticker.replace(".NS", ""))
+    
+    try:
+        plot_bar_graph(df_latest2Months_vol, "ds", "Delta", "Volume Delta "+main_ticker.replace(".NS", ""))
+    except Exception as e:
+        st.error(f"Error plotting volume delta: {str(e)}")
+        print(f"Error: {str(e)}")
     st.divider()
     # Split df_xau into 5 equal parts
     arr_split_df = split_dataframe(df_XAU, 5)
@@ -1056,21 +1150,50 @@ def analyse(main_ticker):
     # print("R^2 Values for Nifty, INR, BTC, XAU:")
     # print(df_correlation_progress)
 
-    max_min_band(df_XAU, main_ticker.replace(".NS", ""))
-    df_XAU = plot_positive_negative_streak(df_XAU, "Positive and Negative Streaks for " + main_ticker.replace(".NS", ""))
-    # Example usage after your plot_positive_negative_streak:
-    probability_of_streak_reset_after_value(df_XAU, 'Positive_Streak')
-    df_XAU = probability_of_streak_reset_after_value(df_XAU, 'Positive_Streak')
-    df_XAU = probability_of_streak_reset_after_value(df_XAU, 'Negative_Streak')
-    plot_probability_of_streak_reset(df_XAU, "Probability of Streak Reset for " + main_ticker.replace(".NS", ""))
-    plot_xau_yearly_log_return_split(df_ticker,st, main_ticker.replace(".NS", ""))
+    try:
+        max_min_band(df_XAU, main_ticker.replace(".NS", ""))
+    except Exception as e:
+        st.error(f"Error creating max-min band plot: {str(e)}")
+        print(f"Error: {str(e)}")
+    
+    try:
+        df_XAU = plot_positive_negative_streak(df_XAU, "Positive and Negative Streaks for " + main_ticker.replace(".NS", ""))
+    except Exception as e:
+        st.error(f"Error creating streak plot: {str(e)}")
+        print(f"Error: {str(e)}")
+    
+    try:
+        # Example usage after your plot_positive_negative_streak:
+        probability_of_streak_reset_after_value(df_XAU, 'Positive_Streak')
+        df_XAU = probability_of_streak_reset_after_value(df_XAU, 'Positive_Streak')
+        df_XAU = probability_of_streak_reset_after_value(df_XAU, 'Negative_Streak')
+        plot_probability_of_streak_reset(df_XAU, "Probability of Streak Reset for " + main_ticker.replace(".NS", ""))
+    except Exception as e:
+        st.error(f"Error creating streak reset probability plot: {str(e)}")
+        print(f"Error: {str(e)}")
+    
+    try:
+        plot_xau_yearly_log_return_split(df_ticker,st, main_ticker.replace(".NS", ""))
+    except Exception as e:
+        st.error(f"Error creating yearly log return split plot: {str(e)}")
+        print(f"Error: {str(e)}")
     st.divider()
-    plot_xau_yearly_avg_return_split(df_ticker, st, main_ticker.replace(".NS", ""))
+    
+    try:
+        plot_xau_yearly_avg_return_split(df_ticker, st, main_ticker.replace(".NS", ""))
+    except Exception as e:
+        st.error(f"Error creating yearly average return split plot: {str(e)}")
+        print(f"Error: {str(e)}")
     st.divider()
-    plot_avg_streaks(
-        calculate_avg_streaks_monthly(df_ticker, 'Log_Ret_Close')
-        , "Average Monthly Streaks for " + main_ticker.replace(".NS", "")
-    )
+    
+    try:
+        plot_avg_streaks(
+            calculate_avg_streaks_monthly(df_ticker, 'Log_Ret_Close')
+            , "Average Monthly Streaks for " + main_ticker.replace(".NS", "")
+        )
+    except Exception as e:
+        st.error(f"Error creating average monthly streaks plot: {str(e)}")
+        print(f"Error: {str(e)}")
     st.divider()
     print(df_ticker.info())
     return df_XAU
@@ -1087,16 +1210,28 @@ def get_default_dates(days):
     return str_start_date, str_end_date
 
 def plotly_line_graph(df, x_col, y_cols,title,x_title,y_title,color_col=None, size_col=None,color_value=None):
-    fig = go.Figure()
-    fig.update_layout(title=title, xaxis_title=x_title, yaxis_title=y_title)
-    fig.update_xaxes(type='date')
-    fig.update_yaxes(type='linear')
-    for y_col in y_cols:
-        if color_col is not None and size_col is not None:
-            fig.add_scatter(x=df[x_col], y=df[y_col[0]], mode='lines', name=y_col[1], marker=dict(color=df[color_col], size=df[size_col]), text=df[color_value])
-        else:
-            fig.add_scatter(x=df[x_col], y=df[y_col[0]], mode='lines', name=y_col[1])
-    return fig
+    try:
+        if df is None or len(df) == 0 or x_col not in df.columns:
+            st.warning(f"Insufficient data to generate line graph for {title}.")
+            return None
+        
+        fig = go.Figure()
+        fig.update_layout(title=title, xaxis_title=x_title, yaxis_title=y_title)
+        fig.update_xaxes(type='date')
+        fig.update_yaxes(type='linear')
+        for y_col in y_cols:
+            if y_col[0] not in df.columns:
+                print(f"Warning: Column {y_col[0]} not found in DataFrame.")
+                continue
+            if color_col is not None and size_col is not None:
+                fig.add_scatter(x=df[x_col], y=df[y_col[0]], mode='lines', name=y_col[1], marker=dict(color=df[color_col], size=df[size_col]), text=df[color_value])
+            else:
+                fig.add_scatter(x=df[x_col], y=df[y_col[0]], mode='lines', name=y_col[1])
+        return fig
+    except Exception as e:
+        st.error(f"Error creating line graph for {title}: {str(e)}")
+        print(f"Error in plotly_line_graph: {str(e)}")
+        return None
 
 def color_returns(value):
     if value < 0.0000:
@@ -1105,9 +1240,18 @@ def color_returns(value):
         return 'color: #00c90a;'
     
 def correlation_heatmap(df, title):
-    fig = px.imshow(df.corr(), text_auto=True, aspect="auto", title=title)
-    fig.update_layout(title=title, xaxis_title="Features", yaxis_title="Features")
-    return fig
+    try:
+        if df is None or len(df) == 0:
+            st.warning(f"Insufficient data to generate correlation heatmap for {title}.")
+            return None
+        
+        fig = px.imshow(df.corr(), text_auto=True, aspect="auto", title=title)
+        fig.update_layout(title=title, xaxis_title="Features", yaxis_title="Features")
+        return fig
+    except Exception as e:
+        st.error(f"Error creating correlation heatmap for {title}: {str(e)}")
+        print(f"Error in correlation_heatmap: {str(e)}")
+        return None
 
 sb = st.sidebar
 sb.title("Market Analysis Settings")
@@ -1121,6 +1265,7 @@ btn_refresh = sb.button("Refresh Data", key="refresh")
 sb.markdown("### Select the ticker for analysis")
 available_tickers = [
     "GOLDBEES.NS",
+    "SILVERBEES.NS",
     "SHARIABEES.NS",
     "ITETF.NS",
     "^CNXPHARMA",
@@ -1313,8 +1458,13 @@ else:
     </div>
     """,
     unsafe_allow_html=True)
-    fig = correlation_heatmap(final_daily_ret_df, title=f"Correlation Heatmap of Nifty 50 and {selected_ticker} Daily Returns")
-    st.plotly_chart(fig, use_container_width=True)
+    try:
+        fig = correlation_heatmap(final_daily_ret_df, title=f"Correlation Heatmap of Nifty 50 and {selected_ticker} Daily Returns")
+        if fig is not None:
+            st.plotly_chart(fig, use_container_width=True)
+    except Exception as e:
+        st.error(f"Error displaying correlation heatmap: {str(e)}")
+        print(f"Error displaying correlation heatmap: {str(e)}")
     st.divider()
     final_daily_ret_df['Date'] = final_daily_ret_df.index
     st.markdown(
@@ -1340,42 +1490,61 @@ else:
                             title=f"Nifty 50 & {selected_ticker} Return (Logarithmic Daily Returns)",
                             x_title="Date",
                             y_title="Log Daily Returns")
-    st.plotly_chart(fig, use_container_width=True)
+    try:
+        if fig is not None:
+            st.plotly_chart(fig, use_container_width=True)
+    except Exception as e:
+        st.error(f"Error displaying line graph: {str(e)}")
+        print(f"Error displaying line graph: {str(e)}")
     st.divider()
     st.subheader(f"Nifty 50 vs {selected_ticker} Regression Scatter Plot")
-    fig = px.scatter(
-        final_daily_ret_df
-        , x="Log_Ret_Close_Nifty"
-        , y="Log_Ret_Close"
-        , title=f"Nifty 50 vs {selected_ticker} Price"
-        , labels={"Log_Ret_Close_Nifty": "Nifty 50 Log Daily Returns", "Log_Ret_Close": f"{selected_ticker} Log Daily Returns"}
-        , trendline="ols")
-    # Extract regression results
-    results = px.get_trendline_results(fig)
-    ols_results = results.iloc[0]["px_fit_results"]  # Get the OLS results
-    r_squared = ols_results.rsquared  # Extract the R² value
+    try:
+        fig = px.scatter(
+            final_daily_ret_df
+            , x="Log_Ret_Close_Nifty"
+            , y="Log_Ret_Close"
+            , title=f"Nifty 50 vs {selected_ticker} Price"
+            , labels={"Log_Ret_Close_Nifty": "Nifty 50 Log Daily Returns", "Log_Ret_Close": f"{selected_ticker} Log Daily Returns"}
+            , trendline="ols")
+        # Extract regression results
+        results = px.get_trendline_results(fig)
+        if results is not None and len(results) > 0:
+            ols_results = results.iloc[0]["px_fit_results"]  # Get the OLS results
+            r_squared = ols_results.rsquared  # Extract the R² value
 
-    # Update the chart title to include the R² value
-    fig.update_layout(
-        title=f"Nifty 50 vs {selected_ticker} Price (R² = {r_squared:.4f})"
-    )
-    st.markdown(
-    f"""
-    <div style="font-family: 'Segoe UI', Arial, sans-serif; font-size: 1.12rem; color: #222831; background-color: #f5f6fa; padding: 16px 22px; border-radius: 10px; margin-bottom: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
-        <b style="font-size:1.18rem; color:#e83e8c;">Nifty 50 vs {selected_ticker} Regression Scatter Plot: Use Case</b><br><br>
-        This interactive scatter plot visualizes the relationship between the <b>logarithmic daily returns</b> of the <span style="color:#0074D9;"><b>Nifty 50</b></span> index and <span style="color:#FF851B;"><b>{selected_ticker}</b></span>.<br><br>
-        <span style="color:#393e46;">Use this chart to:</span>
-        <ul style="margin-top: 0.5em; margin-bottom: 0.5em;">
-            <li>Assess the linear relationship between Nifty 50 and {selected_ticker} returns using the regression trendline.</li>
-            <li>Interpret the <b>R² value</b> in the chart title to understand how much of the variation in {selected_ticker} returns can be explained by Nifty 50 returns.</li>
-            <li>Identify periods of strong or weak correlation, and spot outliers or unusual co-movements.</li>
-            <li>Support portfolio diversification and risk management by analyzing the dependency between these two assets.</li>
-        </ul>
-        <span style="color:#393e46;">This visualization is valuable for analysts and investors seeking to quantify and visualize the statistical relationship between Indian equities and {selected_ticker}.</span>
-    </div>
-    """,
-    unsafe_allow_html=True)
-    st.plotly_chart(fig, use_container_width=True)
+            # Update the chart title to include the R² value
+            fig.update_layout(
+                title=f"Nifty 50 vs {selected_ticker} Price (R² = {r_squared:.4f})"
+            )
+        else:
+            print("Warning: Could not extract OLS results from regression plot.")
+    except Exception as e:
+        st.error(f"Error creating regression scatter plot: {str(e)}")
+        print(f"Error in regression scatter plot: {str(e)}")
+        fig = None
+    
+    if fig is not None:
+        st.markdown(
+        f"""
+        <div style="font-family: 'Segoe UI', Arial, sans-serif; font-size: 1.12rem; color: #222831; background-color: #f5f6fa; padding: 16px 22px; border-radius: 10px; margin-bottom: 18px; box-shadow: 0 2px 8px rgba(0,0,0,0.04);">
+            <b style="font-size:1.18rem; color:#e83e8c;">Nifty 50 vs {selected_ticker} Regression Scatter Plot: Use Case</b><br><br>
+            This interactive scatter plot visualizes the relationship between the <b>logarithmic daily returns</b> of the <span style="color:#0074D9;"><b>Nifty 50</b></span> index and <span style="color:#FF851B;"><b>{selected_ticker}</b></span>.<br><br>
+            <span style="color:#393e46;">Use this chart to:</span>
+            <ul style="margin-top: 0.5em; margin-bottom: 0.5em;">
+                <li>Assess the linear relationship between Nifty 50 and {selected_ticker} returns using the regression trendline.</li>
+                <li>Interpret the <b>R² value</b> in the chart title to understand how much of the variation in {selected_ticker} returns can be explained by Nifty 50 returns.</li>
+                <li>Identify periods of strong or weak correlation, and spot outliers or unusual co-movements.</li>
+                <li>Support portfolio diversification and risk management by analyzing the dependency between these two assets.</li>
+            </ul>
+            <span style="color:#393e46;">This visualization is valuable for analysts and investors seeking to quantify and visualize the statistical relationship between Indian equities and {selected_ticker}.</span>
+        </div>
+        """,
+        unsafe_allow_html=True)
+        try:
+            st.plotly_chart(fig, use_container_width=True)
+        except Exception as e:
+            st.error(f"Error displaying scatter plot: {str(e)}")
+            print(f"Error displaying scatter plot: {str(e)}")
     st.divider()
     # Calculate rolling volatility (standard deviation) over a 5-day window
     # final_daily_ret_df = final_daily_ret_df.sort_index(ascending=True)
