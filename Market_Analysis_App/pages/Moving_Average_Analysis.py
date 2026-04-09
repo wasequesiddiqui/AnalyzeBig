@@ -174,27 +174,26 @@ def generate_trade_signals(df, days):
 
     # Iterate through the DataFrame to generate trade signals
     for i in range(1, len(df)-1):
-        if df[ema_flag_col_name][i] == 1 and df['EMA_Flag_Shifted'][i] == 0 and not trade_signal_buy:
-            df[trade_signal_col_name][i] = "BUY"
+        if df.loc[i, ema_flag_col_name] == 1 and df.loc[i, 'EMA_Flag_Shifted'] == 0 and not trade_signal_buy:
+            df.loc[i, trade_signal_col_name] = "BUY"
             trade_signal_buy = True
             trade_signal_sell = False
-            buy_price = df['Close'][i]
-        elif df[ema_flag_col_name][i] == 0 and df['EMA_Flag_Shifted'][i] == 1 and trade_signal_buy and df['Close'][i] >= buy_price * 1.02:
-            df[trade_signal_col_name][i] = "SELL"
+            buy_price = df.loc[i, 'Close']
+        elif df.loc[i, ema_flag_col_name] == 0 and df.loc[i, 'EMA_Flag_Shifted'] == 1 and trade_signal_buy and df.loc[i, 'Close'] >= buy_price * 1.02:
+            df.loc[i, trade_signal_col_name] = "SELL"
             trade_signal_sell = True
             trade_signal_buy = False
         else:
             if trade_signal_sell:
-                df[trade_signal_col_name][i] = "HOLD SELL"
+                df.loc[i, trade_signal_col_name] = "HOLD SELL"
             elif trade_signal_buy:
-                df[trade_signal_col_name][i] = "HOLD BUY"
+                df.loc[i, trade_signal_col_name] = "HOLD BUY"
             else:
-                df[trade_signal_col_name][i] = "NO SIGNAL"
+                df.loc[i, trade_signal_col_name] = "NO SIGNAL"
 
     # Sell all open buy positions on the last row
     if trade_signal_buy:
-        df[trade_signal_col_name].iloc[-1] = "SELL"
-    
+        df.loc[df.index[-1], trade_signal_col_name] = "SELL"
     # Remove the temporary shifted column
     df.drop(columns=['EMA_Flag_Shifted'], inplace=True)
 
