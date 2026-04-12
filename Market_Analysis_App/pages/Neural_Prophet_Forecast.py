@@ -2,8 +2,9 @@
 all the imports are included here
 command to run streamlit app: cd C:\Github\AnalyzeBig\Market_Analysis_App
 streamlit run Market_Analysis.py
-conda activate np_env
-conda deactivate
+# below commands are for activating the neural prophet environment if needed for development or testing
+Set-ExecutionPolicy -ExecutionPolicy RemoteSigned -Scope Process
+&./neural_prophet/Scripts/Activate.ps1
 """
 
 import yfinance as yf
