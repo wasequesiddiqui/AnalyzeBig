@@ -1,12 +1,120 @@
-<html>
-    <body>
-        <list>
-            <li>Implement Altman Z score.</li>
-            <li>Implement Gartners Magic Quadrant Analysis overall score with P/E & Market Cap.</li>
-            <li>Implement Altman Z score Quadrant Analysis overall score with P/E & Market Cap.</li>
-            <li>Implement Discounted Cashflow Model.</li>
-            <li>Incorporate Altair for additional visualizations such as candlestick charts and volume analysis.</li>
-            <li>Ensure the application is responsive and user-friendly across different devices.</li>
-            <li>Test the application with various stock symbols to ensure accurate data retrieval and visualization.</li>
-    </body>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Financial Implementation Roadmap</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f172a; /* Deep Slate */
+            color: #f8fafc;
+        }
+        .gold-gradient {
+            background: linear-gradient(135deg, #bf953f, #fcf6ba, #b38728, #fbf5b7, #aa771c);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .gold-border {
+            border: 1px solid rgba(191, 149, 63, 0.3);
+            transition: all 0.3s ease;
+        }
+        /* Custom Checkbox Styling */
+        input[type="checkbox"] {
+            appearance: none;
+            -webkit-appearance: none;
+            height: 20px;
+            width: 20px;
+            background-color: transparent;
+            border: 2px solid #bf953f;
+            border-radius: 4px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s ease;
+        }
+        input[type="checkbox"]:checked {
+            background-color: #bf953f;
+            box-shadow: 0 0 10px #fcf6ba;
+        }
+        input[type="checkbox"]:checked::after {
+            content: '✓';
+            color: #0f172a;
+            font-weight: bold;
+            font-size: 14px;
+        }
+    </style>
+</head>
+<body class="p-6 md:p-12">
+
+    <div class="max-w-4xl mx-auto">
+        <header class="mb-12 border-b border-slate-700 pb-6">
+            <h1 class="text-4xl font-bold gold-gradient uppercase tracking-widest mb-2">
+                Project Roadmap
+            </h1>
+            <p class="text-slate-400 italic">Advanced Financial Analysis & Visualization Suite</p>
+        </header>
+
+        <div class="grid gap-4">
+            
+            <label class="gold-border bg-slate-800/50 p-5 rounded-lg flex items-center cursor-pointer hover:bg-slate-800 transition-colors">
+                <input type="checkbox" class="peer mr-4">
+                <span class="text-lg peer-checked:text-slate-500 peer-checked:line-through transition-all">
+                    Implement <strong class="text-amber-200 peer-checked:text-amber-900/50">Altman Z-Score</strong>
+                </span>
+            </label>
+
+            <label class="gold-border bg-slate-800/50 p-5 rounded-lg flex items-center cursor-pointer hover:bg-slate-800 transition-colors">
+                <input type="checkbox" class="peer mr-4">
+                <span class="text-lg peer-checked:text-slate-500 peer-checked:line-through transition-all">
+                    Gartner’s <strong class="text-amber-200 peer-checked:text-amber-900/50">Magic Quadrant Analysis for Overall Score</strong> (P/E & Market Cap Integration)
+                </span>
+            </label>
+
+            <label class="gold-border bg-slate-800/50 p-5 rounded-lg flex items-center cursor-pointer hover:bg-slate-800 transition-colors">
+                <input type="checkbox" class="peer mr-4">
+                <span class="text-lg peer-checked:text-slate-500 peer-checked:line-through transition-all">
+                    Altman Z-Score <strong class="text-amber-200 peer-checked:text-amber-900/50">Magic Quadrant Analysis</strong> Altman Z score
+                </span>
+            </label>
+
+            <label class="gold-border bg-slate-800/50 p-5 rounded-lg flex items-center cursor-pointer hover:bg-slate-800 transition-colors">
+                <input type="checkbox" class="peer mr-4">
+                <span class="text-lg peer-checked:text-slate-500 peer-checked:line-through transition-all">
+                    Implement <strong class="text-amber-200 peer-checked:text-amber-900/50">Discounted Cashflow (DCF)</strong> Model
+                </span>
+            </label>
+
+            <label class="gold-border bg-slate-800/50 p-5 rounded-lg flex items-center cursor-pointer hover:bg-slate-800 transition-colors">
+                <input type="checkbox" class="peer mr-4">
+                <span class="text-lg peer-checked:text-slate-500 peer-checked:line-through transition-all">
+                    Incorporate <strong class="text-amber-200 peer-checked:text-amber-900/50">Altair Visualizations</strong> (Candlesticks & Volume)
+                </span>
+            </label>
+
+            <label class="gold-border bg-slate-800/50 p-5 rounded-lg flex items-center cursor-pointer hover:bg-slate-800 transition-colors">
+                <input type="checkbox" class="peer mr-4">
+                <span class="text-lg text-slate-300 peer-checked:text-slate-600 peer-checked:line-through transition-all">
+                    Responsive UI/UX Cross-Device Optimization
+                </span>
+            </label>
+
+            <label class="gold-border bg-slate-800/50 p-5 rounded-lg flex items-center cursor-pointer hover:bg-slate-800 transition-colors">
+                <input type="checkbox" class="peer mr-4">
+                <span class="text-lg text-slate-300 peer-checked:text-slate-600 peer-checked:line-through transition-all">
+                    Validation & Accuracy Testing (Multi-Symbol Retrieval)
+                </span>
+            </label>
+
+        </div>
+
+        <footer class="mt-12 text-center text-slate-500 text-sm tracking-wide">
+            &copy; 2026 FINANCIAL ENGINE | PREMIUM DEPLOYMENT STRATEGY
+        </footer>
+    </div>
+
+</body>
 </html>

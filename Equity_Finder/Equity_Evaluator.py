@@ -11,6 +11,7 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 import EQUITY_ANALYSER as ea
+import index_data as idx
 
 from plotly.subplots import make_subplots
 
@@ -121,8 +122,22 @@ if not final_tickers:
         , "BPCL.NS"
         , "BOSCHLTD.NS"
         , "BRITANNIA.NS"
-        , "CGPOWER.NS",]
-    
+        , "CGPOWER.NS",
+    ]
+
+# Build a separate dataframe with historical P/E, P/B and dividend yield for all tickers
+# if 'historical_metrics_df' not in st.session_state:
+#     historical_metrics = []
+#     for ticker in final_tickers:
+#         hist_df = idx.get_historical_index_stats(ticker, "01-Apr-2021", "01-Apr-2026")
+#         if isinstance(hist_df, pd.DataFrame) and not hist_df.empty:
+#             hist_df = hist_df.copy()
+#             hist_df['Ticker'] = ticker
+#             historical_metrics.append(hist_df)
+#         else:
+#             print(f"Historic metrics unavailable for {ticker}: {hist_df}")
+#     st.session_state.historical_metrics_df = pd.concat(historical_metrics, ignore_index=True) if historical_metrics else pd.DataFrame()
+
 final_tickers_str = ", ".join(final_tickers)
 
 ticker_input = sb.text_area(
@@ -212,6 +227,11 @@ if st.session_state.combined_results is not None:
 
     st.write("### Fundamental Analysis & Scores")
     st.dataframe(df_disp, use_container_width=True)
+
+    if 'historical_metrics_df' in st.session_state and not st.session_state.historical_metrics_df.empty:
+        st.divider()
+        st.write("### Historical Metrics Sample")
+        st.dataframe(st.session_state.historical_metrics_df.sample(1), use_container_width=True)
 
     # --- Industry Performance Graphs (Corrected for Graph Objects) ---
     st.divider()
