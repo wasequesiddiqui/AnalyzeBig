@@ -32,11 +32,60 @@ final_tickers.extend(final_nifty_next50_tickers)
 
 # Fallback default tickers if fetching fails
 if not final_tickers:
-    final_tickers = ["INFY.NS", "TCS.NS", "RELIANCE.NS", "HDFC.NS", "ICICIBANK.NS", "ITC.NS", "KOTAKBANK.NS", "LT.NS", "MARUTI.NS", "NESTLEIND.NS"]
-
+    final_tickers = [
+        "ADANIENT.NS"
+        , "ADANIPORTS.NS"
+        , "APOLLOHOSP.NS"
+        , "ASIANPAINT.NS"
+        , "BAJAJ-AUTO.NS"
+        , "BEL.NS"
+        , "BHARTIARTL.NS"
+        , "CIPLA.NS"
+        , "COALINDIA.NS"
+        , "DRREDDY.NS"
+        , "EICHERMOT.NS"
+        , "ETERNAL.NS"
+        , "GRASIM.NS"
+        , "HCLTECH.NS"
+        , "HINDALCO.NS"
+        , "HINDUNILVR.NS"
+        , "ITC.NS"
+        , "INFY.NS"
+        , "INDIGO.NS"
+        , "JSWSTEEL.NS"
+        , "LT.NS"
+        , "M&M.NS"
+        , "MARUTI.NS"
+        , "MAXHEALTH.NS"
+        , "NTPC.NS"
+        , "NESTLEIND.NS"
+        , "ONGC.NS"
+        , "POWERGRID.NS"
+        , "RELIANCE.NS"
+        , "SUNPHARMA.NS"
+        , "TCS.NS"
+        , "TATACONSUM.NS"
+        , "TMPV.NS"
+        , "TATASTEEL.NS"
+        , "TECHM.NS"
+        , "TITAN.NS"
+        , "TRENT.NS"
+        , "ULTRACEMCO.NS"
+        , "WIPRO.NS"
+        , "ABB.NS"
+        , "ADANIENSOL.NS"
+        , "ADANIGREEN.NS"
+        , "ADANIPOWER.NS"
+        , "AMBUJACEM.NS"
+        , "DMART.NS"
+        , "BPCL.NS"
+        , "BOSCHLTD.NS"
+        , "BRITANNIA.NS"
+        , "CGPOWER.NS",]
+    
 final_tickers_str = ", ".join(final_tickers)
+
 ticker_input = sb.text_area(
-    "Enter Ticker Symbol(s):", 
     value=final_tickers_str, 
     placeholder="e.g., INFY.NS, TCS.NS, RELIANCE.NS",
     height=400  # Adjust this value to make the box taller or shorter
