@@ -86,6 +86,7 @@ if not final_tickers:
 final_tickers_str = ", ".join(final_tickers)
 
 ticker_input = sb.text_area(
+    "Enter Ticker Symbol(s):",
     value=final_tickers_str, 
     placeholder="e.g., INFY.NS, TCS.NS, RELIANCE.NS",
     height=400  # Adjust this value to make the box taller or shorter
