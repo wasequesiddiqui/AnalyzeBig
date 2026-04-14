@@ -7,17 +7,11 @@ conda deactivate
 """
 
 import yfinance as yf
-import numpy as np
 import pandas as pd
-import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 import EQUITY_ANALYSER as ea
 
-from prophet import Prophet
-from sklearn.preprocessing import MinMaxScaler
-from sklearn.metrics import r2_score
-from datetime import datetime, timedelta
 from plotly.subplots import make_subplots
 
 # --- 1. INITIALIZE SESSION STATE ---
