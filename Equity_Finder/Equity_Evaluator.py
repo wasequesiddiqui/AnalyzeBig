@@ -29,6 +29,11 @@ sb.title("Evaluating the Ticker:")
 final_tickers = ea.get_nifty50_non_banking_tickers()
 final_nifty_next50_tickers = ea.get_nifty_next_50_non_banking_tickers()
 final_tickers.extend(final_nifty_next50_tickers)
+
+# Fallback default tickers if fetching fails
+if not final_tickers:
+    final_tickers = ["INFY.NS", "TCS.NS", "RELIANCE.NS", "HDFC.NS", "ICICIBANK.NS", "ITC.NS", "KOTAKBANK.NS", "LT.NS", "MARUTI.NS", "NESTLEIND.NS"]
+
 final_tickers_str = ", ".join(final_tickers)
 ticker_input = sb.text_area(
     "Enter Ticker Symbol(s):", 
