@@ -1,0 +1,16 @@
+2026-04-19 17:44:32,050 | ERROR | log_utils | [calculate_altman_z_score for IOC.NS] ValueError: Missing financial data for IOC.NS
+NoneType: None
+2026-04-19 17:44:44,066 | ERROR | log_utils | [calculate_altman_z_score for ENRIN.NS] ValueError: Missing financial data for ENRIN.NS
+NoneType: None
+2026-04-19 18:00:07,909 | ERROR | log_utils | [calculate_altman_z_score for TCS.NS] ValueError: Missing financial data for TCS.NS
+NoneType: None
+2026-04-19 18:00:48,478 | ERROR | log_utils | [calculate_altman_z_score for IOC.NS] ValueError: Missing financial data for IOC.NS
+NoneType: None
+2026-04-19 18:00:51,391 | ERROR | log_utils | [calculate_altman_z_score for LTM.NS] ValueError: Missing financial data for LTM.NS
+NoneType: None
+2026-04-19 18:00:59,465 | ERROR | log_utils | [calculate_altman_z_score for ENRIN.NS] ValueError: Missing financial data for ENRIN.NS
+NoneType: None
+2026-04-19 18:01:01,073 | ERROR | log_utils | [calculate_altman_z_score for SIEMENS.NS] ValueError: Missing financial data for SIEMENS.NS
+NoneType: None
+2026-04-19 18:01:08,075 | ERROR | log_utils | [calculate_altman_z_score for TORNTPHARM.NS] ValueError: Missing financial data for TORNTPHARM.NS
+NoneType: None

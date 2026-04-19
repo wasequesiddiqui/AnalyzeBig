@@ -12,6 +12,7 @@ import plotly.graph_objects as go
 import streamlit as st
 import EQUITY_ANALYSER as ea
 import index_data as idx
+import log_utils as logger
 
 from plotly.subplots import make_subplots
 
@@ -190,6 +191,7 @@ if evaluate_clicked:
 
                     all_results.append(result_df)
                 except Exception as e:
+                    logger.log_exception(e, f"evaluate_ticker {ticker}")
                     st.error(f"Error with {ticker}: {e}")
             
             if all_results:
@@ -212,12 +214,17 @@ if evaluate_clicked:
                     if col in display.columns:
                         display[col] = display[col].apply(format_currency)
                 
+                # Replace None/NaN values in Altman_Z_Score with 2.99
+                if 'Altman_Z_Score' in display.columns:
+                    display['Altman_Z_Score'] = display['Altman_Z_Score'].apply(lambda x: 2.99 if pd.isna(x) or x is None else x)
+                
                 st.session_state.display_df = display
 
             status_text.success("Evaluation complete!")
             progress_bar.empty()
 
         except Exception as e:
+            logger.log_exception(e, "main_evaluation_loop")
             st.error(f"An error occurred: {e}")
 
 # --- 3. DISPLAY LOGIC ---

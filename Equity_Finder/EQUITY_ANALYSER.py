@@ -2,6 +2,8 @@ import yfinance as yf
 import pandas as pd
 import requests
 import io
+import index_data as idx
+import log_utils as logger
 
 def get_cashflow_dataset(ticker_symbol):
     """
@@ -402,6 +404,10 @@ def evaluate_ticker(ticker_string):
     ticker_scores["BS_Degrowth_Velocity"] = bs_percentage_growth
     ticker_scores["Overall_Degrowth_Velocity"] = growth_percentage_growth
     ticker_scores["Final_Overall_Score"] = overall_percentage
+    
+    # Calculate and add Altman Z-Score using index_data function
+    altman_z_score = idx.calculate_altman_z_score(ticker)
+    ticker_scores["Altman_Z_Score"] = altman_z_score
 
     df_scores = pd.DataFrame([ticker_scores])
     print("\nTicker Scores:")
@@ -442,14 +448,17 @@ def get_nifty50_non_banking_tickers():
                     valid_tickers.append(ticker_symbol)
                 else:
                     print(f"Skipping {ticker_symbol}: No data on yfinance.")
-            except:
+            except Exception as e:
+                logger.log_exception(e, f"validate_ticker {ticker_symbol}")
                 continue
 
         return valid_tickers
 
     except Exception as e:
+        logger.log_exception(e, "get_nifty50_non_banking_tickers")
         print(f"Error: {e}")
         return []
+
 
 def get_nifty_next_50_non_banking_tickers():
     # Your requested URL
@@ -486,6 +495,7 @@ def get_nifty_next_50_non_banking_tickers():
             return tickers
 
     except Exception as e:
+        logger.log_exception(e, "get_nifty_next_50_non_banking_tickers")
         print(f"Error filtering NIFTY Next 50: {e}")
         return []
 
