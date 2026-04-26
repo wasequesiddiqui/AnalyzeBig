@@ -2,8 +2,8 @@
 all the imports are included here
 command to run streamlit app: cd C:\Github\AnalyzeBig\Equity_Finder
 streamlit run Equity_Evaluator.py
-conda activate np_env
 conda deactivate
+conda activate np_env
 """
 
 import yfinance as yf
@@ -310,5 +310,55 @@ if st.session_state.combined_results is not None:
 
     fig_industry.update_xaxes(tickangle=45)
     st.plotly_chart(fig_industry, use_container_width=True)
+
+    # --- Altman Z Score Industry Analysis ---
+    st.divider()
+    st.header("Altman Z Score by Industry")
+
+    # Aggregate Altman Z Score by industry (mean and median)
+    altman_grouped = df_num.groupby('Industry')['Altman_Z_Score'].agg(['mean', 'median']).reset_index()
+    altman_grouped = altman_grouped.sort_values(by='mean', ascending=False)
+
+    # Create grouped bar chart
+    fig_altman = go.Figure()
+
+    fig_altman.add_trace(
+        go.Bar(
+            x=altman_grouped['Industry'],
+            y=altman_grouped['mean'],
+            name='Mean',
+            marker_color='steelblue',
+            text=altman_grouped['mean'],
+            texttemplate='%{text:.2f}',
+            textposition='outside'
+        )
+    )
+
+    fig_altman.add_trace(
+        go.Bar(
+            x=altman_grouped['Industry'],
+            y=altman_grouped['median'],
+            name='Median',
+            marker_color='coral',
+            text=altman_grouped['median'],
+            texttemplate='%{text:.2f}',
+            textposition='outside'
+        )
+    )
+
+    fig_altman.update_layout(
+        barmode='group',
+        height=600,
+        xaxis_title='Industry',
+        yaxis_title='Altman Z Score',
+        hovermode='x unified',
+        margin=dict(b=120, t=100),
+        showlegend=True,
+        legend=dict(x=1.02, y=1)
+    )
+
+    fig_altman.update_xaxes(tickangle=45)
+    st.plotly_chart(fig_altman, use_container_width=True)
+
 else:
     st.info("Enter tickers and click 'Evaluate' to generate the report.")
