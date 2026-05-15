@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>YouTube Recursive AI Agent | Universal Tool-Calling Engine</title>
+    <!-- Tailwind + Font Awesome + Mermaid -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <style>
+        body {
+            background: #f8fafc;
+            font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+        }
+        .code-block {
+            background: #1e293b;
+            color: #e2e8f0;
+            border-radius: 1rem;
+            padding: 1rem;
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            font-size: 0.85rem;
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+        .tool-card {
+            transition: all 0.2s ease;
+            border-left: 4px solid #3b82f6;
+        }
+        .tool-card:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 20px -12px rgba(0,0,0,0.15);
+        }
+        .simulation-log {
+            background: #0f172a;
+            color: #cbd5e1;
+            border-radius: 1rem;
+            font-family: monospace;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        .log-entry {
+            border-bottom: 1px solid #334155;
+            padding: 0.75rem;
+            font-size: 0.8rem;
+        }
+        .ai-message { color: #7dd3fc; border-left: 3px solid #38bdf8; background: #1e293b; margin: 0.25rem 0; padding-left: 0.75rem; }
+        .human-message { color: #fde047; border-left: 3px solid #eab308; }
+        .tool-message { color: #86efac; border-left: 3px solid #22c55e; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #1e293b; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb { background: #475569; border-radius: 10px; }
+        .original-image-container {
+            background: #fef9e3;
+            border: 2px solid #fcd34d;
+            border-radius: 1.5rem;
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body class="antialiased">
+
+    <!-- Hero Section -->
+    <div class="bg-gradient-to-r from-slate-900 to-slate-800 text-white">
+        <div class="max-w-7xl mx-auto px-4 py-12 md:py-16">
+            <div class="flex flex-col md:flex-row justify-between items-start gap-6">
+                <div>
+                    <h1 class="text-4xl md:text-5xl font-bold tracking-tight bg-gradient-to-r from-blue-400 to-cyan-300 bg-clip-text text-transparent">
+                        🔁 YouTube Recursive AI Agent
+                    </h1>
+                    <p class="text-slate-300 text-lg mt-3 max-w-2xl">
+                        LangChain + OpenAI · Autonomous tool-calling · Recursive universal chain
+                    </p>
+                    <div class="flex flex-wrap gap-3 mt-4">
+                        <span class="bg-blue-500/20 text-blue-200 px-3 py-1 rounded-full text-sm"><i class="fas fa-sync-alt mr-1"></i> Recursive Loop</span>
+                        <span class="bg-emerald-500/20 text-emerald-200 px-3 py-1 rounded-full text-sm"><i class="fas fa-layer-group mr-1"></i> Parallel Tools</span>
+                        <span class="bg-purple-500/20 text-purple-200 px-3 py-1 rounded-full text-sm"><i class="fas fa-robot mr-1"></i> Autonomous Reasoning</span>
+                    </div>
+                </div>
+                <div class="bg-slate-800/50 p-4 rounded-xl border border-slate-700 backdrop-blur-sm">
+                    <i class="fab fa-python text-blue-400 text-2xl"></i>
+                    <i class="fab fa-youtube text-red-500 text-2xl ml-2"></i>
+                    <i class="fas fa-brain text-indigo-400 text-2xl ml-2"></i>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="max-w-7xl mx-auto px-4 py-10">
+        
+        <!-- ==================== ORIGINAL IMAGE (INTELLIGENT_YOUTUBE_AI_AGENT.png) ==================== -->
+        <div class="mb-12 original-image-container shadow-xl">
+            <div class="bg-amber-50 px-5 py-3 border-b border-amber-200 flex items-center justify-between">
+                <div class="flex items-center gap-2">
+                    <i class="fas fa-image text-2xl text-amber-600"></i>
+                    <h2 class="text-xl font-bold text-amber-800">📸 Original Diagram: <span class="font-mono">INTELLIGENT_YOUTUBE_AI_AGENT.png</span></h2>
+                </div>
+                <span class="text-xs bg-amber-200 text-amber-800 px-2 py-1 rounded-full"><i class="far fa-file-image"></i> attached file</span>
+            </div>
+            <div class="p-4 bg-white flex justify-center">
+                <img src="INTELLIGENT_YOUTUBE_AI_AGENT.png" alt="YouTube Intelligent Agent with Recursive Tool Calling - Architecture Diagram" class="max-w-full h-auto rounded-lg shadow-md" onerror="this.onerror=null; this.src='data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'400\' height=\'200\' viewBox=\'0 0 400 200\'%3E%3Crect width=\'400\' height=\'200\' fill=\'%23fef3c7\'/%3E%3Ctext x=\'20\' y=\'30\' fill=\'%23924e00\' font-size=\'14\'%3E⚠️ image.png not found%3C/text%3E%3Ctext x=\'20\' y=\'60\' fill=\'%23924e00\' font-size=\'12\'%3EPlace the file in the same folder as this HTML.%3C/text%3E%3C/svg%3E';">
+            </div>
+            <div class="bg-amber-50 px-5 py-2 text-xs text-amber-700 border-t border-amber-200">
+                <i class="fas fa-info-circle"></i> This image shows the complete architecture: available tools, recursive chain logic, universal_chain entry point, and sample outputs as per the original design.
+            </div>
+        </div>
+
+        <!-- 1. Tools Overview (interactive) -->
+        <div class="mb-16">
+            <div class="flex items-center gap-3 mb-6">
+                <i class="fas fa-toolbox text-3xl text-blue-600"></i>
+                <h2 class="text-3xl font-bold text-slate-800">🧰 Available Tools (detailed)</h2>
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                <div class="tool-card bg-white rounded-xl p-5 shadow-md border border-gray-100">
+                    <div class="flex items-center gap-2 mb-2"><i class="fas fa-link text-blue-500"></i><code class="font-bold text-gray-800">extract_video_id(url)</code></div>
+                    <p class="text-gray-600 text-sm">Extracts 11-char video ID from any YouTube URL. Returns ID or error.</p>
+                </div>
+                <div class="tool-card bg-white rounded-xl p-5 shadow-md border border-gray-100">
+                    <div class="flex items-center gap-2 mb-2"><i class="fas fa-file-alt text-blue-500"></i><code class="font-bold">fetch_transcript(video_id, lang="en")</code></div>
+                    <p class="text-gray-600 text-sm">Fetches transcript text from video using youtube-transcript-api.</p>
+                </div>
+                <div class="tool-card bg-white rounded-xl p-5 shadow-md border border-gray-100">
+                    <div class="flex items-center gap-2 mb-2"><i class="fab fa-youtube text-red-500"></i><code class="font-bold">search_youtube(query, max_results=5)</code></div>
+                    <p class="text-gray-600 text-sm">Search YouTube videos with PyTube — returns titles + URLs.</p>
+                </div>
+                <div class="tool-card bg-white rounded-xl p-5 shadow-md border border-gray-100">
+                    <div class="flex items-center gap-2 mb-2"><i class="fas fa-chart-line text-indigo-500"></i><code class="font-bold">get_full_metadata(url)</code></div>
+                    <p class="text-gray-600 text-sm">Rich metadata: views, likes, duration, chapters, description, tags.</p>
+                </div>
+                <div class="tool-card bg-white rounded-xl p-5 shadow-md border border-gray-100">
+                    <div class="flex items-center gap-2 mb-2"><i class="fas fa-images text-purple-500"></i><code class="font-bold">get_thumbnails(url)</code></div>
+                    <p class="text-gray-600 text-sm">List of all thumbnail qualities (URL, resolution, dimensions).</p>
+                </div>
+                <div class="tool-card bg-white rounded-xl p-5 shadow-md border border-gray-100">
+                    <div class="flex items-center gap-2 mb-2"><i class="fas fa-arrows-spin text-cyan-600"></i><code class="font-bold">LLM + Tool binding</code></div>
+                    <p class="text-gray-600 text-sm">GPT-4o-mini decides which tools to call & processes recursively.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 2. Architecture Diagram (Mermaid) -->
+        <div class="mb-16 bg-white rounded-2xl shadow-md p-6 border border-gray-100">
+            <div class="flex items-center gap-2 mb-4">
+                <i class="fas fa-project-diagram text-2xl text-indigo-600"></i>
+                <h2 class="text-2xl font-bold text-slate-800">⚙️ Recursive Universal Chain Flow</h2>
+            </div>
+            <div class="mermaid">
+                graph TD
+                A["👤 User Query: Summarize YouTube video"] --> B["🌐 universal_chain (Entry Point)"]
+                B --> C["📦 Create HumanMessage"]
+                C --> D["🤖 LLM + Tools (initial invocation)"]
+                D --> E{🔁 Tool calls detected?}
+                E -- Yes --> F["⚡ Parallel execute tool(s)"]
+                F --> G["📥 Append ToolMessages to history"]
+                G --> D
+                E -- No --> H["✅ Final AI Response (summary / answer)"]
+                style A fill:#eef2ff,stroke:#4f46e5
+                style B fill:#fef3c7,stroke:#f59e0b
+                style D fill:#dbeafe,stroke:#2563eb
+                style F fill:#dcfce7,stroke:#16a34a
+                style H fill:#f1f5f9,stroke:#0f172a
+            </div>
+            <p class="text-gray-500 text-sm mt-4 text-center"><i class="fas fa-info-circle"></i> The agent loop continues until LLM stops requesting tools — fully autonomous.</p>
+        </div>
+
+        <!-- 3. Why universal_chain ? -->
+        <div class="mb-16 bg-gradient-to-br from-indigo-50 to-sky-50 rounded-2xl p-7 shadow-sm">
+            <div class="flex items-center gap-3 mb-3">
+                <i class="fas fa-crown text-yellow-600 text-3xl"></i>
+                <h2 class="text-2xl font-bold text-slate-800">🌟 Why `universal_chain` is the heart</h2>
+            </div>
+            <div class="grid md:grid-cols-2 gap-8">
+                <div>
+                    <ul class="space-y-3">
+                        <li class="flex gap-2"><i class="fas fa-check-circle text-emerald-600 mt-1"></i><span><strong>Single entry point</strong> – any user query becomes a clean, consistent pipeline.</span></li>
+                        <li class="flex gap-2"><i class="fas fa-check-circle text-emerald-600 mt-1"></i><span><strong>Automates recursion</strong> – tool execution + LLM re-invocation handled automatically.</span></li>
+                        <li class="flex gap-2"><i class="fas fa-check-circle text-emerald-600 mt-1"></i><span><strong>Universal + reusable</strong> – swap tools (SQL, RAG, web search) without changing orchestration.</span></li>
+                        <li class="flex gap-2"><i class="fas fa-check-circle text-emerald-600 mt-1"></i><span><strong>Production ready</strong> – modular, parallel execution, easy debugging.</span></li>
+                    </ul>
+                </div>
+                <div class="bg-white/70 rounded-xl p-4 border border-indigo-100 shadow-inner">
+                    <pre class="text-xs font-mono bg-slate-800 text-slate-200 p-3 rounded-lg overflow-x-auto"><code>universal_chain = (
+    RunnableLambda(lambda x: [HumanMessage(content=x["query"])])
+    | RunnableLambda(lambda m: m + [llm_with_tools.invoke(m)])
+    | recursive_chain
+)</code></pre>
+                    <p class="text-xs text-gray-600 mt-2">✨ Just 3 composable steps: HumanMessage → initial LLM → recursive tool loop</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4. Recursive Logic deep dive -->
+        <div class="mb-16">
+            <div class="flex items-center gap-3 mb-5">
+                <i class="fas fa-code-branch text-2xl text-purple-700"></i>
+                <h2 class="text-2xl font-bold text-slate-800">🔄 Recursive Chain Logic</h2>
+            </div>
+            <div class="bg-slate-900 rounded-xl p-5 text-white shadow-xl">
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div>
+                        <h3 class="text-lg font-semibold text-cyan-300 flex items-center gap-2"><i class="fas fa-microchip"></i> process_tool_calls()</h3>
+                        <p class="text-gray-300 text-sm mt-1">Executes all tool calls from last AI message (parallel), creates ToolMessages, reinvokes LLM, returns updated message history.</p>
+                        <div class="mt-3 bg-slate-800 p-3 rounded-lg text-xs font-mono">
+                            def process_tool_calls(messages):<br/>
+                            &nbsp;&nbsp;tool_msgs = [execute_tool(tc) for tc in last_msg.tool_calls]<br/>
+                            &nbsp;&nbsp;updated = messages + tool_msgs<br/>
+                            &nbsp;&nbsp;next_ai = llm_with_tools.invoke(updated)<br/>
+                            &nbsp;&nbsp;return updated + [next_ai]
+                        </div>
+                    </div>
+                    <div>
+                        <h3 class="text-lg font-semibold text-cyan-300 flex items-center gap-2"><i class="fas fa-redo-alt"></i> _recursive_chain()</h3>
+                        <p class="text-gray-300 text-sm mt-1">Checks if last message contains tool_calls → recursively calls process_tool_calls until stop condition, building full conversation.</p>
+                        <div class="mt-3 bg-slate-800 p-3 rounded-lg text-xs font-mono">
+                            def _recursive_chain(messages):<br/>
+                            &nbsp;&nbsp;if should_continue(messages):<br/>
+                            &nbsp;&nbsp;&nbsp;&nbsp;return _recursive_chain(process_tool_calls(messages))<br/>
+                            &nbsp;&nbsp;return messages
+                        </div>
+                    </div>
+                </div>
+                <div class="mt-5 text-center text-xs text-gray-400 border-t border-slate-700 pt-3">
+                    <i class="fas fa-bolt"></i> Parallel tool execution reduces latency · recursion depth automatically managed · final answer extracted via get_final_response()
+                </div>
+            </div>
+        </div>
+
+        <!-- 5. INTERACTIVE SIMULATION -->
+        <div class="mb-16 bg-white rounded-2xl shadow-xl overflow-hidden border border-gray-200">
+            <div class="bg-gradient-to-r from-slate-800 to-slate-700 text-white px-6 py-4">
+                <div class="flex items-center gap-3">
+                    <i class="fas fa-gamepad text-2xl"></i>
+                    <h2 class="text-xl font-bold">🎮 Interactive Agent Simulation</h2>
+                    <span class="bg-yellow-500 text-black text-xs px-2 py-1 rounded-full ml-2">Mock Demo</span>
+                </div>
+                <p class="text-slate-300 text-sm mt-1">See the recursive universal chain in action! This simulation mimics tool-calling flow without external APIs — each step reproduces message evolution.</p>
+            </div>
+            <div class="p-6">
+                <div class="flex flex-wrap gap-3 mb-5">
+                    <button id="runSimulationBtn" class="bg-blue-600 hover:bg-blue-700 text-white px-5 py-2 rounded-lg transition flex items-center gap-2 shadow"><i class="fas fa-play"></i> Run Agent Simulation (Summarize Video)</button>
+                    <button id="resetSimulationBtn" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-5 py-2 rounded-lg transition flex items-center gap-2"><i class="fas fa-undo-alt"></i> Reset Log</button>
+                </div>
+                <div class="bg-slate-50 rounded-xl border border-gray-200 p-1">
+                    <div class="flex items-center gap-2 px-3 pt-3 pb-1 text-xs font-semibold text-gray-500">
+                        <i class="fab fa-youtube text-red-500"></i> <span>Fixed demo: <code class="bg-gray-200 px-1 rounded">https://youtu.be/FkJ-X5CRSMw</code> (Recursive AI talk)</span>
+                    </div>
+                    <div id="simulationLog" class="simulation-log p-3 font-mono text-sm">
+                        <div class="log-entry text-gray-400">⚡ Click "Run Agent Simulation" to observe recursive tool-calling and message flow →</div>
+                    </div>
+                </div>
+                <p class="text-xs text-gray-500 mt-3 flex items-center gap-1"><i class="fas fa-lightbulb text-yellow-600"></i> The simulation faithfully replicates the <strong>universal_chain</strong> pattern: Human → AI tool calls → tool responses → final AI synthesis.</p>
+            </div>
+        </div>
+
+        <!-- 6. Code reference -->
+        <div class="mb-12">
+            <details class="bg-white rounded-xl shadow-sm border">
+                <summary class="cursor-pointer p-5 font-semibold text-lg text-slate-700 bg-gray-50 rounded-xl flex items-center gap-2"><i class="fas fa-code"></i> 📜 Full Python Implementation (core architecture)</summary>
+                <div class="p-5 border-t border-gray-200">
+                    <div class="code-block">
+                        <pre style="color:#e2e8f0; margin:0;"># === UNIVERSAL RECURSIVE AGENT (YouTube) ===
+# Tools: extract_video_id, fetch_transcript, search_youtube, get_full_metadata, get_thumbnails
+
+llm_with_tools = ChatOpenAI(model="gpt-4o-mini").bind_tools(tools)
+
+def execute_tool(tool_call):
+    result = tool_mapping[tool_call["name"]].invoke(tool_call["args"])
+    return ToolMessage(content=json.dumps(result), tool_call_id=tool_call["id"])
+
+def process_tool_calls(messages):
+    tool_msgs = [execute_tool(tc) for tc in messages[-1].tool_calls]
+    updated = messages + tool_msgs
+    return updated + [llm_with_tools.invoke(updated)]
+
+def _recursive_chain(messages):
+    if messages[-1].tool_calls:
+        return _recursive_chain(process_tool_calls(messages))
+    return messages
+
+universal_chain = (
+    RunnableLambda(lambda x: [HumanMessage(content=x["query"])])
+    | RunnableLambda(lambda msgs: msgs + [llm_with_tools.invoke(msgs)])
+    | RunnableLambda(_recursive_chain)
+)
+
+# Execution: messages = universal_chain.invoke({"query": user_input})</pre>
+                    </div>
+                    <p class="mt-4 text-gray-700 text-sm">✨ The chain isolates recursion logic — tool definitions only need to be supplied once, orchestration remains identical for any domain.</p>
+                </div>
+            </details>
+        </div>
+
+        <!-- 7. Key takeaways -->
+        <div class="grid md:grid-cols-3 gap-5 mt-8">
+            <div class="bg-indigo-50 p-5 rounded-xl text-center">
+                <i class="fas fa-brain text-3xl text-indigo-600 mb-2"></i>
+                <h3 class="font-bold">LLM as Reasoner</h3>
+                <p class="text-sm text-gray-600">The LLM decides which tools to invoke, with arguments, enabling dynamic workflows.</p>
+            </div>
+            <div class="bg-green-50 p-5 rounded-xl text-center">
+                <i class="fas fa-tasks text-3xl text-green-600 mb-2"></i>
+                <h3 class="font-bold">Parallel Execution</h3>
+                <p class="text-sm text-gray-600">All requested tools run simultaneously, boosting performance.</p>
+            </div>
+            <div class="bg-purple-50 p-5 rounded-xl text-center">
+                <i class="fas fa-chalkboard-user text-3xl text-purple-600 mb-2"></i>
+                <h3 class="font-bold">Production-Ready</h3>
+                <p class="text-sm text-gray-600">Modular, observable, works with LangSmith & error handling.</p>
+            </div>
+        </div>
+        
+        <footer class="mt-16 text-center text-gray-500 text-sm border-t pt-8">
+            <i class="fas fa-microchip"></i> Built with LangChain + OpenAI · Recursive architecture · YouTube intelligence agent · <span class="font-mono">universal_chain</span> pattern · includes original <strong>image.png</strong> attachment
+        </footer>
+    </div>
+
+    <script>
+        mermaid.initialize({ startOnLoad: true, theme: 'base', themeVariables: { background: '#ffffff', primaryColor: '#3b82f6' } });
+        
+        // Interactive simulation (same as before)
+        const simulationLogDiv = document.getElementById('simulationLog');
+        const mockVideoId = "FkJ-X5CRSMw";
+        const mockTranscript = "In this talk, the speaker explains recursive AI agents using LangChain. They demonstrate how the universal_chain automates tool calling, parallel execution, and recursive loops. Key topics: bind_tools, RunnableLambda, and building autonomous agents for YouTube analysis. This video provides a deep dive into production patterns.";
+        const mockMetadata = {
+            title: "Building Recursive AI Agents with LangChain",
+            views: 45200,
+            likes: 1870,
+            channel: "AI Engineering",
+            duration_minutes: 12.5
+        };
+        
+        function simulateExtractVideoId(url) {
+            if(url.includes("youtu.be") || url.includes("youtube.com")) return mockVideoId;
+            return "Error: invalid URL";
+        }
+        function simulateFetchTranscript(videoId) {
+            if(videoId === mockVideoId) return mockTranscript;
+            return "Transcript not found";
+        }
+        function simulateFullMetadata(url) {
+            return {
+                title: mockMetadata.title,
+                views: mockMetadata.views,
+                likes: mockMetadata.likes,
+                channel: mockMetadata.channel,
+                duration_minutes: mockMetadata.duration_minutes,
+                description: "Deep dive into universal recursive chain for YouTube agents."
+            };
+        }
+        
+        class RecursiveSimulator {
+            constructor(query, videoUrl = "https://youtu.be/FkJ-X5CRSMw") {
+                this.query = query;
+                this.url = videoUrl;
+                this.messages = [];
+            }
+            
+            async run(updateLogCallback) {
+                this.messages.push({ type: "human", content: this.query });
+                updateLogCallback("human", this.query);
+                
+                let aiMessage1 = {
+                    type: "ai", 
+                    tool_calls: [{ name: "extract_video_id", args: { url: this.url }, id: "call_1" }],
+                    content: null
+                };
+                this.messages.push(aiMessage1);
+                updateLogCallback("ai", "🔧 AI requested tool: extract_video_id", { toolName: "extract_video_id", args: { url: this.url } });
+                
+                const videoId = simulateExtractVideoId(this.url);
+                const toolMsg1 = { type: "tool", tool_call_id: "call_1", content: `video_id: ${videoId}` };
+                this.messages.push(toolMsg1);
+                updateLogCallback("tool", `✅ extract_video_id → ${videoId}`);
+                
+                let aiMessage2 = {
+                    type: "ai",
+                    tool_calls: [{ name: "fetch_transcript", args: { video_id: videoId, language: "en" }, id: "call_2" }],
+                    content: null
+                };
+                this.messages.push(aiMessage2);
+                updateLogCallback("ai", "📝 AI requested tool: fetch_transcript", { toolName: "fetch_transcript", args: { video_id: videoId } });
+                
+                const transcript = simulateFetchTranscript(videoId);
+                const toolMsg2 = { type: "tool", tool_call_id: "call_2", content: transcript.substring(0, 250) + "..." };
+                this.messages.push(toolMsg2);
+                updateLogCallback("tool", `📄 fetch_transcript → ${transcript.substring(0, 120)}...`);
+                
+                let aiMessage3 = {
+                    type: "ai",
+                    tool_calls: [{ name: "get_full_metadata", args: { url: this.url }, id: "call_3" }],
+                    content: null
+                };
+                this.messages.push(aiMessage3);
+                updateLogCallback("ai", "🏷️ AI requested tool: get_full_metadata (enrich context)", { toolName: "get_full_metadata" });
+                
+                const metadata = simulateFullMetadata(this.url);
+                const toolMsg3 = { type: "tool", tool_call_id: "call_3", content: JSON.stringify(metadata, null, 2) };
+                this.messages.push(toolMsg3);
+                updateLogCallback("tool", `🎬 Metadata: ${metadata.title} | ${metadata.views} views | by ${metadata.channel}`);
+                
+                const finalSummary = `🎯 FINAL SUMMARY (AI synthesized):\nThe video "${metadata.title}" (${metadata.duration_minutes} min) explains recursive AI agents using universal_chain. Key insights: LLM autonomously calls tools like transcript fetcher and metadata extractor. The agent loop runs until all info is gathered. Transcript excerpt: "${transcript.substring(0, 150)}..." — This demonstrates production-ready YouTube intelligence.`;
+                let finalAi = { type: "ai", content: finalSummary, tool_calls: null };
+                this.messages.push(finalAi);
+                updateLogCallback("final_ai", finalSummary);
+                return this.messages;
+            }
+        }
+        
+        function clearLog() { simulationLogDiv.innerHTML = ''; }
+        function addLogEntry(entryType, message, details = null) {
+            const logDiv = document.createElement('div');
+            logDiv.className = 'log-entry';
+            let icon = '', colorClass = '';
+            if(entryType === 'human') { icon = '👤'; colorClass = 'human-message'; }
+            else if(entryType === 'ai') { icon = '🤖'; colorClass = 'ai-message'; }
+            else if(entryType === 'tool') { icon = '🛠️'; colorClass = 'tool-message'; }
+            else if(entryType === 'final_ai') { icon = '✨'; colorClass = 'ai-message font-bold'; }
+            logDiv.innerHTML = `<div class="${colorClass} pl-2"><span class="font-bold">${icon} ${entryType.toUpperCase()}</span><br/><span class="whitespace-pre-wrap text-xs md:text-sm">${escapeHtml(message)}</span>${details ? `<div class="text-gray-400 text-xs mt-1">🔧 ${escapeHtml(JSON.stringify(details))}</div>` : ''}</div>`;
+            simulationLogDiv.appendChild(logDiv);
+            logDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        }
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/[&<>]/g, function(m) {
+                if(m === '&') return '&amp;';
+                if(m === '<') return '&lt;';
+                if(m === '>') return '&gt;';
+                return m;
+            });
+        }
+        
+        let isRunning = false;
+        document.getElementById('runSimulationBtn').addEventListener('click', async () => {
+            if(isRunning) return;
+            isRunning = true;
+            clearLog();
+            addLogEntry('human', 'Query: "Summarize this YouTube video in English: https://www.youtube.com/watch?v=FkJ-X5CRSMw"');
+            const simulator = new RecursiveSimulator(
+                "Summarize this YouTube video in English: https://www.youtube.com/watch?v=FkJ-X5CRSMw",
+                "https://www.youtube.com/watch?v=FkJ-X5CRSMw"
+            );
+            await simulator.run((type, content, details) => {
+                if(type === 'human') addLogEntry('human', content);
+                else if(type === 'ai') addLogEntry('ai', content, details);
+                else if(type === 'tool') addLogEntry('tool', content);
+                else if(type === 'final_ai') addLogEntry('final_ai', content);
+            });
+            addLogEntry('final_ai', '✅ Recursion complete — no remaining tool calls. universal_chain returned final AI message.');
+            isRunning = false;
+        });
+        
+        document.getElementById('resetSimulationBtn').addEventListener('click', () => {
+            if(isRunning) return;
+            clearLog();
+            addLogEntry('tool', '🔄 Simulation log cleared. Click "Run Agent Simulation" to see full recursive tool-calling loop and message flow.');
+        });
+        
+        setTimeout(() => {
+            if(simulationLogDiv.children.length <= 1) {
+                addLogEntry('tool', '💡 Tip: Press "Run Agent Simulation" to trace how the LLM calls extract_video_id → fetch_transcript → get_full_metadata and generates a final summary.');
+            }
+        }, 500);
+    </script>
+</body>
+</html>

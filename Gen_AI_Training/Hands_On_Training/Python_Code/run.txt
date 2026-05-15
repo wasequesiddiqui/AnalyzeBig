@@ -1,0 +1,1 @@
+cd "C:\Github\AnalyzeBig\Gen_AI_Training\Hands_On_Training\Python_Code"
