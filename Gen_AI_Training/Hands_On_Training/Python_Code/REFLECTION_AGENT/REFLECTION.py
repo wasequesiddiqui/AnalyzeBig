@@ -1,3 +1,4 @@
+
 """
 REFLECTION AGENT -- LinkedIn Post Generator using StateGraph
 ============================================================
@@ -261,23 +262,25 @@ print("FINAL REFINED POST")
 print("=" * 70)
 print(messages[-1].content)
 
+# Save final post to markdown file
+with open("final_post.md", "w", encoding="utf-8") as f:
+    f.write(f"# Final Refined LinkedIn Post\n\n{messages[-1].content}\n")
+print("\nFinal post saved to final_post.md")
+
 # ============================================================================
 # 11. SAVE GRAPH VISUALIZATION
 # ============================================================================
-# Using draw_mermaid() instead of draw_png() to avoid requiring pygraphviz
-# (which needs MSVC build tools + Graphviz system library on Windows).
+# Uses draw_mermaid() as fallback to avoid requiring pygraphviz
+# (which needs MSVC Build Tools + Graphviz system library on Windows).
 # --------------------------------------------------------------------------
 try:
-    # Try PNG first (requires pygraphviz + Graphviz)
     graph_png = workflow.get_graph().draw_png()
     with open("reflection_agent_stategraph.png", "wb") as f:
         f.write(graph_png)
     print("\nGraph saved as reflection_agent_stategraph.png")
 except Exception:
-    # Fallback: save as Mermaid diagram (no native dependencies needed)
     mermaid_text = workflow.get_graph().draw_mermaid()
     with open("reflection_agent_graph.mmd", "w") as f:
         f.write(mermaid_text)
-    print("\nGraph saved as reflection_agent_graph.mmd (Mermaid format)")
-    print("To view: paste the contents into https://mermaid.live/")
-    print("For PNG output, install Graphviz + MSVC Build Tools, then: pip install pygraphviz")
+    print("\nGraph saved as reflection_agent_graph.mmd (Mermaid text)")
+    print("Paste into https://mermaid.live/ to view the diagram.")
