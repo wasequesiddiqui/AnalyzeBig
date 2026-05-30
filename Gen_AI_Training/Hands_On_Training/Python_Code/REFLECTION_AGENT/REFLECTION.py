@@ -94,7 +94,7 @@ class Config:
         TIMEOUT_SECONDS: Maximum wall-clock time for the entire workflow.
             Prevents indefinite hangs due to network or API issues.
     """
-    MODEL_NAME = "deepseek-chat"
+    MODEL_NAME = "deepseek-v4-flash"  # Use "deepseek-v4" for DeepSeek V4 model
     BASE_URL = "https://api.deepseek.com/v1"
 
     MAX_ITERATIONS = 4

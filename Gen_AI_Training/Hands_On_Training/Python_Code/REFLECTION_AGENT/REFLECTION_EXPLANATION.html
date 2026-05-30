@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reflection Agent — Detailed Explanation</title>
+    <style>
+        /* ============================================================
+           RESET & BASE
+           ============================================================ */
+        *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+        html { scroll-behavior: smooth; }
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+            line-height: 1.7;
+        }
+
+        /* ============================================================
+           LAYOUT
+           ============================================================ */
+        .container { max-width: 1000px; margin: 0 auto; padding: 2rem 1.5rem; }
+
+        /* ============================================================
+           HEADER / HERO
+           ============================================================ */
+        .hero {
+            text-align: center;
+            padding: 4rem 1rem 3rem;
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            border-bottom: 1px solid #1e3a5f;
+        }
+        .hero h1 {
+            font-size: 2.8rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #60a5fa, #a78bfa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+        .hero p {
+            margin-top: 0.75rem;
+            font-size: 1.15rem;
+            color: #94a3b8;
+            max-width: 640px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .hero .badge {
+            display: inline-block;
+            margin-top: 1rem;
+            padding: 0.35rem 1rem;
+            border-radius: 999px;
+            background: #1e3a5f;
+            color: #93c5fd;
+            font-size: 0.85rem;
+            font-weight: 600;
+        }
+
+        /* ============================================================
+           INFOGRAPHIC
+           ============================================================ */
+        .infographic-wrapper {
+            margin: 2.5rem auto;
+            text-align: center;
+        }
+        .infographic-wrapper img {
+            max-width: 100%;
+            height: auto;
+            border-radius: 16px;
+            border: 1px solid #1e3a5f;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+        }
+        .infographic-wrapper figcaption {
+            margin-top: 0.75rem;
+            font-size: 0.9rem;
+            color: #64748b;
+        }
+
+        /* ============================================================
+           SECTION HEADINGS
+           ============================================================ */
+        section { margin-top: 3.5rem; }
+        h2 {
+            font-size: 1.75rem;
+            font-weight: 700;
+            color: #f1f5f9;
+            border-left: 4px solid #60a5fa;
+            padding-left: 1rem;
+            margin-bottom: 1.25rem;
+        }
+        h3 {
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: #cbd5e1;
+            margin-top: 1.75rem;
+            margin-bottom: 0.5rem;
+        }
+
+        /* ============================================================
+           CARDS
+           ============================================================ */
+        .card {
+            background: #1e293b;
+            border: 1px solid #334155;
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.25rem;
+        }
+        .card-title {
+            font-size: 1.05rem;
+            font-weight: 700;
+            color: #60a5fa;
+            margin-bottom: 0.5rem;
+        }
+        .card code, .card kbd {
+            background: #0f172a;
+            padding: 0.15rem 0.45rem;
+            border-radius: 4px;
+            font-size: 0.9em;
+            color: #a5b4fc;
+        }
+
+        /* ============================================================
+           CODE BLOCKS
+           ============================================================ */
+        pre {
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 10px;
+            padding: 1.25rem;
+            overflow-x: auto;
+            font-size: 0.88rem;
+            line-height: 1.6;
+            font-family: 'JetBrains Mono', 'Cascadia Code', 'Consolas', monospace;
+        }
+        pre .kw   { color: #c084fc; }  /* keywords */
+        pre .str  { color: #a3e635; }  /* strings */
+        pre .cm   { color: #64748b; font-style: italic; } /* comments */
+        pre .fn   { color: #60a5fa; }  /* function names */
+        pre .cls  { color: #fbbf24; }  /* class names */
+        pre .num  { color: #f472b6; }  /* numbers */
+        pre .dec  { color: #34d399; }  /* decorators */
+
+        /* ============================================================
+           WORKFLOW DIAGRAM (ASCII)
+           ============================================================ */
+        .workflow-ascii {
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 10px;
+            padding: 1.5rem;
+            font-family: 'JetBrains Mono', 'Consolas', monospace;
+            font-size: 0.85rem;
+            line-height: 1.5;
+            white-space: pre;
+            overflow-x: auto;
+            color: #94a3b8;
+        }
+        .workflow-ascii .highlight { color: #60a5fa; font-weight: 700; }
+        .workflow-ascii .end      { color: #f87171; font-weight: 700; }
+        .workflow-ascii .decision { color: #fbbf24; font-weight: 700; }
+
+        /* ============================================================
+           STATE TABLE
+           ============================================================ */
+        .state-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 1rem 0;
+        }
+        .state-table th {
+            text-align: left;
+            padding: 0.65rem 0.75rem;
+            background: #1e3a5f;
+            color: #93c5fd;
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+        .state-table td {
+            padding: 0.65rem 0.75rem;
+            border-top: 1px solid #334155;
+            font-size: 0.9rem;
+        }
+        .state-table tr:hover td { background: #1e293b; }
+        .state-table .field  { font-family: monospace; color: #a5b4fc; }
+        .state-table .type   { font-family: monospace; color: #f472b6; font-size: 0.85rem; }
+
+        /* ============================================================
+           PROMPT COMPARISON
+           ============================================================ */
+        .prompt-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+            margin: 1rem 0;
+        }
+        @media (max-width: 680px) { .prompt-grid { grid-template-columns: 1fr; } }
+        .prompt-box {
+            background: #0f172a;
+            border: 1px solid #334155;
+            border-radius: 10px;
+            padding: 1rem;
+        }
+        .prompt-box h4 {
+            color: #94a3b8;
+            font-size: 0.85rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 0.5rem;
+        }
+        .prompt-box pre {
+            border: none;
+            padding: 0;
+            background: transparent;
+            font-size: 0.82rem;
+        }
+
+        /* ============================================================
+           FOOTER
+           ============================================================ */
+        footer {
+            margin-top: 4rem;
+            padding: 2rem 0;
+            text-align: center;
+            border-top: 1px solid #1e3a5f;
+            color: #64748b;
+            font-size: 0.85rem;
+        }
+        footer a { color: #60a5fa; text-decoration: none; }
+        footer a:hover { text-decoration: underline; }
+    </style>
+</head>
+<body>
+
+<!-- ================================================================
+     HERO
+     ================================================================ -->
+<header class="hero">
+    <h1>Reflection Agent</h1>
+    <p>An AI system that drafts, critiques, and iteratively refines LinkedIn posts using LangGraph's StateGraph and DeepSeek.</p>
+    <span class="badge">LangGraph &middot; StateGraph &middot; DeepSeek &middot; Python</span>
+</header>
+
+<div class="container">
+
+    <!-- ============================================================
+         INFOGRAPHIC
+         ============================================================ -->
+    <figure class="infographic-wrapper">
+        <img src="REFLECTION_INFOGRAPHIC.png" alt="Reflection Agent Infographic — System 1 vs System 2 workflow diagram">
+        <figcaption>Figure 1: The Generate → Reflect → Score loop (click to zoom)</figcaption>
+    </figure>
+
+    <!-- ============================================================
+         1. WHAT IS A REFLECTION AGENT?
+         ============================================================ -->
+    <section>
+        <h2>1. What is a Reflection Agent?</h2>
+        <div class="card">
+            <p>A <strong>Reflection Agent</strong> is an AI system that can evaluate its own outputs, identify weaknesses, and iteratively improve through feedback loops. It mirrors how humans refine their work: <em>draft &rarr; review &rarr; revise</em>.</p>
+        </div>
+
+        <h3>System 1 vs System 2</h3>
+        <div class="card">
+            <p>Borrowing from Daniel Kahneman's framework:</p>
+            <ul style="margin-top:0.5rem; padding-left:1.5rem;">
+                <li><strong>System 1 (Generation)</strong> &mdash; Quick, instinctive first draft. High temperature (0.7) for creativity.</li>
+                <li><strong>System 2 (Reflection)</strong> &mdash; Deliberate critique and refinement. Low temperature (0.2) for consistency.</li>
+            </ul>
+            <p style="margin-top:0.5rem;">The agent cycles between these two modes until quality standards are met or a maximum iteration limit is reached.</p>
+        </div>
+    </section>
+
+    <!-- ============================================================
+         2. WORKFLOW
+         ============================================================ -->
+    <section>
+        <h2>2. Workflow</h2>
+        <div class="workflow-ascii">
+            <span class="highlight">START</span>
+                │
+                ▼
+            <span class="highlight">GENERATE</span>  (System 1 — creative draft)
+                │
+                ▼
+            <span class="highlight">REFLECT</span>   (System 2 — critique + score)
+                │
+                ▼
+            <span class="decision">EVALUATE SCORE</span>
+                ├── score &ge; 8.5/10 ──→ <span class="end">END</span>    (quality met)
+                └── score &lt; 8.5 ────→ <span class="highlight">GENERATE AGAIN</span>
+                └── max 4 iterations ──→ <span class="end">END</span>    (safety limit)
+        </div>
+
+        <h3>Step by Step</h3>
+        <div class="card">
+            <ol style="padding-left:1.25rem;">
+                <li><strong>Generate</strong> &mdash; The LLM produces an initial LinkedIn post based on the user prompt.</li>
+                <li><strong>Reflect</strong> &mdash; A second LLM call (with lower temperature) critiques the post and assigns a quality score.</li>
+                <li><strong>Route</strong> &mdash; The router checks the score. If &ge; 8.5 the workflow ends. Otherwise it loops back to generation.</li>
+                <li><strong>Iterate</strong> &mdash; The generation node revises the post incorporating the critique. Repeat until threshold or max 4 iterations.</li>
+                <li><strong>Output</strong> &mdash; The final post is displayed and saved to <code>final_linkedin_post.md</code>.</li>
+            </ol>
+        </div>
+    </section>
+
+    <!-- ============================================================
+         3. STATE MANAGEMENT
+         ============================================================ -->
+    <section>
+        <h2>3. State Management (AgentState)</h2>
+        <p>The workflow uses LangGraph's <code>StateGraph</code> with an explicit typed state defined via <code>TypedDict</code>.</p>
+
+        <table class="state-table">
+            <thead>
+                <tr>
+                    <th>Field</th>
+                    <th>Type</th>
+                    <th>Description</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td class="field">messages</td>
+                    <td class="type">Annotated[List[BaseMessage], add_messages]</td>
+                    <td>Conversation history. Each node appends rather than overwrites, preserving full context across cycles.</td>
+                </tr>
+                <tr>
+                    <td class="field">iteration</td>
+                    <td class="type">int</td>
+                    <td>Zero-based count of completed generate&ndash;reflect cycles. Incremented by the reflection node.</td>
+                </tr>
+                <tr>
+                    <td class="field">quality_score</td>
+                    <td class="type">float</td>
+                    <td>Numeric score (0.0&ndash;10.0) extracted from the latest reflection critique.</td>
+                </tr>
+                <tr>
+                    <td class="field">latest_feedback</td>
+                    <td class="type">str</td>
+                    <td>Raw text of the most recent critique. Useful for external logging or inspection.</td>
+                </tr>
+                <tr>
+                    <td class="field">final_post</td>
+                    <td class="type">str</td>
+                    <td>The latest generated post. At workflow end this holds the best (or last) version.</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <p>The <code>add_messages</code> reducer ensures that state updates from each node are <strong>appended</strong> rather than overwritten, so the message list grows naturally throughout the workflow.</p>
+    </section>
+
+    <!-- ============================================================
+         4. PROMPTS
+         ============================================================ -->
+    <section>
+        <h2>4. Prompts</h2>
+        <p>Two separate prompts drive the two nodes. Both use <code>ChatPromptTemplate</code> from LangChain with a <code>MessagesPlaceholder</code> for the conversation history.</p>
+
+        <div class="prompt-grid">
+            <div class="prompt-box">
+                <h4>Generation Prompt (System 1)</h4>
+                <pre>You are an elite LinkedIn content strategist.
+
+Your ONLY task is to generate a high-performing
+LinkedIn post.
+
+Rules:
+- Output ONLY the post
+- No explanations
+- No markdown fences
+- No commentary
+- Optimize for engagement
+- Maintain professional tone
+- Include a strong hook
+- Include emotional resonance
+- Add CTA if appropriate</pre>
+            </div>
+            <div class="prompt-box">
+                <h4>Reflection Prompt (System 2)</h4>
+                <pre>You are a senior LinkedIn growth strategist.
+
+Critique the LinkedIn post.
+
+Return:
+1. Quality score from 1-10
+2. Weaknesses
+3. Specific improvements
+
+Be brutally honest.</pre>
+            </div>
+        </div>
+
+        <div class="card">
+            <p><strong>Key design choices:</strong></p>
+            <ul style="padding-left:1.25rem;">
+                <li>The generation prompt explicitly bans meta-commentary (<em>"Output ONLY the post"</em>) to prevent conversational responses.</li>
+                <li>The reflection prompt requests a <code>N/10</code> score, which is extracted by a regex helper function.</li>
+                <li>Separate LLM instances with different temperatures allow creative generation (0.7) and focused critique (0.2).</li>
+            </ul>
+        </div>
+    </section>
+
+    <!-- ============================================================
+         5. SCORING & ROUTING
+         ============================================================ -->
+    <section>
+        <h2>5. Scoring &amp; Routing</h2>
+
+        <h3>Score Extraction</h3>
+        <div class="card">
+            <p>The <code>extract_score()</code> helper uses a regex to find patterns like <code>7/10</code> or <code>8.5/10</code> in the reflection output:</p>
+            <pre><span class="kw">import</span> re
+match = re.<span class="fn">search</span>(<span class="str">r'(\d+(\.\d+)?)\s*/?\s*10'</span>, text)
+<span class="kw">if</span> match:
+    <span class="kw">return</span> <span class="fn">float</span>(match.<span class="fn">group</span>(<span class="num">1</span>))
+<span class="kw">return</span> <span class="num">5.0</span>  <span class="cm"># neutral default</span></pre>
+            <p style="margin-top:0.5rem;">If no score pattern is found, a default of <strong>5.0</strong> is returned so the workflow continues rather than prematurely stopping.</p>
+        </div>
+
+        <h3>Router Logic</h3>
+        <div class="card">
+            <p>The <code>router()</code> function is the conditional edge attached to the <code>"reflect"</code> node. It checks two stopping criteria:</p>
+            <ol style="padding-left:1.25rem; margin-top:0.5rem;">
+                <li><strong>Quality threshold:</strong> If <code>score &ge; MIN_QUALITY_SCORE (8.5)</code> &rarr; route to <code>END</code>.</li>
+                <li><strong>Max iterations:</strong> If <code>iteration &ge; MAX_ITERATIONS (4)</code> &rarr; route to <code>END</code> (safety limit).</li>
+                <li><strong>Otherwise:</strong> Route back to <code>"generate"</code> for another refinement cycle.</li>
+            </ol>
+        </div>
+    </section>
+
+    <!-- ============================================================
+         6. CONFIGURATION
+         ============================================================ -->
+    <section>
+        <h2>6. Configuration</h2>
+        <p>All tunable parameters live in the <code>Config</code> class for easy experimentation:</p>
+
+        <table class="state-table">
+            <thead>
+                <tr>
+                    <th>Parameter</th>
+                    <th>Value</th>
+                    <th>Purpose</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr>
+                    <td class="field">MODEL_NAME</td>
+                    <td><code>deepseek-chat</code></td>
+                    <td>DeepSeek model identifier used for all LLM calls.</td>
+                </tr>
+                <tr>
+                    <td class="field">BASE_URL</td>
+                    <td><code>https://api.deepseek.com/v1</code></td>
+                    <td>DeepSeek's OpenAI-compatible API endpoint.</td>
+                </tr>
+                <tr>
+                    <td class="field">MAX_ITERATIONS</td>
+                    <td><code>4</code></td>
+                    <td>Maximum generate&ndash;reflect cycles before forced exit. Prevents infinite loops.</td>
+                </tr>
+                <tr>
+                    <td class="field">MIN_QUALITY_SCORE</td>
+                    <td><code>8.5</code></td>
+                    <td>Score threshold for early stopping. When score &ge; this &rarr; END.</td>
+                </tr>
+                <tr>
+                    <td class="field">TEMPERATURE_GENERATE</td>
+                    <td><code>0.7</code></td>
+                    <td>Higher = more creative, varied drafts (System 1).</td>
+                </tr>
+                <tr>
+                    <td class="field">TEMPERATURE_REFLECT</td>
+                    <td><code>0.2</code></td>
+                    <td>Lower = more focused, consistent critiques (System 2).</td>
+                </tr>
+                <tr>
+                    <td class="field">TIMEOUT_SECONDS</td>
+                    <td><code>120</code></td>
+                    <td>Max wall-clock time for the full workflow. Prevents indefinite hangs.</td>
+                </tr>
+            </tbody>
+        </table>
+    </section>
+
+    <!-- ============================================================
+         7. CODE STRUCTURE
+         ============================================================ -->
+    <section>
+        <h2>7. Code Structure</h2>
+
+        <div class="card">
+            <div class="card-title">Module Docstring</div>
+            <p>Explains the Reflection Agent concept, System 1 vs System 2, the ASCII workflow diagram, and all key features.</p>
+        </div>
+
+        <div class="card">
+            <div class="card-title">Imports</div>
+            <p><code>os</code>, <code>logging</code>, <code>typing</code> (Annotated, TypedDict, List, Literal), <code>dotenv</code>, <code>langchain_openai</code>, <code>langchain_core.messages</code>, <code>langchain_core.prompts</code>, and <code>langgraph.graph</code>.</p>
+        </div>
+
+        <div class="card">
+            <div class="card-title">Config class</div>
+            <p>Centralises model name, API URL, iteration limits, quality thresholds, temperatures, and timeout.</p>
+        </div>
+
+        <div class="card">
+            <div class="card-title">Logging</div>
+            <p>Python <code>logging</code> with INFO level and timestamped format for observability.</p>
+        </div>
+
+        <div class="card">
+            <div class="card-title">Environment &amp; LLM Setup</div>
+            <p>Loads <code>.env</code> via <code>python-dotenv</code>, reads <code>DEEPSEEK_API_KEY</code> (or <code>OPENAI_API_KEY</code> as fallback), and initialises two separate <code>ChatOpenAI</code> instances: one for generation (high temp) and one for reflection (low temp).</p>
+        </div>
+
+        <div class="card">
+            <div class="card-title">AgentState (TypedDict)</div>
+            <p>Defines the five fields: <code>messages</code> (with <code>add_messages</code> reducer), <code>iteration</code>, <code>quality_score</code>, <code>latest_feedback</code>, <code>final_post</code>.</p>
+        </div>
+
+        <div class="card">
+            <div class="card-title">Prompts &amp; Chains</div>
+            <p>Two <code>ChatPromptTemplate</code> definitions (generation + reflection) linked to their respective LLMs via the pipe operator (<code>|</code>).</p>
+        </div>
+
+        <div class="card">
+            <div class="card-title">Helper: extract_score()</div>
+            <p>Regex-based score parser that extracts <code>N/10</code> patterns from reflection output.</p>
+        </div>
+
+        <div class="card">
+            <div class="card-title">Nodes: generation_node &amp; reflection_node</div>
+            <p>The two graph nodes. Generation logs length and updates <code>final_post</code>. Reflection invokes the reflect chain, parses the score, increments iteration, and wraps feedback as <code>HumanMessage</code>.</p>
+        </div>
+
+        <div class="card">
+            <div class="card-title">Router</div>
+            <p>Conditional edge that checks score threshold and max iterations to decide: loop or END.</p>
+        </div>
+
+        <div class="card">
+            <div class="card-title">Graph Construction &amp; Compilation</div>
+            <p>Builds the <code>StateGraph(AgentState)</code> with nodes, edges, entry point, and conditional routing, then compiles.</p>
+        </div>
+
+        <div class="card">
+            <div class="card-title">main() &amp; export_graph()</div>
+            <p><code>main()</code> runs the workflow, prints results, and saves to markdown. <code>export_graph()</code> saves the diagram as PNG or Mermaid fallback.</p>
+        </div>
+    </section>
+
+    <!-- ============================================================
+         8. WHY HumanMessage FOR CRITIQUE?
+         ============================================================ -->
+    <section>
+        <h2>8. Why is the Critique Wrapped in HumanMessage?</h2>
+        <div class="card">
+            <p>The reflection node returns its critique as a <code>HumanMessage</code> rather than <code>AIMessage</code>. This is deliberate:</p>
+            <ul style="padding-left:1.25rem; margin-top:0.5rem;">
+                <li>The generation prompt uses a <code>MessagesPlaceholder</code> that expects <strong>user messages</strong> to trigger revision.</li>
+                <li>By wrapping the critique as a <code>HumanMessage</code>, the generation node treats it as <strong>user feedback</strong> and revises the post accordingly.</li>
+                <li>This creates a natural loop: <em>AI generates</em> &rarr; <em>AI critiques (masquerading as user)</em> &rarr; <em>AI revises</em>.</li>
+            </ul>
+        </div>
+    </section>
+
+    <!-- ============================================================
+         9. ERROR HANDLING
+         ============================================================ -->
+    <section>
+        <h2>9. Error Handling &amp; Fallbacks</h2>
+        <div class="card">
+            <ul style="padding-left:1.25rem;">
+                <li><strong>Missing API key:</strong> Raises <code>ValueError</code> with clear instructions.</li>
+                <li><strong>API failure / timeout:</strong> Caught by the <code>try/except</code> in <code>main()</code>. A hardcoded fallback post is printed instead.</li>
+                <li><strong>Graphviz not installed:</strong> <code>export_graph()</code> catches the exception silently and falls back to Mermaid text format.</li>
+            </ul>
+        </div>
+    </section>
+
+    <!-- ============================================================
+         10. OUTPUT
+         ============================================================ -->
+    <section>
+        <h2>10. Output</h2>
+        <div class="card">
+            <p>When the workflow completes successfully, it produces:</p>
+            <ul style="padding-left:1.25rem; margin-top:0.5rem;">
+                <li><strong>Console:</strong> The final LinkedIn post, quality score, and iteration count.</li>
+                <li><strong><code>final_linkedin_post.md</code>:</strong> The post saved as a standalone markdown file.</li>
+                <li><strong><code>advanced_reflection_graph.png</code> or <code>.mmd</code>:</strong> A visualisation of the workflow graph.</li>
+                <li><strong>Logs:</strong> Timestamped INFO-level logs showing each step and score.</li>
+            </ul>
+        </div>
+    </section>
+
+</div>
+
+<!-- ================================================================
+     FOOTER
+     ================================================================ -->
+<footer>
+    <p>Generated from <a href="REFLECTION.py" target="_blank">REFLECTION.py</a> &mdash; Advanced Reflection Agent with LangGraph + StateGraph</p>
+    <p style="margin-top:0.25rem;">LangGraph &middot; DeepSeek Chat &middot; <code>python-dotenv</code></p>
+</footer>
+
+</body>
+</html>
