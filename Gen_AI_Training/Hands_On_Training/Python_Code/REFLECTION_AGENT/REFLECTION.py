@@ -389,7 +389,7 @@ def reflection_node(state: AgentState) -> AgentState:
 
 def router(
     state: AgentState
-) -> Literal["generate", END]:
+) -> Literal["generate"]:
     """Decide whether to continue refining or stop the workflow.
 
     This is the conditional edge attached to the reflect node. After
