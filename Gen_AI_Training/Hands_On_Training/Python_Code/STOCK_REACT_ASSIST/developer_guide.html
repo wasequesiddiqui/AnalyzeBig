@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Stock React Assistant — Developer Guide</title>
+<style>
+  :root {
+    --bg-primary: #0d1117;
+    --bg-secondary: #161b22;
+    --bg-tertiary: #21262d;
+    --bg-card: #1c2128;
+    --border: #30363d;
+    --text-primary: #e6edf3;
+    --text-secondary: #8b949e;
+    --text-muted: #6e7681;
+    --accent: #58a6ff;
+    --accent2: #3fb950;
+    --accent3: #d2991d;
+    --accent4: #f78166;
+    --accent5: #bc8cff;
+    --radius: 12px;
+    --radius-sm: 8px;
+    --transition: 0.25s cubic-bezier(0.4,0,0.2,1);
+    --font-mono: 'Cascadia Code','Fira Code','JetBrains Mono',Consolas,monospace;
+    --font-sans: -apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+  }
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  html{scroll-behavior:smooth}
+  body{
+    font-family:var(--font-sans);
+    background:var(--bg-primary);
+    color:var(--text-primary);
+    line-height:1.7;
+    overflow-x:hidden;
+  }
+  .navbar{
+    position:sticky;top:0;z-index:100;
+    background:rgba(13,17,23,0.85);
+    backdrop-filter:blur(16px) saturate(180%);
+    border-bottom:1px solid var(--border);
+    padding:0 2rem;
+    display:flex;align-items:center;gap:2rem;
+    height:58px;
+  }
+  .navbar .logo{
+    font-weight:700;font-size:1.1rem;
+    background:linear-gradient(135deg,var(--accent),var(--accent5));
+    -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  }
+  .navbar nav{display:flex;gap:1.5rem}
+  .navbar nav a{
+    color:var(--text-secondary);text-decoration:none;
+    font-size:0.9rem;font-weight:500;
+    transition:color var(--transition);
+    position:relative;
+  }
+  .navbar nav a:hover,.navbar nav a.active{color:var(--accent)}
+  .navbar nav a.active::after{
+    content:'';position:absolute;bottom:-4px;left:0;right:0;
+    height:2px;background:var(--accent);border-radius:1px;
+  }
+  .hero{
+    display:flex;flex-direction:column;align-items:center;
+    padding:4rem 2rem 3rem;text-align:center;
+    background:radial-gradient(ellipse at 50% 0%,rgba(88,166,255,0.08) 0%,transparent 70%);
+  }
+  .hero h1{
+    font-size:clamp(2rem,5vw,3.2rem);font-weight:800;
+    background:linear-gradient(135deg,var(--accent) 0%,var(--accent5) 60%,var(--accent2) 100%);
+    -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+    margin-bottom:0.75rem;
+  }
+  .hero .subtitle{color:var(--text-secondary);font-size:1.15rem;max-width:650px;margin-bottom:2rem}
+  .hero .diagram{
+    max-width:900px;width:100%;border-radius:var(--radius);
+    border:1px solid var(--border);box-shadow:0 8px 40px rgba(0,0,0,0.5);
+    transition:transform var(--transition);
+  }
+  .hero .diagram:hover{transform:scale(1.01)}
+  .container{max-width:1200px;margin:0 auto;padding:0 2rem}
+  section{padding:3rem 0}
+  section:nth-child(even){background:var(--bg-secondary)}
+  .section-title{font-size:1.6rem;font-weight:700;margin-bottom:0.5rem;display:flex;align-items:center;gap:0.5rem}
+  .section-title .icon{font-size:1.4rem}
+  .section-desc{color:var(--text-secondary);margin-bottom:2rem;max-width:700px}
+  .tab-nav{
+    display:flex;gap:0.25rem;margin-bottom:1.5rem;
+    border-bottom:1px solid var(--border);
+    overflow-x:auto;-webkit-overflow-scrolling:touch;
+  }
+  .tab-btn{
+    padding:0.7rem 1.3rem;border:none;background:none;
+    color:var(--text-secondary);font-family:inherit;font-size:0.9rem;
+    font-weight:500;cursor:pointer;
+    border-bottom:2px solid transparent;
+    transition:all var(--transition);white-space:nowrap;
+  }
+  .tab-btn:hover{color:var(--text-primary)}
+  .tab-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
+  .tab-panel{display:none;animation:fadeSlide 0.35s ease}
+  .tab-panel.active{display:block}
+  @keyframes fadeSlide{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:1.25rem}
+  .card{
+    background:var(--bg-card);border:1px solid var(--border);
+    border-radius:var(--radius);padding:1.5rem;
+    transition:border-color var(--transition),box-shadow var(--transition);
+  }
+  .card:hover{border-color:var(--accent);box-shadow:0 4px 24px rgba(88,166,255,0.08)}
+  .card h3{font-size:1.1rem;margin-bottom:0.5rem;display:flex;align-items:center;gap:0.4rem}
+  .card .badge{
+    font-size:0.7rem;padding:0.15rem 0.55rem;border-radius:99px;
+    font-weight:600;text-transform:uppercase;letter-spacing:0.4px;
+  }
+  .badge-tool{background:rgba(88,166,255,0.15);color:var(--accent)}
+  .badge-llm{background:rgba(188,140,255,0.15);color:var(--accent5)}
+  .badge-ml{background:rgba(63,185,80,0.15);color:var(--accent2)}
+  .card p{color:var(--text-secondary);font-size:0.9rem;line-height:1.6}
+  .card .code-preview{
+    margin-top:1rem;background:var(--bg-primary);
+    border-radius:var(--radius-sm);padding:0.75rem 1rem;
+    font-family:var(--font-mono);font-size:0.8rem;
+    color:var(--text-muted);overflow-x:auto;
+    border:1px solid var(--border);
+  }
+  .accordion-toggle{
+    margin-top:0.8rem;background:none;border:none;color:var(--accent);
+    font-family:inherit;font-size:0.85rem;cursor:pointer;
+    display:flex;align-items:center;gap:0.3rem;padding:0;
+  }
+  .accordion-content{display:none;margin-top:0.75rem}
+  .accordion-content.open{display:block}
+  .code-viewer{
+    background:var(--bg-primary);border:1px solid var(--border);
+    border-radius:var(--radius);max-height:70vh;
+    display:flex;flex-direction:column;
+  }
+  .code-viewer .toolbar{
+    display:flex;justify-content:space-between;align-items:center;
+    padding:0.6rem 1rem;background:var(--bg-tertiary);border-bottom:1px solid var(--border);
+    flex-shrink:0;
+  }
+  .code-viewer .toolbar span{font-size:0.8rem;color:var(--text-muted)}
+  .code-viewer .toolbar button{
+    background:var(--bg-card);border:1px solid var(--border);
+    color:var(--text-secondary);padding:0.3rem 0.8rem;
+    border-radius:var(--radius-sm);cursor:pointer;
+    font-family:inherit;font-size:0.8rem;transition:all var(--transition);
+  }
+  .code-viewer .toolbar button:hover{border-color:var(--accent);color:var(--accent)}
+  .code-viewer pre{
+    padding:1.25rem;margin:0;overflow:auto;
+    font-family:var(--font-mono);font-size:0.82rem;line-height:1.6;
+    flex:1;min-height:0;
+  }
+  .code-viewer .line{
+    display:block;padding:0 0.5rem;border-left:3px solid transparent;
+  }
+  .code-viewer .line:hover{background:rgba(88,166,255,0.04);border-left-color:var(--accent)}
+  .syn-kw{color:#ff7b72}.syn-str{color:#a5d6ff}.syn-cmt{color:#8b949e;font-style:italic}
+  .syn-fn{color:#d2a8ff}.syn-dec{color:#ffa657}.syn-num{color:#79c0ff}
+  .syn-cls{color:#ffa657}.syn-mod{color:#ffa657}
+  .flow{
+    display:flex;align-items:center;justify-content:center;
+    flex-wrap:wrap;gap:0.5rem;margin:2rem 0;
+  }
+  .flow .node{
+    background:var(--bg-card);border:1px solid var(--border);
+    border-radius:var(--radius-sm);padding:0.8rem 1.2rem;
+    font-weight:600;font-size:0.9rem;white-space:nowrap;
+  }
+  .flow .arrow{font-size:1.3rem;color:var(--accent3)}
+  .flow .node.start{border-color:var(--accent2);background:rgba(63,185,80,0.08)}
+  .flow .node.end{border-color:var(--accent4);background:rgba(247,129,102,0.08)}
+  .flow .node.tool{border-color:var(--accent);background:rgba(88,166,255,0.08)}
+  .callout{
+    border-left:3px solid var(--accent);
+    background:rgba(88,166,255,0.05);
+    padding:1rem 1.25rem;border-radius:0 var(--radius-sm) var(--radius-sm) 0;
+    margin:1.25rem 0;font-size:0.9rem;
+  }
+  .callout.warn{border-left-color:var(--accent3);background:rgba(210,153,29,0.05)}
+  .callout.tip{border-left-color:var(--accent2);background:rgba(63,185,80,0.05)}
+  .kv-table{width:100%;border-collapse:collapse;margin:1rem 0}
+  .kv-table th,.kv-table td{text-align:left;padding:0.7rem 1rem;border-bottom:1px solid var(--border)}
+  .kv-table th{color:var(--text-muted);font-weight:500;font-size:0.8rem;text-transform:uppercase;letter-spacing:0.5px}
+  .kv-table td{font-size:0.9rem}
+  .kv-table code{background:var(--bg-tertiary);padding:0.15rem 0.4rem;border-radius:4px;font-size:0.82rem}
+  footer{text-align:center;padding:2.5rem 2rem;color:var(--text-muted);font-size:0.85rem;border-top:1px solid var(--border)}
+  .toast{
+    position:fixed;bottom:2rem;left:50%;transform:translateX(-50%);
+    background:var(--accent2);color:#000;padding:0.6rem 1.4rem;
+    border-radius:99px;font-weight:600;font-size:0.85rem;
+    animation:toastIn 0.3s ease,toastOut 0.3s ease 1.7s forwards;z-index:999;
+  }
+  @keyframes toastIn{from{opacity:0;transform:translateX(-50%) translateY(10px)}}
+  @keyframes toastOut{to{opacity:0;transform:translateX(-50%) translateY(-10px)}}
+  @media(max-width:768px){
+    .navbar{padding:0 1rem;gap:1rem}
+    .navbar nav{gap:0.8rem}
+    .cards{grid-template-columns:1fr}
+    .hero{padding:2.5rem 1rem 2rem}
+    .flow{flex-direction:column}
+    .flow .arrow{transform:rotate(90deg)}
+  }
+</style>
+</head>
+<body>
+
+<header class="navbar">
+  <span class="logo">&#x1F9E0; StockReact</span>
+  <nav>
+    <a href="#overview" class="active">Overview</a>
+    <a href="#architecture">Architecture</a>
+    <a href="#tools">Tools</a>
+    <a href="#agent">Agent</a>
+    <a href="#setup">Setup</a>
+    <a href="#source">Source Code</a>
+  </nav>
+</header>
+
+<section class="hero" id="overview">
+  <h1>Stock React Assistant</h1>
+  <p class="subtitle">
+    A LangChain ReAct agent that researches stocks autonomously &mdash; fetching news,
+    analysing financial impact with DeepSeek, and gauging Twitter sentiment with
+    a RoBERTa transformer.
+  </p>
+  <img class="diagram" src="STOCK_REACT_AGENT.png" alt="Stock React Agent Architecture Diagram" />
+</section>
+
+<section id="architecture">
+  <div class="container">
+    <h2 class="section-title"><span class="icon">&#x1F3D7;&#xFE0F;</span> Architecture Overview</h2>
+    <p class="section-desc">
+      The agent follows the <strong>ReAct (Reasoning + Acting)</strong> paradigm.
+      The LLM alternates between internal reasoning ("Thought") and tool
+      invocation ("Action") until it has enough information to produce a
+      "Final Answer".
+    </p>
+    <div class="flow">
+      <div class="node start">&#x1F464; User Input</div>
+      <span class="arrow">&rarr;</span>
+      <div class="node">&#x1F916; ChatDeepSeek<br/><small style="color:var(--text-muted)">temperature=0</small></div>
+      <span class="arrow">&rarr;</span>
+      <div class="node tool">&#x1F4F0; get_stock_news</div>
+      <span class="arrow">&rarr;</span>
+      <div class="node tool">&#x1F4CA; analyze_impact</div>
+      <span class="arrow">&rarr;</span>
+      <div class="node tool">&#x1F426; get_twitter_sentiment</div>
+      <span class="arrow">&rarr;</span>
+      <div class="node end">&#x2705; Final Answer</div>
+    </div>
+    <div class="cards" style="margin-top:2rem">
+      <div class="card">
+        <h3>&#x1F501; AgentExecutor</h3>
+        <p>Orchestrates the ReAct loop. Parses the LLM's output, dispatches tool calls, feeds observations back, and stops when a Final Answer is produced &mdash; or after <code>max_iterations=6</code>.</p>
+      </div>
+      <div class="card">
+        <h3>&#x1F9F0; Tools</h3>
+        <p>Three <code>@tool</code>-decorated Python functions. Each tool's <strong>docstring</strong> is its prompt &mdash; the LLM reads it to decide which tool to use and what arguments to pass.</p>
+      </div>
+      <div class="card">
+        <h3>&#x1F4CB; Prompt Template</h3>
+        <p>A classic ReAct-format template with placeholders <code>{tool_names}</code>, <code>{input}</code>, and <code>{agent_scratchpad}</code>. The scratchpad accumulates the Thought/Action/Observation history.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="tools">
+  <div class="container">
+    <h2 class="section-title"><span class="icon">&#x1F527;</span> The Three Tools</h2>
+    <p class="section-desc">Each <code>@tool</code> function is an independent capability the agent can invoke. Click each card to expand implementation details.</p>
+    <div class="cards">
+      <div class="card">
+        <h3>&#x1F4F0; get_stock_news <span class="badge badge-tool">Tool 1</span></h3>
+        <p>Queries <strong>NewsAPI</strong>'s <code>/v2/everything</code> endpoint for the 10 most recent English-language business articles matching the stock ticker.</p>
+        <div class="code-preview"><span style="color:var(--accent5)">@tool</span> <span style="color:var(--accent)">def</span> <span style="color:var(--accent2)">get_stock_news</span>(ticker: str) &rarr; str</div>
+        <button class="accordion-toggle" onclick="var n=this.nextElementSibling;n.classList.toggle('open');this.textContent=n.classList.contains('open')?'&#x25BE; Details':'&#x25B8; Details'">&#x25B8; Details</button>
+        <div class="accordion-content">
+          <table class="kv-table">
+            <tr><th>Input</th><td><code>ticker: str</code> &mdash; e.g. <code>"AAPL"</code></td></tr>
+            <tr><th>Output</th><td>Numbered list of headlines + descriptions</td></tr>
+            <tr><th>API</th><td>NewsAPI free tier (500 req/day)</td></tr>
+            <tr><th>Error handling</th><td>Returns <code>"Error fetching news: &hellip;"</code> so the agent can observe and adapt</td></tr>
+          </table>
+        </div>
+      </div>
+      <div class="card">
+        <h3>&#x1F4CA; analyze_impact <span class="badge badge-llm">Tool 2</span></h3>
+        <p>Takes raw news text and prompts <strong>DeepSeek</strong> to produce a structured JSON analysis covering four financial dimensions.</p>
+        <div class="code-preview"><span style="color:var(--accent5)">@tool</span> <span style="color:var(--accent)">def</span> <span style="color:var(--accent2)">analyze_impact</span>(news_text: str) &rarr; str</div>
+        <button class="accordion-toggle" onclick="var n=this.nextElementSibling;n.classList.toggle('open');this.textContent=n.classList.contains('open')?'&#x25BE; Details':'&#x25B8; Details'">&#x25B8; Details</button>
+        <div class="accordion-content">
+          <table class="kv-table">
+            <tr><th>Input</th><td><code>news_text: str</code> &mdash; concatenated headlines from <code>get_stock_news</code></td></tr>
+            <tr><th>Output</th><td>Pretty-printed JSON with keys: <code>financials</code>, <code>business_growth</code>, <code>cashflows</code>, <code>profitability</code></td></tr>
+            <tr><th>LLM</th><td>ChatDeepSeek @ temperature=0 (deterministic)</td></tr>
+            <tr><th>Fallback</th><td>If JSON parsing fails, returns raw LLM text</td></tr>
+          </table>
+        </div>
+      </div>
+      <div class="card">
+        <h3>&#x1F426; get_twitter_sentiment <span class="badge badge-ml">Tool 3</span></h3>
+        <p>Scrapes tweets via <strong>snscrape</strong> (no API key required) and classifies sentiment using a <strong>RoBERTa</strong> transformer fine-tuned on ~124M tweets.</p>
+        <div class="code-preview"><span style="color:var(--accent5)">@tool</span> <span style="color:var(--accent)">def</span> <span style="color:var(--accent2)">get_twitter_sentiment</span>(ticker: str) &rarr; str</div>
+        <button class="accordion-toggle" onclick="var n=this.nextElementSibling;n.classList.toggle('open');this.textContent=n.classList.contains('open')?'&#x25BE; Details':'&#x25B8; Details'">&#x25B8; Details</button>
+        <div class="accordion-content">
+          <table class="kv-table">
+            <tr><th>Input</th><td><code>ticker: str</code> &mdash; prefixed with <code>$</code> for cashtag search</td></tr>
+            <tr><th>Window</th><td>90 days (quarterly cadence)</td></tr>
+            <tr><th>Scrape</th><td>Up to 200 tweets; first 100 classified</td></tr>
+            <tr><th>Model</th><td><code>cardiffnlp/twitter-roberta-base-sentiment-latest</code></td></tr>
+            <tr><th>Output</th><td>Percentage breakdown: positive / neutral / negative</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="agent">
+  <div class="container">
+    <h2 class="section-title"><span class="icon">&#x1F916;</span> Agent Configuration</h2>
+    <p class="section-desc">How the ReAct loop is wired together and what each parameter controls.</p>
+    <div class="tab-nav">
+      <button class="tab-btn active" data-tab="tab-prompt">Prompt Template</button>
+      <button class="tab-btn" data-tab="tab-executor">AgentExecutor</button>
+      <button class="tab-btn" data-tab="tab-flow">Execution Flow</button>
+    </div>
+    <div class="tab-panel active" id="tab-prompt">
+      <div class="card">
+        <h3>&#x1F4CB; ReAct Prompt Template</h3>
+        <p style="margin-bottom:0.8rem">The prompt structure is <strong>critical</strong> &mdash; the AgentExecutor uses regex to find <code>Action:</code> and <code>Action Input:</code> lines. Any deviation breaks the parser.</p>
+        <div class="code-preview"><pre style="margin:0;font-family:var(--font-mono);font-size:0.78rem;line-height:1.6">
+<span style="color:var(--text-muted)">Question:</span> the input question you must answer
+<span style="color:var(--text-muted)">Thought:</span>  you should always think about what to do
+<span style="color:var(--text-muted)">Action:</span>  the action to take, should be one of [<span style="color:var(--accent5)">{tool_names}</span>]
+<span style="color:var(--text-muted)">Action Input:</span> the input to the action
+<span style="color:var(--text-muted)">Observation:</span> the result of the action
+<span style="color:var(--text-muted)">...</span> (repeat as needed)
+<span style="color:var(--text-muted)">Thought:</span> I now know the final answer
+<span style="color:var(--text-muted)">Final Answer:</span> the final answer to the original input question</pre></div>
+      </div>
+    </div>
+    <div class="tab-panel" id="tab-executor">
+      <div class="card">
+        <h3>&#x2699;&#xFE0F; AgentExecutor Parameters</h3>
+        <table class="kv-table">
+          <tr><th>Parameter</th><th>Value</th><th>Purpose</th></tr>
+          <tr><td><code>agent</code></td><td>ReAct runnable</td><td>The wired-up LLM + tools + prompt</td></tr>
+          <tr><td><code>tools</code></td><td>[get_stock_news, &hellip;]</td><td>Tool list for dispatch</td></tr>
+          <tr><td><code>verbose</code></td><td><code>True</code></td><td>Prints Thought/Action/Observation to console</td></tr>
+          <tr><td><code>handle_parsing_errors</code></td><td><code>True</code></td><td>Feeds malformed LLM output back as an Observation so the agent can self-correct</td></tr>
+          <tr><td><code>max_iterations</code></td><td><code>6</code></td><td>Hard safety cap &mdash; prevents infinite loops</td></tr>
+        </table>
+      </div>
+    </div>
+    <div class="tab-panel" id="tab-flow">
+      <div class="card">
+        <h3>&#x1F504; Execution Flow (Step by Step)</h3>
+        <div style="display:flex;flex-direction:column;gap:0.6rem;margin-top:1rem">
+          <div style="display:flex;gap:0.8rem;align-items:baseline"><span style="color:var(--accent2);font-weight:700;min-width:1.5rem">1.</span><span><strong>User calls</strong> <code>agent_executor.invoke({"input": question})</code></span></div>
+          <div style="display:flex;gap:0.8rem;align-items:baseline"><span style="color:var(--accent2);font-weight:700;min-width:1.5rem">2.</span><span><strong>AgentExecutor</strong> fills the prompt template with <code>{input}</code> and sends it to the LLM</span></div>
+          <div style="display:flex;gap:0.8rem;align-items:baseline"><span style="color:var(--accent2);font-weight:700;min-width:1.5rem">3.</span><span><strong>LLM</strong> generates <code>Thought: &hellip; Action: get_stock_news Action Input: AAPL</code></span></div>
+          <div style="display:flex;gap:0.8rem;align-items:baseline"><span style="color:var(--accent2);font-weight:700;min-width:1.5rem">4.</span><span><strong>Executor</strong> parses the Action line, calls <code>get_stock_news("AAPL")</code>, and appends the result as an <code>Observation</code></span></div>
+          <div style="display:flex;gap:0.8rem;align-items:baseline"><span style="color:var(--accent2);font-weight:700;min-width:1.5rem">5.</span><span><strong>Loop repeats</strong> &mdash; the updated scratchpad is sent back to the LLM for the next Thought/Action</span></div>
+          <div style="display:flex;gap:0.8rem;align-items:baseline"><span style="color:var(--accent2);font-weight:700;min-width:1.5rem">6.</span><span><strong>LLM outputs</strong> <code>Final Answer: &hellip;</code> &rarr; AgentExecutor stops and returns <code>{"output": "&hellip;"}</code></span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="setup">
+  <div class="container">
+    <h2 class="section-title"><span class="icon">&#x1F680;</span> Setup &amp; Run</h2>
+    <p class="section-desc">Get the agent running in under 5 minutes.</p>
+    <div class="cards">
+      <div class="card">
+        <h3>1&#xFE0F;&#x20E3; Environment Variables</h3>
+        <p>Create a <code>.env</code> file in the project root:</p>
+        <div class="code-preview">DEEPSEEK_API_KEY=sk-your-key-here<br/>NEWS_API_KEY=your-newsapi-key</div>
+      </div>
+      <div class="card">
+        <h3>2&#xFE0F;&#x20E3; Install Dependencies</h3>
+        <div class="code-preview">pip install langchain langchain-core langchain-deepseek<br/>pip install python-dotenv newsapi-python snscrape<br/>pip install transformers pandas</div>
+      </div>
+      <div class="card">
+        <h3>3&#xFE0F;&#x20E3; Run the Agent</h3>
+        <div class="code-preview">python stock_react_agent.py<br/><span style="color:var(--text-muted)">Enter stock ticker:</span> AAPL</div>
+        <div class="callout tip" style="margin-top:0.8rem"><strong>&#x1F4A1; Tip:</strong> First run will download the RoBERTa model (~500 MB). Subsequent runs use the cached model.</div>
+      </div>
+    </div>
+    <div class="callout warn" style="margin-top:1.5rem"><strong>&#x26A0;&#xFE0F; Rate Limits:</strong> NewsAPI free tier allows 500 requests/day. snscrape may be rate-limited by Twitter/X if you scrape too aggressively. The 90-day window + 200-tweet cap is designed to stay within reasonable limits.</div>
+  </div>
+</section>
+
+<section id="source">
+  <div class="container">
+    <h2 class="section-title"><span class="icon">&#x1F4DC;</span> Complete Source Code</h2>
+    <p class="section-desc">The full <code>stock_react_agent.py</code> with syntax highlighting. Click <strong>Copy</strong> to copy the entire file to your clipboard.</p>
+    <div class="code-viewer">
+      <div class="toolbar">
+        <span>&#x1F4C4; stock_react_agent.py</span>
+        <button onclick="copyCode()">&#x1F4CB; Copy</button>
+      </div>
+      <pre><code id="sourceCode"></code></pre>
+    </div>
+  </div>
+</section>
+
+<footer>Stock React Assistant &mdash; Developer Guide &nbsp;|&nbsp; Built with LangChain + DeepSeek + Hugging Face</footer>
+
+<!-- Hidden pre element stores the raw Python source for JS to read -->
+<pre id="source-code-data" style="display:none"></pre>
+
+<script>
+// =========================================================================
+// Load Python source code into hidden element (fetched from same directory)
+// =========================================================================
+(async function() {
+  try {
+    const resp = await fetch('stock_react_agent.py');
+    if (resp.ok) {
+      document.getElementById('source-code-data').textContent = await resp.text();
+    }
+  } catch(e) {
+    // Fallback: if fetch fails (e.g. file:// protocol), inject a message
+    document.getElementById('source-code-data').textContent =
+      '# Could not load stock_react_agent.py automatically.\n' +
+      '# Please open the file directly in your editor to view the source.\n';
+  }
+  // Now render
+  renderCode();
+})();
+
+function renderCode() {
+  var raw = document.getElementById('source-code-data').textContent;
+  if (!raw || raw.indexOf('Could not load') === 0) {
+    document.getElementById('sourceCode').innerHTML =
+      '<span style="color:var(--text-muted)">Source file loaded from stock_react_agent.py in the same directory.</span>';
+    return;
+  }
+  document.getElementById('sourceCode').innerHTML = highlightPython(raw);
+}
+
+// =========================================================================
+// Tab Switching
+// =========================================================================
+document.querySelectorAll('.tab-btn').forEach(function(btn) {
+  btn.addEventListener('click', function() {
+    var parent = this.parentElement;
+    var section = parent.parentElement;
+    parent.querySelectorAll('.tab-btn').forEach(function(b) { b.classList.remove('active'); });
+    this.classList.add('active');
+    section.querySelectorAll('.tab-panel').forEach(function(p) { p.classList.remove('active'); });
+    var target = section.querySelector('#' + this.dataset.tab);
+    if (target) target.classList.add('active');
+  });
+});
+
+// =========================================================================
+// Navbar scroll spy
+// =========================================================================
+var sections = document.querySelectorAll('section[id]');
+var navLinks = document.querySelectorAll('.navbar nav a');
+window.addEventListener('scroll', function() {
+  var current = '';
+  sections.forEach(function(s) {
+    if (scrollY >= s.offsetTop - 80) current = s.getAttribute('id');
+  });
+  navLinks.forEach(function(a) {
+    a.classList.toggle('active', a.getAttribute('href') === '#' + current);
+  });
+});
+navLinks.forEach(function(a) {
+  a.addEventListener('click', function(e) {
+    e.preventDefault();
+    var target = document.querySelector(this.getAttribute('href'));
+    if (target) target.scrollIntoView({ behavior: 'smooth' });
+  });
+});
+
+// =========================================================================
+// Syntax Highlighter
+// =========================================================================
+function highlightPython(code) {
+  var lines = code.split('\n');
+  return lines.map(function(line) {
+    var trimmed = line.trimStart();
+    var leading = line.match(/^(\s*)/)[1];
+
+    // Whole-line comment
+    if (/^\s*#/.test(trimmed)) {
+      return leading + '<span class="syn-cmt">' + esc(trimmed) + '</span>';
+    }
+    // Decorator
+    if (/^\s*@\w+/.test(trimmed)) {
+      return leading + '<span class="syn-dec">' + esc(trimmed) + '</span>';
+    }
+    // Docstring / multi-line string
+    if (/^\s*("""|''')/.test(trimmed)) {
+      return leading + '<span class="syn-str">' + esc(trimmed) + '</span>';
+    }
+
+    var hl = esc(trimmed);
+    // strings
+    hl = hl.replace(/(["'])(?:(?!\1)[^\\]|\\.)*\1/g, '<span class="syn-str">$&</span>');
+    hl = hl.replace(/(f["'])(?:(?!\1)[^\\]|\\.)*\1/g, '<span class="syn-str">$&</span>');
+    // keywords
+    hl = hl.replace(/\b(def|class|import|from|return|if|else|elif|for|while|try|except|with|as|in|not|and|or|is|None|True|False|yield|lambda|break|continue|pass|raise|finally|assert|global|nonlocal)\b/g,
+      '<span class="syn-kw">$1</span>');
+    // built-in functions
+    hl = hl.replace(/\b(print|input|len|range|enumerate|zip|map|filter|max|min|sum|abs|round|type|isinstance|hasattr|getattr|setattr|str|int|float|bool|list|dict|set|tuple|open|sorted|reversed|any|all|next|iter)\b(?=\s*\()/g,
+      '<span class="syn-fn">$1</span>');
+    // numbers
+    hl = hl.replace(/\b\d+\.?\d*\b/g, '<span class="syn-num">$&</span>');
+    // decorators
+    hl = hl.replace(/@\w+/g, '<span class="syn-dec">$&</span>');
+    // class names
+    hl = hl.replace(/(class\s+)(\w+)/g, '$1<span class="syn-cls">$2</span>');
+
+    return leading + hl;
+  }).map(function(l) { return '<span class="line">' + l + '</span>'; }).join('\n');
+}
+
+function esc(text) {
+  return text.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// =========================================================================
+// Copy to clipboard
+// =========================================================================
+function copyCode() {
+  var raw = document.getElementById('source-code-data').textContent;
+  navigator.clipboard.writeText(raw).then(function() {
+    var toast = document.createElement('div');
+    toast.className = 'toast';
+    toast.textContent = '\u2705 Copied to clipboard!';
+    document.body.appendChild(toast);
+    setTimeout(function() { toast.remove(); }, 2200);
+  });
+}
+</script>
+
+</body>
+</html>
