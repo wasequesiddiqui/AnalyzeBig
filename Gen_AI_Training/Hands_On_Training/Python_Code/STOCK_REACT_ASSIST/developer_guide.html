@@ -209,61 +209,62 @@
 <body>
 
 <header class="navbar">
-  <span class="logo">&#x1F9E0; StockReact</span>
+  <span class="logo">&#x1F4C8; StockReact</span>
   <nav>
     <a href="#overview" class="active">Overview</a>
     <a href="#architecture">Architecture</a>
-    <a href="#tools">Tools</a>
-    <a href="#agent">Agent</a>
+    <a href="#tools">Data Layer</a>
+    <a href="#pipeline">AI &amp; Report</a>
     <a href="#setup">Setup</a>
     <a href="#source">Source Code</a>
   </nav>
 </header>
 
 <section class="hero" id="overview">
-  <h1>Stock React Assistant</h1>
+  <h1>Stock Research AI Agent</h1>
   <p class="subtitle">
-    A LangChain ReAct agent that researches stocks autonomously &mdash; fetching news,
-    analysing financial impact with DeepSeek, and gauging Twitter sentiment with
-    a RoBERTa transformer.
+    An autonomous stock research pipeline that fetches real-time market data via
+    <strong>Yahoo Finance</strong>, aggregates financial news from <strong>NewsAPI</strong>,
+    computes sentiment with <strong>TextBlob</strong>, and produces a professional
+    HTML investment report powered by <strong>DeepSeek</strong>.
   </p>
-  <img class="diagram" src="STOCK_REACT_AGENT.png" alt="Stock React Agent Architecture Diagram" />
+  <img class="diagram" src="STOCK_REACT_AGENT.png" alt="Stock Research Agent Architecture Diagram" />
 </section>
 
 <section id="architecture">
   <div class="container">
     <h2 class="section-title"><span class="icon">&#x1F3D7;&#xFE0F;</span> Architecture Overview</h2>
     <p class="section-desc">
-      The agent follows the <strong>ReAct (Reasoning + Acting)</strong> paradigm.
-      The LLM alternates between internal reasoning ("Thought") and tool
-      invocation ("Action") until it has enough information to produce a
-      "Final Answer".
+      The agent follows a <strong>sequential pipeline</strong> with four distinct layers.
+      Data is collected first, then passed to the LLM for structured analysis, then
+      rendered into a self-contained HTML dashboard &mdash; no agentic loop, no
+      dynamic tool selection.
     </p>
     <div class="flow">
-      <div class="node start">&#x1F464; User Input</div>
+      <div class="node start">&#x1F464; User Input<br/><small style="color:var(--text-muted)">ticker + company name</small></div>
       <span class="arrow">&rarr;</span>
-      <div class="node">&#x1F916; ChatDeepSeek<br/><small style="color:var(--text-muted)">temperature=0</small></div>
+      <div class="node tool">&#x1F4CA; get_stock_price<br/><small style="color:var(--text-muted)">yfinance</small></div>
       <span class="arrow">&rarr;</span>
-      <div class="node tool">&#x1F4F0; get_stock_news</div>
+      <div class="node tool">&#x1F4F0; get_stock_news<br/><small style="color:var(--text-muted)">NewsAPI</small></div>
       <span class="arrow">&rarr;</span>
-      <div class="node tool">&#x1F4CA; analyze_impact</div>
+      <div class="node tool">&#x1F50D; analyze_news_sentiment<br/><small style="color:var(--text-muted)">TextBlob</small></div>
       <span class="arrow">&rarr;</span>
-      <div class="node tool">&#x1F426; get_twitter_sentiment</div>
+      <div class="node">&#x1F916; generate_analysis<br/><small style="color:var(--text-muted)">DeepSeek LLM</small></div>
       <span class="arrow">&rarr;</span>
-      <div class="node end">&#x2705; Final Answer</div>
+      <div class="node end">&#x1F310; HTML Report<br/><small style="color:var(--text-muted)">Jinja2</small></div>
     </div>
     <div class="cards" style="margin-top:2rem">
       <div class="card">
-        <h3>&#x1F501; AgentExecutor</h3>
-        <p>Orchestrates the ReAct loop. Parses the LLM's output, dispatches tool calls, feeds observations back, and stops when a Final Answer is produced &mdash; or after <code>max_iterations=6</code>.</p>
+        <h3>&#x1F4E6; Data Collection Layer</h3>
+        <p>Three <code>@tool</code>-decorated functions that gather raw market intelligence: OHLCV prices from Yahoo Finance, latest headlines from NewsAPI, and aggregate sentiment via TextBlob polarity scoring.</p>
       </div>
       <div class="card">
-        <h3>&#x1F9F0; Tools</h3>
-        <p>Three <code>@tool</code>-decorated Python functions. Each tool's <strong>docstring</strong> is its prompt &mdash; the LLM reads it to decide which tool to use and what arguments to pass.</p>
+        <h3>&#x1F9E0; AI Analysis Layer</h3>
+        <p><code>generate_analysis()</code> sends all collected data to DeepSeek with a structured prompt instructing it to role-play as a senior Wall Street analyst and produce four mandatory markdown sections.</p>
       </div>
       <div class="card">
-        <h3>&#x1F4CB; Prompt Template</h3>
-        <p>A classic ReAct-format template with placeholders <code>{tool_names}</code>, <code>{input}</code>, and <code>{agent_scratchpad}</code>. The scratchpad accumulates the Thought/Action/Observation history.</p>
+        <h3>&#x1F3A8; Presentation Layer</h3>
+        <p><code>generate_html_report()</code> parses the LLM's markdown into structured sections, detects the BUY / HOLD / SELL verdict, and renders a responsive HTML dashboard using an inline Jinja2 template with embedded CSS and JavaScript.</p>
       </div>
     </div>
   </div>
@@ -271,49 +272,51 @@
 
 <section id="tools">
   <div class="container">
-    <h2 class="section-title"><span class="icon">&#x1F527;</span> The Three Tools</h2>
-    <p class="section-desc">Each <code>@tool</code> function is an independent capability the agent can invoke. Click each card to expand implementation details.</p>
+    <h2 class="section-title"><span class="icon">&#x1F527;</span> Data Collection — The Three Tools</h2>
+    <p class="section-desc">Each <code>@tool</code>-decorated function is an independent data-gathering capability. In this pipeline, they are invoked sequentially by <code>main()</code>, not dynamically by an LLM agent. Click each card to expand implementation details.</p>
     <div class="cards">
       <div class="card">
-        <h3>&#x1F4F0; get_stock_news <span class="badge badge-tool">Tool 1</span></h3>
-        <p>Queries <strong>NewsAPI</strong>'s <code>/v2/everything</code> endpoint for the 10 most recent English-language business articles matching the stock ticker.</p>
-        <div class="code-preview"><span style="color:var(--accent5)">@tool</span> <span style="color:var(--accent)">def</span> <span style="color:var(--accent2)">get_stock_news</span>(ticker: str) &rarr; str</div>
+        <h3>&#x1F4CA; get_stock_price <span class="badge badge-tool">Tool 1</span></h3>
+        <p>Fetches OHLCV data from <strong>Yahoo Finance</strong> via <code>yfinance</code>. Tries multiple exchange suffixes (<code>.NS</code> &rarr; <code>.BO</code> &rarr; raw) to locate the stock across Indian and global markets.</p>
+        <div class="code-preview"><span style="color:var(--accent5)">@tool</span> <span style="color:var(--accent)">def</span> <span style="color:var(--accent2)">get_stock_price</span>(ticker: str) &rarr; dict</div>
         <button class="accordion-toggle" onclick="var n=this.nextElementSibling;n.classList.toggle('open');this.textContent=n.classList.contains('open')?'&#x25BE; Details':'&#x25B8; Details'">&#x25B8; Details</button>
         <div class="accordion-content">
           <table class="kv-table">
-            <tr><th>Input</th><td><code>ticker: str</code> &mdash; e.g. <code>"AAPL"</code></td></tr>
-            <tr><th>Output</th><td>Numbered list of headlines + descriptions</td></tr>
-            <tr><th>API</th><td>NewsAPI free tier (500 req/day)</td></tr>
-            <tr><th>Error handling</th><td>Returns <code>"Error fetching news: &hellip;"</code> so the agent can observe and adapt</td></tr>
+            <tr><th>Input</th><td><code>ticker: str</code> &mdash; e.g. <code>"INFY"</code>, <code>"AAPL"</code></td></tr>
+            <tr><th>Output</th><td>Dict with <code>ticker</code>, <code>exchange</code>, <code>current_price</code>, <code>open</code>, <code>high</code>, <code>low</code>, <code>volume</code></td></tr>
+            <tr><th>Exchange resolution</th><td>Attempts <code>.NS</code> (NSE) first, then <code>.BO</code> (BSE), then raw ticker for global markets</td></tr>
+            <tr><th>Data window</th><td>5-day history to cover weekend/holiday gaps; uses most recent row</td></tr>
+            <tr><th>Error handling</th><td>Returns <code>{"error": "..."}</code> if no data found or API fails</td></tr>
           </table>
         </div>
       </div>
       <div class="card">
-        <h3>&#x1F4CA; analyze_impact <span class="badge badge-llm">Tool 2</span></h3>
-        <p>Takes raw news text and prompts <strong>DeepSeek</strong> to produce a structured JSON analysis covering four financial dimensions.</p>
-        <div class="code-preview"><span style="color:var(--accent5)">@tool</span> <span style="color:var(--accent)">def</span> <span style="color:var(--accent2)">analyze_impact</span>(news_text: str) &rarr; str</div>
+        <h3>&#x1F4F0; get_stock_news <span class="badge badge-tool">Tool 2</span></h3>
+        <p>Queries <strong>NewsAPI</strong>'s <code>/v2/everything</code> endpoint for the 5 most recent English-language articles matching the company name plus "stock".</p>
+        <div class="code-preview"><span style="color:var(--accent5)">@tool</span> <span style="color:var(--accent)">def</span> <span style="color:var(--accent2)">get_stock_news</span>(company_name: str) &rarr; list</div>
         <button class="accordion-toggle" onclick="var n=this.nextElementSibling;n.classList.toggle('open');this.textContent=n.classList.contains('open')?'&#x25BE; Details':'&#x25B8; Details'">&#x25B8; Details</button>
         <div class="accordion-content">
           <table class="kv-table">
-            <tr><th>Input</th><td><code>news_text: str</code> &mdash; concatenated headlines from <code>get_stock_news</code></td></tr>
-            <tr><th>Output</th><td>Pretty-printed JSON with keys: <code>financials</code>, <code>business_growth</code>, <code>cashflows</code>, <code>profitability</code></td></tr>
-            <tr><th>LLM</th><td>ChatDeepSeek @ temperature=0 (deterministic)</td></tr>
-            <tr><th>Fallback</th><td>If JSON parsing fails, returns raw LLM text</td></tr>
+            <tr><th>Input</th><td><code>company_name: str</code> &mdash; full company name, not ticker (e.g. <code>"Tata Consultancy Services"</code>)</td></tr>
+            <tr><th>Output</th><td>List of dicts with <code>title</code>, <code>description</code>, <code>url</code></td></tr>
+            <tr><th>Search query</th><td><code>"{company_name} stock"</code> to bias toward financial coverage</td></tr>
+            <tr><th>Page size</th><td>5 articles — keeps the report focused and LLM context lean</td></tr>
+            <tr><th>API tier</th><td>NewsAPI free tier (100 req/day, articles up to 30 days old)</td></tr>
           </table>
         </div>
       </div>
       <div class="card">
-        <h3>&#x1F426; get_twitter_sentiment <span class="badge badge-ml">Tool 3</span></h3>
-        <p>Scrapes tweets via <strong>snscrape</strong> (no API key required) and classifies sentiment using a <strong>RoBERTa</strong> transformer fine-tuned on ~124M tweets.</p>
-        <div class="code-preview"><span style="color:var(--accent5)">@tool</span> <span style="color:var(--accent)">def</span> <span style="color:var(--accent2)">get_twitter_sentiment</span>(ticker: str) &rarr; str</div>
+        <h3>&#x1F50D; analyze_news_sentiment <span class="badge badge-ml">Tool 3</span></h3>
+        <p>Fetches up to 20 articles from NewsAPI and computes aggregate <strong>polarity</strong> using <strong>TextBlob</strong>'s lexicon-based sentiment analyzer. Classifies as Positive, Negative, or Neutral.</p>
+        <div class="code-preview"><span style="color:var(--accent5)">@tool</span> <span style="color:var(--accent)">def</span> <span style="color:var(--accent2)">analyze_news_sentiment</span>(company_name: str) &rarr; dict</div>
         <button class="accordion-toggle" onclick="var n=this.nextElementSibling;n.classList.toggle('open');this.textContent=n.classList.contains('open')?'&#x25BE; Details':'&#x25B8; Details'">&#x25B8; Details</button>
         <div class="accordion-content">
           <table class="kv-table">
-            <tr><th>Input</th><td><code>ticker: str</code> &mdash; prefixed with <code>$</code> for cashtag search</td></tr>
-            <tr><th>Window</th><td>90 days (quarterly cadence)</td></tr>
-            <tr><th>Scrape</th><td>Up to 200 tweets; first 100 classified</td></tr>
-            <tr><th>Model</th><td><code>cardiffnlp/twitter-roberta-base-sentiment-latest</code></td></tr>
-            <tr><th>Output</th><td>Percentage breakdown: positive / neutral / negative</td></tr>
+            <tr><th>Input</th><td><code>company_name: str</code> — full company name for NewsAPI search</td></tr>
+            <tr><th>Sample size</th><td>Up to 20 articles for statistically meaningful aggregation</td></tr>
+            <tr><th>Engine</th><td>TextBlob — lexicon-based (fast, no API key, no GPU needed)</td></tr>
+            <tr><th>Thresholds</th><td>Score &gt; +0.15 → Positive | &lt; −0.15 → Negative | otherwise → Neutral</td></tr>
+            <tr><th>Output</th><td><code>sentiment</code>, <code>score</code> (rounded to 2 dp), <code>articles_analyzed</code></td></tr>
           </table>
         </div>
       </div>
@@ -321,53 +324,64 @@
   </div>
 </section>
 
-<section id="agent">
+<section id="pipeline">
   <div class="container">
-    <h2 class="section-title"><span class="icon">&#x1F916;</span> Agent Configuration</h2>
-    <p class="section-desc">How the ReAct loop is wired together and what each parameter controls.</p>
+    <h2 class="section-title"><span class="icon">&#x1F916;</span> AI Analysis &amp; HTML Report Pipeline</h2>
+    <p class="section-desc">How the collected data is transformed into a DeepSeek-powered analysis and rendered into a polished HTML dashboard.</p>
     <div class="tab-nav">
-      <button class="tab-btn active" data-tab="tab-prompt">Prompt Template</button>
-      <button class="tab-btn" data-tab="tab-executor">AgentExecutor</button>
-      <button class="tab-btn" data-tab="tab-flow">Execution Flow</button>
+      <button class="tab-btn active" data-tab="tab-analysis">AI Analysis</button>
+      <button class="tab-btn" data-tab="tab-html">HTML Generator</button>
+      <button class="tab-btn" data-tab="tab-flow">Pipeline Flow</button>
     </div>
-    <div class="tab-panel active" id="tab-prompt">
+    <div class="tab-panel active" id="tab-analysis">
       <div class="card">
-        <h3>&#x1F4CB; ReAct Prompt Template</h3>
-        <p style="margin-bottom:0.8rem">The prompt structure is <strong>critical</strong> &mdash; the AgentExecutor uses regex to find <code>Action:</code> and <code>Action Input:</code> lines. Any deviation breaks the parser.</p>
+        <h3>&#x1F9E0; generate_analysis() — The LLM Prompt</h3>
+        <p style="margin-bottom:0.8rem">All collected data (price, sentiment, news) is injected into a <strong>single structured prompt</strong> sent to DeepSeek. The prompt enforces strict output formatting to ensure reliable downstream parsing.</p>
         <div class="code-preview"><pre style="margin:0;font-family:var(--font-mono);font-size:0.78rem;line-height:1.6">
-<span style="color:var(--text-muted)">Question:</span> the input question you must answer
-<span style="color:var(--text-muted)">Thought:</span>  you should always think about what to do
-<span style="color:var(--text-muted)">Action:</span>  the action to take, should be one of [<span style="color:var(--accent5)">{tool_names}</span>]
-<span style="color:var(--text-muted)">Action Input:</span> the input to the action
-<span style="color:var(--text-muted)">Observation:</span> the result of the action
-<span style="color:var(--text-muted)">...</span> (repeat as needed)
-<span style="color:var(--text-muted)">Thought:</span> I now know the final answer
-<span style="color:var(--text-muted)">Final Answer:</span> the final answer to the original input question</pre></div>
+<span style="color:var(--text-muted)">You are a senior Wall Street analyst.</span>
+<span style="color:var(--text-muted)">Analyze this stock.</span>
+
+<span style="color:var(--text-muted)">Ticker:</span> {ticker}
+<span style="color:var(--text-muted)">Stock Data:</span> {stock_data}
+<span style="color:var(--text-muted)">Sentiment:</span> {sentiment_data}
+<span style="color:var(--text-muted)">News:</span> {news}
+
+<span style="color:var(--accent2)">## 📊 Financial Outlook</span>
+<span style="color:var(--accent2)">## ⚠️ Key Risks</span>
+<span style="color:var(--accent2)">## 🚀 Growth Potential</span>
+<span style="color:var(--accent2)">## 🎯 Investment Recommendation</span>
+<span style="color:var(--text-muted)">(wrap key sentences in &lt;mark&gt; tags — THIS SECTION ONLY)</span></pre></div>
+        <table class="kv-table" style="margin-top:1rem">
+          <tr><th>Model</th><td><code>deepseek-chat</code> via <code>langchain-openai</code> (ChatOpenAI wrapper)</td></tr>
+          <tr><th>Temperature</th><td><code>0</code> — deterministic for factual consistency</td></tr>
+          <tr><th>Base URL</th><td><code>https://api.deepseek.com</code></td></tr>
+          <tr><th>Key constraint</th><td>No preamble before first header; <code>&lt;mark&gt;</code> only in Recommendation section</td></tr>
+        </table>
       </div>
     </div>
-    <div class="tab-panel" id="tab-executor">
+    <div class="tab-panel" id="tab-html">
       <div class="card">
-        <h3>&#x2699;&#xFE0F; AgentExecutor Parameters</h3>
+        <h3>&#x1F3A8; generate_html_report() — Jinja2 Rendering</h3>
+        <p style="margin-bottom:0.8rem">The presentation engine operates in three stages: <strong>parse</strong> the LLM markdown, <strong>render</strong> via Jinja2, and <strong>write</strong> a self-contained HTML file.</p>
         <table class="kv-table">
-          <tr><th>Parameter</th><th>Value</th><th>Purpose</th></tr>
-          <tr><td><code>agent</code></td><td>ReAct runnable</td><td>The wired-up LLM + tools + prompt</td></tr>
-          <tr><td><code>tools</code></td><td>[get_stock_news, &hellip;]</td><td>Tool list for dispatch</td></tr>
-          <tr><td><code>verbose</code></td><td><code>True</code></td><td>Prints Thought/Action/Observation to console</td></tr>
-          <tr><td><code>handle_parsing_errors</code></td><td><code>True</code></td><td>Feeds malformed LLM output back as an Observation so the agent can self-correct</td></tr>
-          <tr><td><code>max_iterations</code></td><td><code>6</code></td><td>Hard safety cap &mdash; prevents infinite loops</td></tr>
+          <tr><th>Stage</th><th>What happens</th></tr>
+          <tr><td><strong>1. Parse</strong></td><td>Splits the LLM output on <code>## </code> headers, matches each section to a known map (Financial Outlook, Key Risks, Growth Potential, Investment Recommendation), extracts paragraphs, and detects the BUY / HOLD / SELL verdict via keyword scanning.</td></tr>
+          <tr><td><strong>2. Render</strong></td><td>Injects all data into a Jinja2 template with responsive CSS grid, animated sentiment bar, color-coded recommendation badges, staggered fade-up animations, and volume formatting JS.</td></tr>
+          <tr><td><strong>3. Write</strong></td><td>Saves as <code>{CLEAN_TICKER}_REPORT_{YYYY_MM_DD}.html</code> (exchange suffix stripped) with UTF-8 encoding.</td></tr>
         </table>
+        <div class="callout tip" style="margin-top:1rem"><strong>&#x1F4A1; Design note:</strong> The HTML template is <strong>inline</strong> — defined as a Python string literal inside <code>generate_html_report()</code>. This makes the report truly self-contained with no external CSS/JS dependencies beyond Google Fonts.</div>
       </div>
     </div>
     <div class="tab-panel" id="tab-flow">
       <div class="card">
         <h3>&#x1F504; Execution Flow (Step by Step)</h3>
         <div style="display:flex;flex-direction:column;gap:0.6rem;margin-top:1rem">
-          <div style="display:flex;gap:0.8rem;align-items:baseline"><span style="color:var(--accent2);font-weight:700;min-width:1.5rem">1.</span><span><strong>User calls</strong> <code>agent_executor.invoke({"input": question})</code></span></div>
-          <div style="display:flex;gap:0.8rem;align-items:baseline"><span style="color:var(--accent2);font-weight:700;min-width:1.5rem">2.</span><span><strong>AgentExecutor</strong> fills the prompt template with <code>{input}</code> and sends it to the LLM</span></div>
-          <div style="display:flex;gap:0.8rem;align-items:baseline"><span style="color:var(--accent2);font-weight:700;min-width:1.5rem">3.</span><span><strong>LLM</strong> generates <code>Thought: &hellip; Action: get_stock_news Action Input: AAPL</code></span></div>
-          <div style="display:flex;gap:0.8rem;align-items:baseline"><span style="color:var(--accent2);font-weight:700;min-width:1.5rem">4.</span><span><strong>Executor</strong> parses the Action line, calls <code>get_stock_news("AAPL")</code>, and appends the result as an <code>Observation</code></span></div>
-          <div style="display:flex;gap:0.8rem;align-items:baseline"><span style="color:var(--accent2);font-weight:700;min-width:1.5rem">5.</span><span><strong>Loop repeats</strong> &mdash; the updated scratchpad is sent back to the LLM for the next Thought/Action</span></div>
-          <div style="display:flex;gap:0.8rem;align-items:baseline"><span style="color:var(--accent2);font-weight:700;min-width:1.5rem">6.</span><span><strong>LLM outputs</strong> <code>Final Answer: &hellip;</code> &rarr; AgentExecutor stops and returns <code>{"output": "&hellip;"}</code></span></div>
+          <div style="display:flex;gap:0.8rem;align-items:baseline"><span style="color:var(--accent2);font-weight:700;min-width:1.5rem">1.</span><span><strong>User runs</strong> <code>python stock_react_agent.py</code> &mdash; enters ticker symbol and full company name</span></div>
+          <div style="display:flex;gap:0.8rem;align-items:baseline"><span style="color:var(--accent2);font-weight:700;min-width:1.5rem">2.</span><span><strong>main()</strong> calls <code>get_stock_price.invoke(ticker)</code> &mdash; tries .NS, .BO, then raw ticker via yfinance</span></div>
+          <div style="display:flex;gap:0.8rem;align-items:baseline"><span style="color:var(--accent2);font-weight:700;min-width:1.5rem">3.</span><span><strong>main()</strong> calls <code>get_stock_news.invoke(company_name)</code> &mdash; fetches 5 latest headlines from NewsAPI</span></div>
+          <div style="display:flex;gap:0.8rem;align-items:baseline"><span style="color:var(--accent2);font-weight:700;min-width:1.5rem">4.</span><span><strong>main()</strong> calls <code>analyze_news_sentiment.invoke(company_name)</code> &mdash; 20 articles, TextBlob polarity, aggregate score</span></div>
+          <div style="display:flex;gap:0.8rem;align-items:baseline"><span style="color:var(--accent2);font-weight:700;min-width:1.5rem">5.</span><span><strong>generate_analysis()</strong> sends all collected data to DeepSeek with the structured prompt &rarr; returns 4-section markdown</span></div>
+          <div style="display:flex;gap:0.8rem;align-items:baseline"><span style="color:var(--accent2);font-weight:700;min-width:1.5rem">6.</span><span><strong>generate_html_report()</strong> parses markdown, renders Jinja2 template, writes <code>.html</code> file, opens it in the default browser</span></div>
         </div>
       </div>
     </div>
@@ -377,24 +391,36 @@
 <section id="setup">
   <div class="container">
     <h2 class="section-title"><span class="icon">&#x1F680;</span> Setup &amp; Run</h2>
-    <p class="section-desc">Get the agent running in under 5 minutes.</p>
+    <p class="section-desc">Get the pipeline running in under 5 minutes.</p>
     <div class="cards">
       <div class="card">
         <h3>1&#xFE0F;&#x20E3; Environment Variables</h3>
-        <p>Create a <code>.env</code> file in the project root:</p>
-        <div class="code-preview">DEEPSEEK_API_KEY=sk-your-key-here<br/>NEWS_API_KEY=your-newsapi-key</div>
+        <p>Create a <code>.env</code> file in the project root with your API keys:</p>
+        <div class="code-preview">DEEPSEEK_API_KEY=sk-your-deepseek-key-here<br/>NEWS_API_KEY=your-newsapi-key-here</div>
+        <p style="margin-top:0.6rem;font-size:0.82rem">Loaded automatically by <code>python-dotenv</code> at startup. Keeps keys out of source control.</p>
       </div>
       <div class="card">
         <h3>2&#xFE0F;&#x20E3; Install Dependencies</h3>
-        <div class="code-preview">pip install langchain langchain-core langchain-deepseek<br/>pip install python-dotenv newsapi-python snscrape<br/>pip install transformers pandas</div>
+        <p>All dependencies are pinned in <code>requirements.txt</code>:</p>
+        <div class="code-preview" style="font-size:0.75rem">pip install -r requirements.txt</div>
+        <table class="kv-table" style="margin-top:0.6rem;font-size:0.8rem">
+          <tr><th>Package</th><th>Purpose</th></tr>
+          <tr><td><code>yfinance</code></td><td>Yahoo Finance OHLCV data</td></tr>
+          <tr><td><code>newsapi-python</code></td><td>NewsAPI headlines</td></tr>
+          <tr><td><code>textblob</code></td><td>Lexicon-based sentiment analysis</td></tr>
+          <tr><td><code>langchain</code> + <code>langchain-openai</code></td><td>@tool decorator + ChatOpenAI wrapper for DeepSeek</td></tr>
+          <tr><td><code>jinja2</code></td><td>HTML templating engine</td></tr>
+          <tr><td><code>python-dotenv</code></td><td>Load .env file</td></tr>
+        </table>
       </div>
       <div class="card">
-        <h3>3&#xFE0F;&#x20E3; Run the Agent</h3>
-        <div class="code-preview">python stock_react_agent.py<br/><span style="color:var(--text-muted)">Enter stock ticker:</span> AAPL</div>
-        <div class="callout tip" style="margin-top:0.8rem"><strong>&#x1F4A1; Tip:</strong> First run will download the RoBERTa model (~500 MB). Subsequent runs use the cached model.</div>
+        <h3>3&#xFE0F;&#x20E3; Run the Pipeline</h3>
+        <div class="code-preview">python stock_react_agent.py<br/><span style="color:var(--text-muted)">Enter stock ticker (e.g. INFY, RELIANCE):</span> TCS<br/><span style="color:var(--text-muted)">Enter full company name:</span> Tata Consultancy Services</div>
+        <p style="margin-top:0.6rem;font-size:0.82rem">The script will fetch data, call DeepSeek for analysis, generate an HTML report, and automatically open it in your default browser.</p>
       </div>
     </div>
-    <div class="callout warn" style="margin-top:1.5rem"><strong>&#x26A0;&#xFE0F; Rate Limits:</strong> NewsAPI free tier allows 500 requests/day. snscrape may be rate-limited by Twitter/X if you scrape too aggressively. The 90-day window + 200-tweet cap is designed to stay within reasonable limits.</div>
+    <div class="callout warn" style="margin-top:1.5rem"><strong>&#x26A0;&#xFE0F; Rate Limits:</strong> NewsAPI free tier allows <strong>100 requests/day</strong> and only returns articles from the last 30 days. The agent makes 2 NewsAPI calls per run (headlines + sentiment). DeepSeek API usage incurs token-based costs.</div>
+    <div class="callout tip" style="margin-top:1rem"><strong>&#x1F4A1; Supported Markets:</strong> The agent auto-detects Indian stocks (NSE/BSE via <code>.NS</code> and <code>.BO</code> suffixes) and global stocks (NYSE, NASDAQ, LSE &mdash; raw ticker). Ticker symbols are case-insensitive.</div>
   </div>
 </section>
 
@@ -412,7 +438,7 @@
   </div>
 </section>
 
-<footer>Stock React Assistant &mdash; Developer Guide &nbsp;|&nbsp; Built with LangChain + DeepSeek + Hugging Face</footer>
+<footer>Stock Research AI Agent &mdash; Developer Guide &nbsp;|&nbsp; Built with DeepSeek + LangChain + Yahoo Finance + NewsAPI + Jinja2</footer>
 
 <!-- Hidden pre element stores the raw Python source for JS to read -->
 <pre id="source-code-data" style="display:none"></pre>
