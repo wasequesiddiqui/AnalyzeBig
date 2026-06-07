@@ -1,0 +1,693 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>INFY.NS — Stock Analysis</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #f0ede8;
+    --surface: #faf8f5;
+    --surface-2: #f5f2ed;
+    --border: rgba(60,40,20,0.12);
+    --border-strong: rgba(60,40,20,0.22);
+    --ink: #1a1208;
+    --ink-2: #4a3f2f;
+    --ink-3: #8a7d6a;
+    --accent: #c94f1a;
+    --accent-light: #fceee8;
+    --accent-mid: #f0a882;
+    --green: #1a6b3a;
+    --green-light: #e8f5ee;
+    --red: #b01a1a;
+    --red-light: #fce8e8;
+    --amber: #92600a;
+    --amber-light: #fdf4e3;
+    --blue: #1a3a6b;
+    --blue-light: #e8eef8;
+    --gold: #c8901a;
+    --serif: 'DM Serif Display', Georgia, serif;
+    --sans: 'DM Sans', system-ui, sans-serif;
+    --radius: 16px;
+    --radius-sm: 10px;
+    --shadow: 0 2px 16px rgba(60,40,10,0.09), 0 1px 3px rgba(60,40,10,0.06);
+    --shadow-lg: 0 8px 40px rgba(60,40,10,0.12), 0 2px 8px rgba(60,40,10,0.08);
+  }
+
+  body {
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--ink);
+    min-height: 100vh;
+    padding: 0;
+  }
+
+  /* ─── HERO ─── */
+  .hero {
+    background: var(--ink);
+    color: #faf8f5;
+    padding: 56px 48px 52px;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 60% 80% at 80% 50%, rgba(201,79,26,0.18) 0%, transparent 70%),
+      radial-gradient(ellipse 40% 60% at 10% 80%, rgba(200,144,26,0.12) 0%, transparent 60%);
+    pointer-events: none;
+  }
+  .hero-grid {
+    max-width: 1100px;
+    margin: auto;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    gap: 32px;
+    align-items: flex-end;
+    position: relative;
+  }
+  .hero-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent-mid);
+    margin-bottom: 10px;
+  }
+  .hero-ticker {
+    font-family: var(--serif);
+    font-size: clamp(42px, 6vw, 68px);
+    line-height: 1;
+    letter-spacing: -0.02em;
+    color: #faf8f5;
+  }
+  .hero-exchange {
+    font-size: 13px;
+    color: rgba(250,248,245,0.55);
+    margin-top: 8px;
+    font-weight: 300;
+  }
+  .hero-price-block {
+    text-align: right;
+  }
+  .hero-price-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: rgba(250,248,245,0.45);
+    margin-bottom: 6px;
+  }
+  .hero-price {
+    font-family: var(--serif);
+    font-size: clamp(32px, 4vw, 52px);
+    line-height: 1;
+    color: #faf8f5;
+  }
+  .hero-ts {
+    font-size: 12px;
+    color: rgba(250,248,245,0.35);
+    margin-top: 10px;
+    font-weight: 300;
+  }
+
+  /* ─── MAIN LAYOUT ─── */
+  .page {
+    max-width: 1100px;
+    margin: 0 auto;
+    padding: 40px 24px 80px;
+  }
+
+  .section-title {
+    font-family: var(--serif);
+    font-size: 22px;
+    color: var(--ink);
+    margin-bottom: 20px;
+    letter-spacing: -0.01em;
+  }
+
+  /* ─── METRICS STRIP ─── */
+  .metrics-strip {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+    gap: 12px;
+    margin-bottom: 36px;
+  }
+  .metric-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 18px 16px 14px;
+    box-shadow: var(--shadow);
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+    cursor: default;
+  }
+  .metric-card:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-lg);
+  }
+  .metric-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--ink-3);
+    margin-bottom: 8px;
+  }
+  .metric-value {
+    font-size: 22px;
+    font-weight: 600;
+    color: var(--ink);
+    letter-spacing: -0.02em;
+  }
+  .metric-value.up { color: var(--green); }
+  .metric-value.down { color: var(--red); }
+  .metric-sub {
+    font-size: 11px;
+    color: var(--ink-3);
+    margin-top: 4px;
+    font-weight: 300;
+  }
+
+  /* ─── TWO-COL ─── */
+  .two-col {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 20px;
+    margin-bottom: 36px;
+  }
+  @media (max-width: 700px) {
+    .two-col { grid-template-columns: 1fr; }
+    .hero { padding: 36px 24px; }
+    .hero-grid { grid-template-columns: 1fr; }
+    .hero-price-block { text-align: left; }
+  }
+
+  /* ─── SENTIMENT CARD ─── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 28px;
+    box-shadow: var(--shadow);
+  }
+  .sentiment-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 18px;
+    border-radius: 999px;
+    font-size: 15px;
+    font-weight: 600;
+    margin-bottom: 14px;
+  }
+  .sentiment-badge.positive { background: var(--green-light); color: var(--green); }
+  .sentiment-badge.negative { background: var(--red-light); color: var(--red); }
+  .sentiment-badge.neutral  { background: var(--amber-light); color: var(--amber); }
+  .sentiment-badge.unknown  { background: var(--blue-light); color: var(--blue); }
+
+  .sentiment-bar-wrap {
+    height: 8px;
+    background: var(--surface-2);
+    border-radius: 99px;
+    margin: 14px 0 10px;
+    overflow: hidden;
+  }
+  .sentiment-bar {
+    height: 100%;
+    border-radius: 99px;
+    transition: width 1s cubic-bezier(.22,.68,0,1.2);
+  }
+  .sentiment-bar.positive { background: linear-gradient(90deg, #4caf88, #1a6b3a); }
+  .sentiment-bar.negative { background: linear-gradient(90deg, #e87070, #b01a1a); }
+  .sentiment-bar.neutral  { background: linear-gradient(90deg, #f0c84a, #92600a); }
+  .sentiment-bar.unknown  { background: linear(90deg, #8aabdf, #1a3a6b); }
+  .sentiment-note {
+    font-size: 12px;
+    color: var(--ink-3);
+    font-weight: 300;
+    line-height: 1.6;
+  }
+  .sentiment-reason {
+    margin-top: 10px;
+    padding: 12px 14px;
+    background: var(--blue-light);
+    border-radius: var(--radius-sm);
+    border-left: 3px solid var(--blue);
+    font-size: 12px;
+    color: var(--blue);
+    line-height: 1.6;
+  }
+
+  /* ─── NEWS ─── */
+  .news-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .news-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 16px 20px;
+    box-shadow: var(--shadow);
+    transition: border-color 0.15s, transform 0.15s;
+    cursor: pointer;
+  }
+  .news-item:hover {
+    border-color: var(--accent);
+    transform: translateX(4px);
+  }
+  .news-item-title {
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--ink);
+    margin-bottom: 6px;
+    line-height: 1.45;
+  }
+  .news-item-desc {
+    font-size: 12px;
+    color: var(--ink-3);
+    line-height: 1.55;
+    font-weight: 300;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .news-item-link {
+    display: inline-block;
+    margin-top: 8px;
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: var(--accent);
+    text-decoration: none;
+  }
+  .news-item-link:hover { text-decoration: underline; }
+
+  /* ─── AI ANALYSIS ─── */
+  .analysis-hero {
+    background: var(--ink);
+    border-radius: var(--radius);
+    padding: 36px 40px;
+    margin-bottom: 20px;
+    position: relative;
+    overflow: hidden;
+    box-shadow: var(--shadow-lg);
+  }
+  .analysis-hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 50% 70% at 90% 20%, rgba(201,79,26,0.22) 0%, transparent 65%),
+      radial-gradient(ellipse 40% 50% at 5% 90%, rgba(200,144,26,0.15) 0%, transparent 60%);
+    pointer-events: none;
+  }
+  .analysis-hero-label {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    color: var(--accent-mid);
+    margin-bottom: 8px;
+  }
+  .analysis-hero-title {
+    font-family: var(--serif);
+    font-size: 28px;
+    color: #faf8f5;
+    line-height: 1.15;
+    position: relative;
+  }
+  .analysis-hero-sub {
+    font-size: 13px;
+    color: rgba(250,248,245,0.45);
+    margin-top: 8px;
+    font-weight: 300;
+    position: relative;
+  }
+
+  .analysis-sections {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 20px;
+  }
+  @media (max-width: 700px) { .analysis-sections { grid-template-columns: 1fr; } }
+
+  .analysis-section {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 24px;
+    box-shadow: var(--shadow);
+    transition: transform 0.18s ease, box-shadow 0.18s ease;
+    cursor: default;
+  }
+  .analysis-section:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-lg);
+  }
+
+  .section-icon {
+    font-size: 24px;
+    margin-bottom: 10px;
+    display: block;
+  }
+  .analysis-section-title {
+    font-family: var(--serif);
+    font-size: 17px;
+    color: var(--ink);
+    margin-bottom: 14px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border);
+    letter-spacing: -0.01em;
+  }
+  .analysis-section-body {
+    font-size: 14px;
+    line-height: 1.72;
+    color: var(--ink-2);
+    font-weight: 300;
+  }
+  .analysis-section-body p + p {
+    margin-top: 10px;
+  }
+
+  /* Recommendation card gets special treatment */
+  .analysis-section.recommendation {
+    grid-column: 1 / -1;
+    background: var(--surface);
+    border: 2px solid var(--accent);
+    position: relative;
+    overflow: hidden;
+  }
+  .analysis-section.recommendation::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, rgba(201,79,26,0.05) 0%, transparent 50%);
+    pointer-events: none;
+  }
+  .rec-verdict {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 14px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    margin-bottom: 14px;
+  }
+  .rec-verdict.buy  { background: var(--green-light); color: var(--green); }
+  .rec-verdict.hold { background: var(--amber-light); color: var(--amber); }
+  .rec-verdict.sell { background: var(--red-light); color: var(--red); }
+
+  /* Highlighted sentences in recommendation */
+  .analysis-section-body mark {
+    background: linear-gradient(120deg, rgba(201,79,26,0.18) 0%, rgba(200,144,26,0.22) 100%);
+    color: var(--ink);
+    padding: 1px 4px;
+    border-radius: 3px;
+    font-weight: 500;
+    -webkit-box-decoration-break: clone;
+    box-decoration-break: clone;
+  }
+
+  /* ─── FOOTER ─── */
+  .footer {
+    text-align: center;
+    font-size: 11px;
+    color: var(--ink-3);
+    font-weight: 300;
+    margin-top: 60px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+  }
+
+  /* ─── FADE IN ─── */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(18px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .fade-up {
+    animation: fadeUp 0.5s ease both;
+  }
+  .fade-up-1 { animation-delay: 0.05s; }
+  .fade-up-2 { animation-delay: 0.12s; }
+  .fade-up-3 { animation-delay: 0.20s; }
+  .fade-up-4 { animation-delay: 0.28s; }
+  .fade-up-5 { animation-delay: 0.36s; }
+</style>
+</head>
+<body>
+
+<!-- HERO -->
+<div class="hero fade-up">
+  <div class="hero-grid">
+    <div>
+      <div class="hero-label">Stock Analysis Report</div>
+      <div class="hero-ticker">INFY.NS</div>
+      <div class="hero-exchange">NSE India</div>
+    </div>
+    <div class="hero-price-block">
+      <div class="hero-price-label">Current Price</div>
+      <div class="hero-price">₹1197.5</div>
+      <div class="hero-ts">2026-06-07 16:09:31</div>
+    </div>
+  </div>
+</div>
+
+<div class="page">
+
+  <!-- METRICS STRIP -->
+  <div class="metrics-strip fade-up fade-up-1">
+    <div class="metric-card">
+      <div class="metric-label">Open</div>
+      <div class="metric-value">₹1220.0</div>
+      <div class="metric-sub">Today's open</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">High</div>
+      <div class="metric-value up">₹1223.8</div>
+      <div class="metric-sub">Day high</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Low</div>
+      <div class="metric-value down">₹1194.3</div>
+      <div class="metric-sub">Day low</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Volume</div>
+      <div class="metric-value" id="volume-val">8692290</div>
+      <div class="metric-sub">Shares traded</div>
+    </div>
+    <div class="metric-card">
+      <div class="metric-label">Range</div>
+      <div class="metric-value">2.5%</div>
+      <div class="metric-sub">High / low spread</div>
+    </div>
+  </div>
+
+  <!-- SENTIMENT + NEWS -->
+  <div class="two-col fade-up fade-up-2">
+
+    <!-- SENTIMENT -->
+    <div class="card">
+      <h2 class="section-title" style="margin-bottom:16px;">Market Sentiment</h2>
+
+      
+      <div class="sentiment-badge neutral">
+        ➡️ Neutral
+        
+      </div>
+
+      
+      <div class="sentiment-bar-wrap">
+        <div class="sentiment-bar neutral" id="sent-bar" style="width: 0%"></div>
+      </div>
+      <p class="sentiment-note">
+        Score: <strong>0.1</strong>
+        
+        &nbsp;·&nbsp; Based on 20 articles
+        
+      </p>
+      
+
+      
+      
+    </div>
+
+    <!-- NEWS -->
+    <div class="card">
+      <h2 class="section-title" style="margin-bottom:16px;">Latest News</h2>
+      <div class="news-list">
+        
+        <div class="news-item" onclick="window.open('https://economictimes.indiatimes.com/markets/us-stocks/news/spacex-ipo-is-said-to-draw-more-orders-than-shares-available/articleshow/131535854.cms', '_blank')">
+          <div class="news-item-title">Spacex IPO is said to draw more orders than shares available</div>
+          
+          <div class="news-item-desc">SpaceX’s $75 billion IPO is already oversubscribed, signaling strong institutional demand and positioning it to become the largest listing ever. The Elon Musk-led firm may surpass Saudi Aramco’s record. Shares are priced at $135, valuing the company near $1.8…</div>
+          
+          <a class="news-item-link" href="https://economictimes.indiatimes.com/markets/us-stocks/news/spacex-ipo-is-said-to-draw-more-orders-than-shares-available/articleshow/131535854.cms" target="_blank" onclick="event.stopPropagation()">Read more →</a>
+        </div>
+        
+        <div class="news-item" onclick="window.open('https://economictimes.indiatimes.com/tech/newsletters/tech-top-5/eds-parimatch-heat-reaches-zepto-spcs-india-deeptech-push/articleshow/131532944.cms', '_blank')">
+          <div class="news-item-title">ED's Parimatch heat reaches Zepto; SPC's India deeptech push</div>
+          
+          <div class="news-item-desc">Zepto has come under the ED's scanner as part of its probe into Parimatch. This and more in today's ETtech Top 5.</div>
+          
+          <a class="news-item-link" href="https://economictimes.indiatimes.com/tech/newsletters/tech-top-5/eds-parimatch-heat-reaches-zepto-spcs-india-deeptech-push/articleshow/131532944.cms" target="_blank" onclick="event.stopPropagation()">Read more →</a>
+        </div>
+        
+        <div class="news-item" onclick="window.open('https://economictimes.indiatimes.com/markets/stocks/news/lic-buys-maruti-suzuki-shares-worth-rs-68-crore-insurers-stake-in-automaker-crosses-5/articleshow/131527163.cms', '_blank')">
+          <div class="news-item-title">LIC buys Maruti Suzuki shares worth Rs 68 crore, insurer's stake in automaker crosses 5%</div>
+          
+          <div class="news-item-desc">Life Insurance Corporation of India (LIC) has increased its stake in Maruti Suzuki above the 5% threshold after purchasing 51,750 shares through a market transaction. The move comes amid a decline in Maruti Suzuki's stock this year and reflects LIC's continue…</div>
+          
+          <a class="news-item-link" href="https://economictimes.indiatimes.com/markets/stocks/news/lic-buys-maruti-suzuki-shares-worth-rs-68-crore-insurers-stake-in-automaker-crosses-5/articleshow/131527163.cms" target="_blank" onclick="event.stopPropagation()">Read more →</a>
+        </div>
+        
+        <div class="news-item" onclick="window.open('https://economictimes.indiatimes.com/markets/stocks/news/wipro-shares-crash-8-despite-overall-market-optimism-heres-why/articleshow/131522416.cms', '_blank')">
+          <div class="news-item-title">Wipro shares crash 8% despite overall market optimism. Here’s why</div>
+          
+          <div class="news-item-desc">Wipro shares fell sharply on Friday after turning ex-record date for its Rs 15,000 crore buyback, despite broader market gains in the early trading hours.  The share buyback marks the first such action announced by the IT major in nearly three years. The  Inv…</div>
+          
+          <a class="news-item-link" href="https://economictimes.indiatimes.com/markets/stocks/news/wipro-shares-crash-8-despite-overall-market-optimism-heres-why/articleshow/131522416.cms" target="_blank" onclick="event.stopPropagation()">Read more →</a>
+        </div>
+        
+        <div class="news-item" onclick="window.open('https://m.economictimes.com/markets/stocks/news/bpcl-wipro-itc-among-list-of-15-high-dividend-yield-stocks-do-you-own-any/solid-payouts/slideshow/131522435.cms', '_blank')">
+          <div class="news-item-title">BPCL, Wipro, ITC among list of 15 high dividend yield stocks. Do you own any?</div>
+          
+          <div class="news-item-desc">While the Indian stock market sees sharp upswings and downswings amid the seesaw political game in the Middle East, elevated crude prices, strong FII outflows and rupee depreciation, investors keep cashing in dividends announced by companies. IDBI Capital in …</div>
+          
+          <a class="news-item-link" href="https://m.economictimes.com/markets/stocks/news/bpcl-wipro-itc-among-list-of-15-high-dividend-yield-stocks-do-you-own-any/solid-payouts/slideshow/131522435.cms" target="_blank" onclick="event.stopPropagation()">Read more →</a>
+        </div>
+        
+        
+      </div>
+    </div>
+
+  </div>
+
+  <!-- AI ANALYSIS -->
+  <div class="fade-up fade-up-3">
+    <div class="analysis-hero">
+      <div class="analysis-hero-label">AI-Powered Intelligence</div>
+      <div class="analysis-hero-title">Investment Analysis</div>
+      <div class="analysis-hero-sub">Generated by Senior Wall Street AI · 2026-06-07 16:09:31</div>
+    </div>
+
+    <div class="analysis-sections">
+      
+      <div class="analysis-section  fade-up fade-up-4">
+        <span class="section-icon" aria-hidden="true">📊</span>
+        
+        <div class="analysis-section-title">Financial Outlook</div>
+        <div class="analysis-section-body">
+          
+          
+          <p>Infosys (INFY.NS) is currently trading at ₹1,197.5, down from its open of ₹1,220, reflecting intraday weakness amid a broader IT sector selloff. The stock opened with a gap down and has failed to reclaim the day's high of ₹1,223.8, suggesting bearish momentum in the near term. Volume of 8.69 million shares is elevated, indicating active participation and potential distribution by institutional players. The neutral sentiment score of 0.1 from 20 articles provides no clear directional catalyst from news flow, leaving technicals and sector dynamics as primary drivers.</p>
+          
+          
+          
+          <p>The short-term outlook is cautious. The IT sector is facing headwinds from global macroeconomic uncertainty, elevated crude prices, and persistent foreign institutional investor (FII) outflows from Indian equities. Infosys’s price action today mirrors the weakness seen in peers like Wipro, which crashed 8% on ex-buyback date. While Infosys has a stronger balance sheet and more diversified revenue base than some peers, the lack of a near-term catalyst—such as a buyback or major deal announcement—suggests the stock may consolidate or drift lower in the coming weeks.</p>
+          
+          
+        </div>
+      </div>
+      
+      <div class="analysis-section  fade-up fade-up-5">
+        <span class="section-icon" aria-hidden="true">⚠️</span>
+        
+        <div class="analysis-section-title">Key Risks</div>
+        <div class="analysis-section-body">
+          
+          
+          <p>The primary risk is the ongoing global IT spending slowdown, particularly in the US and European markets, which account for a significant portion of Infosys’s revenue. Elevated interest rates and geopolitical tensions (e.g., Middle East instability) are pressuring enterprise clients to defer discretionary IT projects, which could lead to revenue growth deceleration or margin compression. The neutral sentiment score and lack of positive news flow amplify this risk, as there is no countervailing narrative to support a re-rating.</p>
+          
+          
+          
+          <p>Another key risk is the competitive pressure from both larger global players (Accenture, TCS) and agile mid-tier firms. Infosys’s valuation at ₹1,197.5 is not cheap relative to its historical P/E, and any earnings miss or guidance cut could trigger a sharp correction. Additionally, the broader Indian market is experiencing volatility from FII outflows and rupee depreciation, which could further weigh on INFY’s stock price. The Wipro crash today serves as a cautionary tale of how company-specific events (like buyback ex-dates) can amplify sector-wide weakness.</p>
+          
+          
+        </div>
+      </div>
+      
+      <div class="analysis-section  fade-up fade-up-6">
+        <span class="section-icon" aria-hidden="true">🚀</span>
+        
+        <div class="analysis-section-title">Growth Potential</div>
+        <div class="analysis-section-body">
+          
+          
+          <p>Infosys has significant upside potential from its investments in artificial intelligence (AI) and cloud services. The company has been aggressively building its AI capabilities, including the Infosys Topaz platform, which could drive higher-margin consulting and implementation revenue as enterprises accelerate AI adoption. The long-term demand for digital transformation, automation, and cybersecurity remains robust, and Infosys is well-positioned to capture a share of this market given its strong client relationships and global delivery network.</p>
+          
+          
+          
+          <p>A key catalyst could be a recovery in discretionary IT spending once interest rates stabilize or decline. Infosys’s strong cash flow generation and healthy balance sheet also provide optionality for shareholder-friendly actions like dividends or buybacks, which could support the stock. The company’s consistent track record of beating earnings estimates and its ability to navigate downturns better than peers make it a resilient pick for long-term investors. If global macro conditions improve, INFY could see a sharp re-rating from current levels.</p>
+          
+          
+        </div>
+      </div>
+      
+      <div class="analysis-section recommendation fade-up fade-up-7">
+        <span class="section-icon" aria-hidden="true">🎯</span>
+        
+          
+          
+          <div class="rec-verdict sell">SELL</div>
+          
+        
+        <div class="analysis-section-title">Investment Recommendation</div>
+        <div class="analysis-section-body">
+          
+          
+          <p>**HOLD.** Infosys is a high-quality IT bellwether with strong fundamentals, but the near-term risk-reward is skewed to the downside due to sector headwinds and neutral sentiment. <mark>Investors should wait for a clearer catalyst—such as a positive earnings surprise or a meaningful pullback to support levels—before adding to positions.</mark> The stock’s current price of ₹1,197.5 offers limited upside in the short term, but it remains a core holding for long-term portfolios given its growth potential in AI and cloud.</p>
+          
+          
+          
+          <p>For existing holders, the recommendation is to maintain positions but avoid averaging down until the technical picture improves. <mark>The lack of positive news flow and the sector-wide weakness suggest that patience is warranted, as a break below ₹1,150 could trigger further downside.</mark> New investors should consider initiating a small position on dips, with a stop-loss near ₹1,150, and look for a recovery above ₹1,250 to confirm a trend reversal.</p>
+          
+          
+        </div>
+      </div>
+      
+    </div>
+  </div>
+
+  <div class="footer">
+    This report is for informational purposes only and does not constitute financial advice. &nbsp;·&nbsp;
+    Generated 2026-06-07 16:09:31
+  </div>
+
+</div>
+
+<script>
+  // Animate sentiment bar
+  (function() {
+    const bar = document.getElementById('sent-bar');
+    if (!bar) return;
+    const score = 0.1;
+    const pct = Math.min(Math.max((score + 1) / 2 * 100, 3), 97);
+    setTimeout(() => { bar.style.width = pct + '%'; }, 200);
+  })();
+
+  // Format volume with commas
+  (function() {
+    const el = document.getElementById('volume-val');
+    if (!el) return;
+    const n = parseInt(el.textContent.replace(/,/g, ''));
+    if (!isNaN(n)) el.textContent = n.toLocaleString('en-IN');
+  })();
+</script>
+
+</body>
+</html>

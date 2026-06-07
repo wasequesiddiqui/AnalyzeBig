@@ -1,0 +1,4 @@
+# Ignore everything in the venv directory
+*
+# Except this .gitignore file itself
+!.gitignore
