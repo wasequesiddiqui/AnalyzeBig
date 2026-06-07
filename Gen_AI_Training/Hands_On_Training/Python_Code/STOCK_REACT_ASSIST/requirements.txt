@@ -1,0 +1,26 @@
+# ============================================================
+# Python version: 3.11+
+# ============================================================
+
+# --- Core dependencies for stock_react_agent.py ---
+
+# Yahoo Finance — fetches real-time & historical stock market data (OHLCV)
+yfinance==1.4.1
+
+# Lexicon-based NLP sentiment analysis for news articles
+textblob==0.20.0
+
+# Loads API keys from a .env file into os.environ
+python-dotenv==1.2.2
+
+# NewsAPI.org client — fetches financial news headlines & articles
+newsapi-python==0.2.7
+
+# HTML templating engine — renders the stock analysis report
+Jinja2==3.1.6
+
+# LangChain — @tool decorator to register functions as LLM-callable tools
+langchain==1.3.4
+
+# OpenAI-compatible chat model wrapper (used with DeepSeek API)
+langchain-openai==1.2.2

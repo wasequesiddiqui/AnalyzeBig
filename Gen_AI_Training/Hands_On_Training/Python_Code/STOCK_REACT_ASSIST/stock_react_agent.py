@@ -1,7 +1,7 @@
 """
 Stock Research AI Agent — HTML Dashboard Version
 =================================================
-
+Please install the required dependencies from requirements.txt before running this script.
 An autonomous stock research agent that combines real-time market data, financial
 news aggregation, and AI-powered sentiment analysis to produce a professional,
 browser-ready HTML investment report.
