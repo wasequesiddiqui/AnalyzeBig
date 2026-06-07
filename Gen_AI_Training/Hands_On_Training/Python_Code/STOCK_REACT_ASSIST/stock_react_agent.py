@@ -36,11 +36,11 @@ import os
 import json
 import datetime
 import pandas as pd
+import snscrape.modules.twitter as sntwitter
+
 from dotenv import load_dotenv
 from newsapi import NewsApiClient
-import snscrape.modules.twitter as sntwitter
 from transformers import pipeline
-
 from langchain.tools import tool
 from langchain.agents import create_react_agent, AgentExecutor
 from langchain_core.prompts import PromptTemplate
