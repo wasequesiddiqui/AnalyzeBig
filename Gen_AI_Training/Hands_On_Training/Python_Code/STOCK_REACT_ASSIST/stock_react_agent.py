@@ -1287,9 +1287,14 @@ def generate_html_report(
 
     def detect_verdict(text: str) -> str:
         """
-        Scan the recommendation text for BUY or SELL keywords and return
-        the corresponding verdict.  Defaults to ``"HOLD"`` if neither set
-        of keywords is found.
+        Determine the investment verdict from the recommendation text.
+
+        First attempts to find an **explicit verdict marker** at the very
+        start of the text (e.g. ``**HOLD.**``, ``**BUY.**``, ``BUY.``).
+        If found, that verdict is used directly — preventing false matches
+        from words like "avoid" or "sell" appearing later in the commentary.
+
+        Falls back to keyword scanning only when no explicit marker is present.
 
         Args:
             text (str): The body text of the Investment Recommendation section.
@@ -1297,15 +1302,26 @@ def generate_html_report(
         Returns:
             str: ``"BUY"``, ``"SELL"``, or ``"HOLD"``.
         """
-        t = text.lower()
-        # Check BUY keywords first — they take precedence
+        t = text.strip()
+
+        # ── 1. Explicit verdict marker at the start ──
+        # Matches patterns like:  **HOLD.**  |  **BUY.**  |  **SELL.**
+        #                         HOLD.       |  BUY:      |  SELL —
+        m = re.match(
+            r'^(?:\*\*)?\s*(BUY|HOLD|SELL)\s*(?:\*\*)?\s*[\.\:\,\-]',
+            t, re.IGNORECASE
+        )
+        if m:
+            return m.group(1).upper()
+
+        # ── 2. Fallback: keyword scan with word-boundaries ──
+        t_lower = t.lower()
         for w in BUY_WORDS:
-            if w in t:
+            if re.search(r'\b' + re.escape(w) + r'\b', t_lower):
                 return "BUY"
         for w in SELL_WORDS:
-            if w in t:
+            if re.search(r'\b' + re.escape(w) + r'\b', t_lower):
                 return "SELL"
-        # Neither found → conservative default
         return "HOLD"
 
     parsed_sections = []
