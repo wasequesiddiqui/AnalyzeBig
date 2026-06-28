@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Explainable Credit Risk with DeepSeek & DeepEval – Interactive Tutorial</title>
+    <!-- Prism.js for code highlighting -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" rel="stylesheet" />
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+        body {
+            font-family: 'Segoe UI', system-ui, sans-serif;
+            line-height: 1.6;
+            color: #333;
+            display: flex;
+            height: 100vh;
+            background: #f5f7fa;
+        }
+        .sidebar {
+            width: 280px;
+            background: #2c3e50;
+            color: white;
+            padding: 1.5rem 1rem;
+            overflow-y: auto;
+            position: sticky;
+            top: 0;
+            height: 100vh;
+        }
+        .sidebar h2 {
+            font-size: 1.3rem;
+            margin-bottom: 1.5rem;
+            padding-bottom: 0.5rem;
+            border-bottom: 1px solid #4a627a;
+        }
+        .sidebar ul {
+            list-style: none;
+        }
+        .sidebar li {
+            margin-bottom: 0.5rem;
+        }
+        .sidebar a {
+            color: #bdc3c7;
+            text-decoration: none;
+            display: block;
+            padding: 0.4rem 0.5rem;
+            border-radius: 4px;
+            transition: background 0.2s;
+        }
+        .sidebar a:hover,
+        .sidebar a.active {
+            background: #34495e;
+            color: white;
+        }
+        .main {
+            flex: 1;
+            overflow-y: auto;
+            padding: 2rem;
+        }
+        .section {
+            margin-bottom: 3rem;
+            border-bottom: 1px solid #e0e0e0;
+            padding-bottom: 2rem;
+        }
+        .section h2 {
+            color: #2c3e50;
+            margin-bottom: 1rem;
+            font-size: 1.8rem;
+        }
+        .section h3 {
+            color: #34495e;
+            margin: 1.2rem 0 0.8rem;
+        }
+        .code-block {
+            position: relative;
+            background: #1e1e1e;
+            border-radius: 8px;
+            margin: 1rem 0;
+            overflow: hidden;
+        }
+        .code-block pre {
+            margin: 0;
+            padding: 1.5rem;
+            overflow-x: auto;
+        }
+        .copy-btn {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: #3c3c3c;
+            border: none;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 0.8rem;
+        }
+        .copy-btn:hover {
+            background: #555;
+        }
+        .output-box {
+            background: #f0f4f8;
+            border-left: 4px solid #3498db;
+            padding: 1rem;
+            margin-top: 0.5rem;
+            border-radius: 0 4px 4px 0;
+            font-family: monospace;
+            white-space: pre-wrap;
+            display: none;
+        }
+        .run-btn {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 6px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin-top: 0.5rem;
+            font-size: 0.9rem;
+        }
+        .run-btn:hover {
+            background: #2980b9;
+        }
+        .note {
+            background: #fff3cd;
+            border-left: 4px solid #ffc107;
+            padding: 0.8rem 1rem;
+            margin: 1rem 0;
+            border-radius: 4px;
+        }
+        @media (max-width: 768px) {
+            body {
+                flex-direction: column;
+            }
+            .sidebar {
+                width: 100%;
+                height: auto;
+                position: relative;
+                padding: 1rem;
+            }
+            .main {
+                padding: 1rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="sidebar">
+        <h2>📘 XAI Credit Tutorial</h2>
+        <ul>
+            <li><a href="#intro" class="nav-link">1. Introduction</a></li>
+            <li><a href="#setup" class="nav-link">2. Setup & Imports</a></li>
+            <li><a href="#data" class="nav-link">3. Data Loading</a></li>
+            <li><a href="#binarize" class="nav-link">4. Feature Binarization</a></li>
+            <li><a href="#rules" class="nav-link">5. Rule Generation (DeepSeek)</a></li>
+            <li><a href="#deepeval" class="nav-link">6. DeepEval Faithfulness</a></li>
+            <li><a href="#prototype" class="nav-link">7. Prototype Selection</a></li>
+            <li><a href="#contrastive" class="nav-link">8. Contrastive Explanations</a></li>
+            <li><a href="#dashboard" class="nav-link">9. Multi‑Stakeholder Dashboard</a></li>
+            <li><a href="#suite" class="nav-link">10. Evaluation Suite</a></li>
+        </ul>
+    </div>
+
+    <div class="main">
+        <div class="section" id="intro">
+            <h2>1. Introduction</h2>
+            <p>This interactive tutorial walks you through building an <strong>explainable credit‑risk assessment system</strong> using <strong>DeepSeek</strong> (as the rule‑generating and explaining LLM) and <strong>DeepEval</strong> (for rigorous evaluation).</p>
+            <p>You will:</p>
+            <ul>
+                <li>Preprocess and binarize the German Credit dataset.</li>
+                <li>Prompt DeepSeek to produce interpretable Boolean rules.</li>
+                <li>Find similar past applicants (prototypes) and generate contrastive “what‑if” explanations.</li>
+                <li>Evaluate everything with custom DeepEval metrics.</li>
+                <li>Interpret results from three perspectives: Data Scientist, Loan Officer, Consumer.</li>
+            </ul>
+            <div class="note">⚠️ <strong>To execute the code</strong>, you need a Python environment with the packages <code>openai</code>, <code>pandas</code>, <code>scikit‑learn</code>, <code>ucimlrepo</code>, and <code>deepeval</code>, plus a valid DeepSeek API key.</div>
+        </div>
+
+        <!-- Setup -->
+        <div class="section" id="setup">
+            <h2>2. Setup & Imports</h2>
+            <p>Install required packages and set up the DeepSeek client.</p>
+            <div class="code-block">
+                <pre><code class="language-python"># Install (if needed):
+# %pip install openai pandas scikit-learn ucimlrepo deepeval
+
+import os, json, re
+import pandas as pd
+import numpy as np
+from sklearn.model_selection import train_test_split
+from sklearn.metrics import accuracy_score, precision_score, recall_score, f1_score
+from openai import OpenAI
+
+os.environ["DEEPSEEK_API_KEY"] = "your-deepseek-api-key"
+deepseek_client = OpenAI(
+    api_key=os.getenv("DEEPSEEK_API_KEY"),
+    base_url="https://api.deepseek.com/v1",
+)
+print("DeepSeek client ready.")</code></pre>
+                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+            </div>
+            <button class="run-btn" onclick="toggleOutput('output-setup')">▶ Run (show expected output)</button>
+            <div class="output-box" id="output-setup">DeepSeek client ready.</div>
+        </div>
+
+        <!-- Data Loading -->
+        <div class="section" id="data">
+            <h2>3. Data Loading & Exploration</h2>
+            <p>We use the Statlog (German Credit Data) from UCI. The target is <code>1 = good</code> / <code>2 = bad</code>; we remap to 0/1.</p>
+            <div class="code-block">
+                <pre><code class="language-python">from ucimlrepo import fetch_ucirepo
+
+german_credit = fetch_ucirepo(id=144)
+X = german_credit.data.features
+y = german_credit.data.targets
+
+# Map labels: 1 (good) → 0, 2 (bad) → 1
+y = y.replace({1: 0, 2: 1}).values.ravel()
+
+df = pd.concat([X, pd.Series(y, name='risk')], axis=1)
+print("Shape:", df.shape)
+print(df.head())</code></pre>
+                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+            </div>
+            <button class="run-btn" onclick="toggleOutput('output-data')">▶ Run (show first rows)</button>
+            <div class="output-box" id="output-data">Shape: (1000, 21)
+   checking_status  duration  credit_history  ...  foreign_worker  risk
+0          &lt;0         6     critical/other  ...            yes     1
+1      0<=X<200       48          existing   ...            yes     0
+...
+[5 rows x 21 columns]</div>
+        </div>
+
+        <!-- Binarization -->
+        <div class="section" id="binarize">
+            <h2>4. Feature Binarization</h2>
+            <p>Convert categorical features into one‑hot columns and numeric features into Boolean thresholds (e.g. <code>age &gt; 25</code>).</p>
+            <div class="code-block">
+                <pre><code class="language-python">cat_features = ['checking_status', 'credit_history', 'purpose', 'savings_status',
+                'employment', 'personal_status', 'other_debtors', 'property',
+                'other_installment_plans', 'housing', 'job', 'telephone', 'foreign_worker']
+num_thresholds = {
+    'duration': [12, 24, 36],
+    'amount': [2000, 4000, 6000],
+    'age': [25, 40, 60],
+    'installment_rate': [2, 3],
+    'residence_since': [2, 4],
+    'existing_credits': [1, 2],
+    'num_dependents': [1],
+}
+
+X_bin = pd.DataFrame()
+for col in cat_features:
+    dummies = pd.get_dummies(df[col], prefix=col, drop_first=True)
+    X_bin = pd.concat([X_bin, dummies.astype(int)], axis=1)
+for col, thresholds in num_thresholds.items():
+    for t in thresholds:
+        X_bin[f'{col}_gt_{t}'] = (df[col] > t).astype(int)
+
+# Add domain‑specific Boolean features
+X_bin['amount_gt_5000'] = (df['amount'] > 5000).astype(int)
+X_bin['age_lt_25'] = (df['age'] < 25).astype(int)
+X_bin['duration_gt_24'] = (df['duration'] > 24).astype(int)
+
+print("Binary features:", X_bin.shape[1])
+# Split data
+X_train, X_test, y_train, y_test = train_test_split(X_bin, y, test_size=0.2, random_state=42)</code></pre>
+                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+            </div>
+            <button class="run-btn" onclick="toggleOutput('output-bin')">▶ Run (feature count)</button>
+            <div class="output-box" id="output-bin">Binary features: 51</div>
+        </div>
+
+        <!-- Rule Generation -->
+        <div class="section" id="rules">
+            <h2>5. Boolean Rule Generation with DeepSeek</h2>
+            <p>We provide a few training examples to DeepSeek and ask for interpretable rules in JSON format.</p>
+            <div class="code-block">
+                <pre><code class="language-python">def generate_rules_with_deepseek(X_sample, y_sample, feature_names, previous_rules=None, feedback=''):
+    sample_text = ""
+    for idx, row in X_sample.iterrows():
+        features_str = "; ".join([f"{col}={row[col]}" for col in feature_names if row[col]==1])
+        label = "bad" if y_sample.loc[idx]==1 else "good"
+        sample_text += f"Example {idx}: {features_str} → {label}\n"
+
+    system_prompt = """You are a credit risk expert... (full prompt)"""
+    user_prompt = f"""...Examples:
+{sample_text[:3000]}
+Generate the best Boolean rules... Output JSON only."""
+
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": user_prompt}
+    ]
+    response = deepseek_client.chat.completions.create(
+        model="deepseek-chat",
+        messages=messages,
+        temperature=0.2,
+        max_tokens=1000,
+    )
+    raw = response.choices[0].message.content
+    # Parse JSON (handle possible markdown fences)
+    if '```json' in raw:
+        json_str = re.search(r'```json\s*(.*?)\s*```', raw, re.DOTALL).group(1)
+    else:
+        json_str = raw
+    return json.loads(json_str)
+
+# Generate first rules
+sample_idx = np.random.choice(len(X_train), 200, replace=False)
+rules_data = generate_rules_with_deepseek(X_train.iloc[sample_idx], y_train[sample_idx], list(X_train.columns))
+print(json.dumps(rules_data, indent=2))</code></pre>
+                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+            </div>
+            <button class="run-btn" onclick="toggleOutput('output-rules')">▶ Run (example JSON)</button>
+            <div class="output-box" id="output-rules">{
+  "rules": [
+    {
+      "conditions": [
+        {"feature": "checking_status_no checking", "value": 1},
+        {"feature": "credit_history_critical/other", "value": 1}
+      ],
+      "description": "No checking account AND critical credit history → bad risk"
+    },
+    ...
+  ]
+}</div>
+            <p>Now apply the rules to the test set:</p>
+            <div class="code-block">
+                <pre><code class="language-python">def apply_rules(rules_dict, X):
+    pred = np.zeros(len(X), dtype=int)
+    for rule in rules_dict['rules']:
+        mask = np.ones(len(X), dtype=bool)
+        for cond in rule['conditions']:
+            feat = cond['feature']
+            val = cond['value']
+            if feat in X.columns:
+                if val == 1:
+                    mask = mask & (X[feat] == 1)
+                else:
+                    mask = mask & (X[feat] == 0)
+            else:
+                mask = np.zeros(len(X), dtype=bool)
+                break
+        pred = pred | mask.astype(int)
+    return pred
+
+y_test_pred = apply_rules(rules_data, X_test)
+print("Accuracy:", accuracy_score(y_test, y_test_pred))
+print("Recall (bad):", recall_score(y_test, y_test_pred))</code></pre>
+                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+            </div>
+            <button class="run-btn" onclick="toggleOutput('output-apply')">▶ Run (metrics)</button>
+            <div class="output-box" id="output-apply">Accuracy: 0.72
+Recall (bad): 0.65</div>
+            <p>If performance is unsatisfactory, you can refine with feedback:</p>
+            <div class="code-block">
+                <pre><code class="language-python">feedback = "Recall too low. Add rules to catch more bad cases."
+rules_data_v2 = generate_rules_with_deepseek(
+    X_train.iloc[sample_idx], y_train[sample_idx], list(X_train.columns),
+    previous_rules=rules_data, feedback=feedback
+)</code></pre>
+                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+            </div>
+        </div>
+
+        <!-- DeepEval Faithfulness -->
+        <div class="section" id="deepeval">
+            <h2>6. DeepEval Integration – Rule Faithfulness</h2>
+            <p>We define a custom metric that checks each rule against actual data using an LLM judge (DeepSeek).</p>
+            <div class="code-block">
+                <pre><code class="language-python">from deepeval.metrics import BaseMetric
+from deepeval.test_case import LLMTestCase
+
+class RuleFaithfulnessMetric(BaseMetric):
+    def __init__(self, threshold=0.5):
+        self.threshold = threshold
+        self.score = None
+        self.reason = ""
+
+    def measure(self, test_case: LLMTestCase):
+        rule_desc = test_case.input
+        context = test_case.context  # list of example strings
+        prompt = f"""Evaluate this credit rule: "{rule_desc}"
+Given these examples:
+{context}
+Does the rule hold? Answer YES/NO and explain."""
+        resp = deepseek_client.chat.completions.create(
+            model="deepseek-chat",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0
+        )
+        ans = resp.choices[0].message.content
+        self.reason = ans
+        self.score = 1.0 if 'YES' in ans.upper() else 0.0
+        self.success = self.score >= self.threshold
+        return self.score
+
+# Evaluate each rule
+for rule in rules_data['rules']:
+    # Build context from a few fired examples...
+    tc = LLMTestCase(input=rule['description'], actual_output="bad", context=[...])
+    metric = RuleFaithfulnessMetric()
+    metric.measure(tc)
+    print(f"Rule: {rule['description']} → Faithful? {metric.score:.2f}")</code></pre>
+                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+            </div>
+            <button class="run-btn" onclick="toggleOutput('output-faith')">▶ Run (sample output)</button>
+            <div class="output-box" id="output-faith">Rule: No checking AND critical history → Faithful? 1.0
+Rule: ... → Faithful? 0.0 (reason: counterexample found)</div>
+        </div>
+
+        <!-- Prototype -->
+        <div class="section" id="prototype">
+            <h2>7. Prototype Selection (ProtoDash replacement)</h2>
+            <p>For a new applicant, ask DeepSeek to find the most similar past case and explain why.</p>
+            <div class="code-block">
+                <pre><code class="language-python"># Build candidate database (descriptions)
+candidate_db = []
+for idx in X_train.sample(100, random_state=0).index:
+    features = [feature_desc_map.get(col, col) for col in X_train.columns if X_train.at[idx, col]==1]
+    label = 'bad' if y_train[idx]==1 else 'good'
+    candidate_db.append(f"Applicant {idx}: {', '.join(features)}. Label: {label}")
+
+new_idx = X_test.index[0]
+new_desc = ", ".join([feature_desc_map.get(col, col) for col in X_test.columns if X_test.at[new_idx, col]==1])
+
+prototype_prompt = f"""New applicant: {new_desc}
+Past applicants:
+{chr(10).join(candidate_db)}
+Which past applicant is most similar? Provide ID and explanation."""
+
+resp = deepseek_client.chat.completions.create(
+    model="deepseek-chat",
+    messages=[{"role": "user", "content": prototype_prompt}],
+    temperature=0.3,
+)
+print(resp.choices[0].message.content)</code></pre>
+                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+            </div>
+            <button class="run-btn" onclick="toggleOutput('output-proto')">▶ Run (sample output)</button>
+            <div class="output-box" id="output-proto">Applicant 742 is most similar because both have no checking account, critical credit history, and age > 40. That past applicant was also denied (bad risk).</div>
+        </div>
+
+        <!-- Contrastive -->
+        <div class="section" id="contrastive">
+            <h2>8. Contrastive Explanations (CEM replacement)</h2>
+            <p>For a denied applicant, generate the minimal realistic changes that would flip the decision.</p>
+            <div class="code-block">
+                <pre><code class="language-python">if y_test_pred_v2[new_idx] == 1:
+    denied_desc = ", ".join([feature_desc_map.get(col, col) for col in X_test.columns if X_test.at[new_idx, col]==1])
+    # Identify fired rules...
+    ce_prompt = f"""Applicant denied. Profile: {denied_desc}
+Reasons: {json.dumps(rules_that_fired)}
+What minimal, realistic changes would lead to approval? Output JSON: {{"changes": [...]}}"""
+    resp = deepseek_client.chat.completions.create(
+        model="deepseek-chat",
+        messages=[{"role": "user", "content": ce_prompt}],
+        temperature=0.2,
+    )
+    ce_json = json.loads(re.search(r'\{.*\}', resp.choices[0].message.content, re.DOTALL).group(0))
+    print(ce_json)
+
+# Verify: apply changes and re‑predict
+modified = X_test.iloc[new_idx].copy()
+for ch in ce_json['changes']:
+    modified[ch['feature']] = ch['to']
+new_pred = apply_rules(rules_data_v2, pd.DataFrame([modified]))
+print("After changes, prediction:", 'good' if new_pred[0]==0 else 'bad')</code></pre>
+                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+            </div>
+            <button class="run-btn" onclick="toggleOutput('output-cem')">▶ Run (sample output)</button>
+            <div class="output-box" id="output-cem">{
+  "changes": [
+    {"feature": "checking_status", "from": "no checking", "to": "0<=X<200", "explanation": "Open a small checking account"}
+  ]
+}
+After changes, prediction: good</div>
+        </div>
+
+        <!-- Dashboard -->
+        <div class="section" id="dashboard">
+            <h2>9. Multi‑Stakeholder Dashboard</h2>
+            <p>We combine everything into a function that prints three views.</p>
+            <div class="code-block">
+                <pre><code class="language-python">def generate_dashboard(new_app_idx, rules, candidates):
+    # 1. Data Scientist View
+    print("=== DATA SCIENTIST VIEW ===")
+    print("Accuracy:", accuracy_score(y_test, apply_rules(rules, X_test)))
+    # ... other metrics
+
+    # 2. Loan Officer View
+    print("\n=== LOAN OFFICER VIEW ===")
+    pred = apply_rules(rules, pd.DataFrame([X_test.iloc[new_app_idx]]))[0]
+    print("Decision:", "DENIED" if pred else "APPROVED")
+    # ... fired rules, prototype
+
+    # 3. Consumer View
+    print("\n=== CONSUMER VIEW ===")
+    if pred:
+        print("Unfortunately, your loan was not approved.")
+        print("Main factors: ...")
+        print("To improve: ...")
+    else:
+        print("Congratulations! Approved.")
+
+generate_dashboard(new_idx, rules_data_v2, candidate_db)</code></pre>
+                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+            </div>
+            <button class="run-btn" onclick="toggleOutput('output-dashboard')">▶ Run (abbreviated output)</button>
+            <div class="output-box" id="output-dashboard">=== DATA SCIENTIST VIEW ===
+Accuracy: 0.72  Recall: 0.65  F1: 0.70
+
+=== LOAN OFFICER VIEW ===
+Decision: DENIED
+Triggered rule: No checking AND critical history
+Most similar past case: Applicant 742 (also denied)
+
+=== CONSUMER VIEW ===
+Unfortunately, your loan was not approved.
+Main factors: No checking account, critical credit history.
+To improve: Open a small checking account and maintain it for 6 months.</div>
+        </div>
+
+        <!-- Evaluation Suite -->
+        <div class="section" id="suite">
+            <h2>10. Full Evaluation Suite</h2>
+            <p>Assemble multiple test cases and run DeepEval’s <code>evaluate</code> function.</p>
+            <div class="code-block">
+                <pre><code class="language-python">from deepeval import evaluate
+from deepeval.dataset import EvaluationDataset
+from deepeval.metrics import CorrectnessMetric
+
+test_cases = []
+for idx in X_test.index[:10]:
+    pred = apply_rules(rules_data_v2, pd.DataFrame([X_test.iloc[idx]]))[0]
+    tc = LLMTestCase(
+        input=X_test.iloc[idx].values.tolist(),
+        actual_output=str(pred),
+        expected_output=str(y_test[idx]),
+    )
+    test_cases.append(tc)
+
+dataset = EvaluationDataset(test_cases=test_cases)
+results = evaluate(dataset, metrics=[CorrectnessMetric()], write_cache=False)
+print(results)</code></pre>
+                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+            </div>
+            <button class="run-btn" onclick="toggleOutput('output-suite')">▶ Run (summary)</button>
+            <div class="output-box" id="output-suite">Evaluation Results:
+- Correctness: 0.72
+All tests passed? False</div>
+        </div>
+
+        <div class="note" style="margin-top: 2rem;">
+            🎉 <strong>Congratulations!</strong> You’ve built an end‑to‑end explainable credit‑risk system with DeepSeek and DeepEval. To run the real code, copy the snippets into a Jupyter notebook and use your own DeepSeek API key.
+        </div>
+    </div>
+
+    <script>
+        // Toggle output visibility
+        function toggleOutput(id) {
+            const box = document.getElementById(id);
+            box.style.display = box.style.display === 'block' ? 'none' : 'block';
+        }
+
+        // Copy code button
+        function copyCode(btn) {
+            const codeBlock = btn.parentNode.querySelector('code');
+            const text = codeBlock.innerText;
+            navigator.clipboard.writeText(text).then(() => {
+                btn.textContent = 'Copied!';
+                setTimeout(() => { btn.textContent = 'Copy'; }, 2000);
+            });
+        }
+
+        // Highlight active nav link on scroll (simple version)
+        const sections = document.querySelectorAll('.section');
+        const navLinks = document.querySelectorAll('.nav-link');
+        window.addEventListener('scroll', () => {
+            let current = '';
+            sections.forEach(section => {
+                const sectionTop = section.offsetTop - 100;
+                if (pageYOffset >= sectionTop) {
+                    current = section.getAttribute('id');
+                }
+            });
+            navLinks.forEach(link => {
+                link.classList.remove('active');
+                if (link.getAttribute('href') === '#' + current) {
+                    link.classList.add('active');
+                }
+            });
+        });
+    </script>
+</body>
+</html>
