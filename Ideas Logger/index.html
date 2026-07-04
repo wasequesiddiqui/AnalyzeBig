@@ -1,0 +1,187 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ideas Logger</title>
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+  <header>
+    <h1>💡 Ideas Logger</h1>
+    <p class="subtitle">Capture, track & analyze your ideation journey</p>
+  </header>
+
+  <nav class="tab-nav">
+    <button class="tab-btn active" data-tab="log-tab">📝 Log Idea</button>
+    <button class="tab-btn" data-tab="list-tab">📋 Ideas List</button>
+    <button class="tab-btn" data-tab="analytics-tab">📊 Analytics</button>
+  </nav>
+
+  <!-- TAB 1: Log Idea -->
+  <section id="log-tab" class="tab-content active">
+    <div class="card">
+      <h2>Log a New Idea</h2>
+      <div class="storage-note">
+        💾 Ideas are stored in <strong>Google Sheets</strong> via Apps Script. Data syncs automatically. Falls back to localStorage if offline.
+      </div>
+      <form id="idea-form">
+        <div class="form-group">
+          <label for="theme">Idea Theme <span class="required">*</span></label>
+          <input type="text" id="theme" placeholder="e.g., AI Automation, Web App, Data Pipeline..." required>
+        </div>
+
+        <div class="form-group">
+          <label for="detail">Idea Detail <span class="required">*</span></label>
+          <textarea id="detail" rows="5" placeholder="Describe your idea in detail... What problem does it solve? How would it work?" required></textarea>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="ip">IP Address</label>
+            <input type="text" id="ip" placeholder="Auto-detected" readonly>
+            <small>IP will be auto-detected on submit</small>
+          </div>
+
+          <div class="form-group">
+            <label for="username">Username <span class="required">*</span></label>
+            <input type="text" id="username" placeholder="Your name or handle" required>
+          </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary" id="submit-btn">
+          🚀 Log Idea
+        </button>
+        <div id="form-feedback" class="feedback"></div>
+      </form>
+    </div>
+  </section>
+
+  <!-- TAB 2: Ideas List (DataFrame View) -->
+  <section id="list-tab" class="tab-content">
+    <div class="card">
+      <div class="card-header">
+        <h2>Ideas DataFrame</h2>
+        <div class="header-actions">
+          <span id="idea-count" class="badge">0 ideas</span>
+          <button class="btn btn-outline" onclick="refreshIdeas()">🔄 Refresh</button>
+          <label class="btn btn-outline" for="csv-import-input" style="cursor:pointer; margin:0;">
+            📤 Import CSV
+          </label>
+          <input type="file" id="csv-import-input" accept=".csv" style="display:none;">
+          <button class="btn btn-outline" onclick="exportCSV()">📥 Export CSV</button>
+        </div>
+      </div>
+
+      <div class="filters">
+        <label>
+          Filter by Status:
+          <select id="status-filter" onchange="renderTable()">
+            <option value="all">All</option>
+            <option value="open">Open</option>
+            <option value="implemented">Implemented</option>
+          </select>
+        </label>
+        <label>
+          Filter by Theme:
+          <select id="theme-filter" onchange="renderTable()">
+            <option value="all">All</option>
+          </select>
+        </label>
+      </div>
+
+      <div class="table-container">
+        <table id="ideas-table">
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Theme</th>
+              <th>Detail</th>
+              <th>Username</th>
+              <th>IP</th>
+              <th>Status</th>
+              <th>Time Elapsed</th>
+              <th>Created</th>
+              <th>Mark Implemented</th>
+            </tr>
+          </thead>
+          <tbody id="table-body">
+            <tr>
+              <td colspan="9" class="empty-state">No ideas logged yet. Go to "Log Idea" tab to add one!</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- TAB 3: Analytics -->
+  <section id="analytics-tab" class="tab-content">
+    <div class="analytics-grid">
+      <!-- Stats Cards -->
+      <div class="stats-row">
+        <div class="stat-card">
+          <div class="stat-icon">💡</div>
+          <div class="stat-value" id="stat-total">0</div>
+          <div class="stat-label">Total Ideas</div>
+        </div>
+        <div class="stat-card open">
+          <div class="stat-icon">📝</div>
+          <div class="stat-value" id="stat-open">0</div>
+          <div class="stat-label">Open</div>
+        </div>
+        <div class="stat-card implemented">
+          <div class="stat-icon">✅</div>
+          <div class="stat-value" id="stat-implemented">0</div>
+          <div class="stat-label">Implemented</div>
+        </div>
+        <div class="stat-card rate">
+          <div class="stat-icon">📈</div>
+          <div class="stat-value" id="stat-rate">0%</div>
+          <div class="stat-label">Implementation Rate</div>
+        </div>
+        <div class="stat-card time">
+          <div class="stat-icon">⏱️</div>
+          <div class="stat-value" id="stat-avg-days">0</div>
+          <div class="stat-label">Avg Days to Implement</div>
+        </div>
+      </div>
+
+      <!-- Charts -->
+      <div class="charts-grid">
+        <div class="chart-card">
+          <h3>Ideas Over Time</h3>
+          <canvas id="chart-monthly"></canvas>
+        </div>
+        <div class="chart-card">
+          <h3>Cumulative Growth</h3>
+          <canvas id="chart-cumulative"></canvas>
+        </div>
+        <div class="chart-card">
+          <h3>Ideas by Theme</h3>
+          <canvas id="chart-themes"></canvas>
+        </div>
+        <div class="chart-card">
+          <h3>Status Distribution</h3>
+          <canvas id="chart-status"></canvas>
+        </div>
+        <div class="chart-card">
+          <h3>Ideas by User</h3>
+          <canvas id="chart-users"></canvas>
+        </div>
+        <div class="chart-card">
+          <h3>Implementation Timeline</h3>
+          <canvas id="chart-timeline"></canvas>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <p>Ideas Logger &copy; 2026 — Built with ❤️</p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
