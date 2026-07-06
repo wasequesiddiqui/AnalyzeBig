@@ -281,6 +281,12 @@ function updateThemeFilter() {
   if ([...select.options].some(o => o.value === currentVal)) {
     select.value = currentVal;
   }
+
+  // Also populate the theme dropdown on the Log Idea form
+  const datalist = document.getElementById('theme-datalist');
+  if (datalist) {
+    datalist.innerHTML = themes.map(t => `<option value="${escapeHtml(t)}">`).join('');
+  }
 }
 
 // ============================================================
