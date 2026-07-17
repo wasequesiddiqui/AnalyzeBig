@@ -995,6 +995,7 @@ def get_financial_data(ticker: str) -> dict:
         'net_income': net_income,
         'cost_of_equity': cost_of_equity,
         'wacc': wacc,
+        'risk_free_rate': risk_free,
         'tax_rate': tax_rate,
         'beta': beta
     }
