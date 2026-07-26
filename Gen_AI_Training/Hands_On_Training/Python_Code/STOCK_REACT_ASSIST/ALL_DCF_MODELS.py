@@ -1001,38 +1001,167 @@ def get_financial_data(ticker: str) -> dict:
     }
 
 # -----------------------------------------------------------------------------
-# Example usage with all models
+# Scenario error analysis
 # -----------------------------------------------------------------------------
-if __name__ == "__main__":
-    # ------------------------------------------------------------
-    # 1. Fetch financial data (AAPL) – will fall back to dummy values if offline
-    # ------------------------------------------------------------
-    try:
-        data = get_financial_data("AAPL")
-        print("Fetched data for AAPL successfully.\n")
-    except Exception as e:
-        print(f"Data fetch error: {e}")
-        print("Using dummy data for demonstration.\n")
-        data = {
-            'shares_outstanding': 16e9,
-            'dividend_per_share': 0.96,
-            'fcff': 111.5e9,
-            'fcfe': 105.2e9,
-            'net_debt': -54e9,          # negative means net cash
-            'book_value_equity': 62.1e9,
-            'invested_capital': 220e9,
-            'nopat': 98e9,
-            'net_income': 94e9,
-            'cost_of_equity': 0.089,
-            'wacc': 0.082,
-            'risk_free_rate': 0.04,
-            'tax_rate': 0.15,
-            'beta': 0.98
-        }
 
-    # ------------------------------------------------------------
-    # 2. Declare all variables at the top
-    # ------------------------------------------------------------
+def scenario_error_analysis(ticker: str,
+                            base_value: float,
+                            bull_value: float,
+                            bear_value: float,
+                            currency_symbol: str = "$ ") -> Tuple[float, float, float, float, float, float]:
+    """
+    Fetch the latest share price via yfinance and compute the
+    root-mean-squared-error-style deviation for each scenario value.
+
+    Args:
+        ticker: Yahoo Finance ticker symbol.
+        base_value: Average fair value per share for the base scenario.
+        bull_value: Average fair value per share for the bull scenario.
+        bear_value: Average fair value per share for the bear scenario.
+        currency_symbol: Currency display string.
+
+    Returns:
+        tuple: (base_value, bull_value, bear_value, base_rmse, bull_rmse, bear_rmse)
+    """
+    import yfinance as yf
+
+    try:
+        stock = yf.Ticker(ticker)
+        info = stock.info
+        latest_price = info.get('currentPrice') or info.get('regularMarketPreviousClose')
+        if latest_price is None:
+            # fallback: try history
+            hist = stock.history(period="1d")
+            latest_price = float(hist['Close'].iloc[-1]) if not hist.empty else None
+    except Exception:
+        latest_price = None
+
+    if latest_price is None:
+        print(f"Could not retrieve current price for {ticker}.\n")
+        return base_value, bull_value, bear_value, 0.0, 0.0, 0.0
+
+    print(f"\n============= SCENARIO ERROR ANALYSIS ({ticker}) =============")
+    print(f"Latest share price: {currency_symbol}{latest_price:,.2f}\n")
+
+    labels = ['Base', 'Bull', 'Bear']
+    values = [base_value, bull_value, bear_value]
+    rmses = []
+
+    for label, val in zip(labels, values):
+        diff = latest_price - val
+        rmse = (diff ** 2) ** 0.5   # sqrt(diff²) = absolute deviation
+        rmses.append(rmse)
+        direction = "undervalued" if diff < 0 else "overvalued"
+        print(f"  {label:5s} value: {currency_symbol}{val:>10.2f}  |  "
+              f"Market {direction}: {currency_symbol}{rmse:>10.2f} per share")
+
+    print("===========================================================\n")
+
+    return base_value, bull_value, bear_value, rmses[0], rmses[1], rmses[2]
+
+
+# -----------------------------------------------------------------------------
+# Main analysis function — callable from other modules
+# -----------------------------------------------------------------------------
+
+def run_valuation_analysis(
+    ticker: str = "INFY.NS",
+    currency: str = "₹ ",
+    scenario_assumptions: Optional[List[dict]] = None,
+    scenarios_dt: Optional[List[Tuple[float, float]]] = None,
+    data: Optional[dict] = None,
+    verbose: bool = True,
+) -> dict:
+    """
+    Run a full multi-model, multi-scenario DCF valuation and return results.
+
+    Args:
+        ticker: Yahoo Finance ticker symbol.
+        currency: Currency display string (e.g. "$ ", "₹ ").
+        scenario_assumptions: List of scenario dicts with keys
+            'label', 'g_stable', 'g_high_fcff', 'g_high_div', 'g_high_ni',
+            'years_high', 'years_transition', 'half_life_H'.
+            Defaults to three scenarios (base / bull / bear).
+        scenarios_dt: List of (probability, npv) tuples for the decision-tree model.
+        data: Optional pre-fetched financial data dict. If None, fetched via
+              get_financial_data(ticker); falls back to dummy data on error.
+        verbose: If True, print detailed results to stdout.
+
+    Returns:
+        dict with keys:
+            - scenario_results: list of dicts per scenario
+            - all_values_per_share: flattened list of all value-per-share estimates
+            - average_all: mean of all value-per-share estimates
+            - base_val, bull_val, bear_val: per-scenario averages
+            - base_rmse, bull_rmse, bear_rmse: RMSE vs market price
+            - ticker, currency
+    """
+    # --- Default scenario assumptions ---
+    if scenario_assumptions is None:
+        scenario_assumptions = [
+            {
+                'label': 'base',
+                'g_stable': 0.025,
+                'g_high_fcff': 0.06,
+                'g_high_div': 0.06,
+                'g_high_ni': 0.055,
+                'years_high': 6,
+                'years_transition': 4,
+                'half_life_H': 4,
+            },
+            {
+                'label': 'bull',
+                'g_stable': 0.05,
+                'g_high_fcff': 0.14,
+                'g_high_div': 0.12,
+                'g_high_ni': 0.11,
+                'years_high': 9,
+                'years_transition': 6,
+                'half_life_H': 6,
+            },
+            {
+                'label': 'bear',
+                'g_stable': 0.02,
+                'g_high_fcff': 0.05,
+                'g_high_div': 0.05,
+                'g_high_ni': 0.05,
+                'years_high': 3,
+                'years_transition': 2,
+                'half_life_H': 2,
+            },
+        ]
+
+    if scenarios_dt is None:
+        scenarios_dt = [(0.3, 2.2e12), (0.5, 2.5e12), (0.2, 2.8e12)]
+
+    # --- 1. Fetch / prepare financial data ---
+    if data is None:
+        try:
+            data = get_financial_data(ticker)
+            if verbose:
+                print(f"Fetched data for {ticker} successfully.\n")
+        except Exception as e:
+            if verbose:
+                print(f"Data fetch error: {e}")
+                print("Using dummy data for demonstration.\n")
+            data = {
+                'shares_outstanding': 16e9,
+                'dividend_per_share': 0.96,
+                'fcff': 111.5e9,
+                'fcfe': 105.2e9,
+                'net_debt': -54e9,
+                'book_value_equity': 62.1e9,
+                'invested_capital': 220e9,
+                'nopat': 98e9,
+                'net_income': 94e9,
+                'cost_of_equity': 0.089,
+                'wacc': 0.082,
+                'risk_free_rate': 0.04,
+                'tax_rate': 0.15,
+                'beta': 0.98,
+            }
+
+    # --- 2. Unpack financial data ---
     shares = data['shares_outstanding']
     div0 = data['dividend_per_share']
     fcff0 = data['fcff']
@@ -1042,179 +1171,249 @@ if __name__ == "__main__":
     invested_capital0 = data['invested_capital']
     nopat0 = data['nopat']
     net_income0 = data['net_income']
-
     r_e = data['cost_of_equity']
     wacc = data['wacc']
     r_f = data['risk_free_rate']
     tax_rate = data['tax_rate']
 
-    # --- Growth rate assumptions ---
-    g_stable = 0.025           # perpetual stable growth (used in most terminal values)
-    g_high_fcff = 0.06         # high growth for FCFF/FCFE/dividends (explicit period)
-    g_high_div = 0.06
-    g_high_ni = 0.055
-    years_high = 5             # explicit high‑growth period length
-    years_transition = 3       # for three‑stage DDM
-    half_life_H = 3            # H‑model half‑life
+    all_value_per_share = []
+    scenario_results = []
 
-    # ------------------------------------------------------------
-    # 3. Build explicit forecast lists (for models that need them)
-    # ------------------------------------------------------------
-    # FCFF 5‑year forecast (high growth)
-    fcff_forecast = []
-    fcff_prev = fcff0
-    for _ in range(years_high):
-        fcff_prev *= (1 + g_high_fcff)
-        fcff_forecast.append(fcff_prev)
+    for scenario in scenario_assumptions:
+        g_stable = scenario['g_stable']
+        g_high_fcff = scenario['g_high_fcff']
+        g_high_div = scenario['g_high_div']
+        g_high_ni = scenario['g_high_ni']
+        years_high = scenario['years_high']
+        years_transition = scenario['years_transition']
+        half_life_H = scenario['half_life_H']
 
-    # FCFE 5‑year forecast
-    fcfe_forecast = []
-    fcfe_prev = fcfe0
-    for _ in range(years_high):
-        fcfe_prev *= (1 + g_high_fcff)
-        fcfe_forecast.append(fcfe_prev)
+        # --- 3. Build explicit forecast lists for this scenario ---
+        fcff_forecast = []
+        fcff_prev = fcff0
+        for _ in range(years_high):
+            fcff_prev *= (1 + g_high_fcff)
+            fcff_forecast.append(fcff_prev)
 
-    # Dividend 5‑year forecast (for two‑stage)
-    div_forecast = []
-    div_prev = div0
-    for _ in range(years_high):
-        div_prev *= (1 + g_high_div)
-        div_forecast.append(div_prev)
+        fcfe_forecast = []
+        fcfe_prev = fcfe0
+        for _ in range(years_high):
+            fcfe_prev *= (1 + g_high_fcff)
+            fcfe_forecast.append(fcfe_prev)
 
-    # Net income & book value forecasts (for RIM)
-    ni_forecast = []
-    bv_forecast = []
-    bv_prev = book_equity0
-    ni_prev = net_income0
-    for _ in range(years_high):
-        ni_prev *= (1 + g_high_ni)
-        bv_prev = bv_prev + ni_prev * 0.4  # assume 40% payout ratio → retained earnings added
-        ni_forecast.append(ni_prev)
-        bv_forecast.append(bv_prev)
+        div_forecast = []
+        div_prev = div0
+        for _ in range(years_high):
+            div_prev *= (1 + g_high_div)
+            div_forecast.append(div_prev)
 
-    # NOPAT & invested capital forecasts (for EVA)
-    nopat_forecast = []
-    ic_forecast = []
-    ic_prev = invested_capital0
-    nopat_prev = nopat0
-    for _ in range(years_high):
-        nopat_prev *= (1 + g_high_fcff)
-        ic_prev = ic_prev + nopat_prev * 0.5  # simplified reinvestment assumption
-        nopat_forecast.append(nopat_prev)
-        ic_forecast.append(ic_prev)
+        ni_forecast = []
+        bv_forecast = []
+        bv_prev = book_equity0
+        ni_prev = net_income0
+        for _ in range(years_high):
+            ni_prev *= (1 + g_high_ni)
+            bv_prev = bv_prev + ni_prev * 0.4
+            ni_forecast.append(ni_prev)
+            bv_forecast.append(bv_prev)
 
-    # Unlevered FCFF for APV/CCF (same as FCFF for simplicity)
-    unlevered_fcff = fcff_forecast.copy()
-    # Interest tax shields (dummy, say 2% of FCFF)
-    interest_tax_shields = [cf * 0.02 for cf in fcff_forecast]
+        nopat_forecast = []
+        ic_forecast = []
+        ic_prev = invested_capital0
+        nopat_prev = nopat0
+        for _ in range(years_high):
+            nopat_prev *= (1 + g_high_fcff)
+            ic_prev = ic_prev + nopat_prev * 0.5
+            nopat_forecast.append(nopat_prev)
+            ic_forecast.append(ic_prev)
 
-    # Capital cash flows = unlevered + shields
-    capital_cf = [u + s for u, s in zip(unlevered_fcff, interest_tax_shields)]
+        unlevered_fcff = fcff_forecast.copy()
+        interest_tax_shields = [cf * 0.02 for cf in fcff_forecast]
+        capital_cf = [u + s for u, s in zip(unlevered_fcff, interest_tax_shields)]
+        equity_cf = fcfe_forecast.copy()
 
-    # Equity cash flows (ECF) – use dividends + buybacks (assume all FCFE is paid out)
-    equity_cf = fcfe_forecast.copy()
+        # Clamp stable growth safely below discount rates
+        g_stable_eq = min(g_stable, r_e * 0.9)
+        g_stable_wacc = min(g_stable, wacc * 0.9)
+        segment_values = [
+            fcff_single_stage(fcff0 * 0.6, wacc, g_stable_wacc, shares, 0)[0],
+            fcff_single_stage(fcff0 * 0.4, wacc, g_stable_wacc, shares, 0)[0],
+        ]
 
-    # Segment values for Sum‑of‑Parts
-    segment_values = [fcff_single_stage(fcff0*0.6, wacc, g_stable, shares, 0)[0],
-                      fcff_single_stage(fcff0*0.4, wacc, g_stable, shares, 0)[0]]
+        ce_coeffs = [0.85] * years_high
+        scenario_vps = []
 
-    # Scenarios for decision tree
-    scenarios_dt = [(0.3, 2.2e12), (0.5, 2.5e12), (0.2, 2.8e12)]
+        if verbose:
+            print(f"============= VALUATION MODEL RESULTS ({scenario['label'].capitalize()}) =============\n")
 
-    # Certainty‑equivalent coefficients (risk adjustment)
-    ce_coeffs = [0.85] * years_high
+        if verbose:
+            print("1a) Gordon Growth DDM:")
+        _, vps = ddm_gordon(div0, r_e, g_stable_eq, shares)
+        if verbose:
+            print(f"     Equity value: {currency}{_:,.0f}, Value/share: {currency}{vps:.2f}\n")
+        scenario_vps.append(vps)
 
-    # ------------------------------------------------------------
-    # 4. Run all models and display results
-    # ------------------------------------------------------------
-    print("============= VALUATION MODEL RESULTS =============\n")
+        if verbose:
+            print("1b) Two‑Stage DDM:")
+        _, vps = ddm_two_stage(div0, g_high_div, g_stable_eq, years_high, r_e, shares)
+        if verbose:
+            print(f"     Equity value: {currency}{_:,.0f}, Value/share: {currency}{vps:.2f}\n")
+        scenario_vps.append(vps)
 
-    # ---- 1. Dividend Discount Models ----
-    print("1a) Gordon Growth DDM:")
-    ev, vps = ddm_gordon(div0, r_e, g_stable, shares)
-    print(f"     Equity value: ${ev:,.0f}, Value/share: ${vps:.2f}\n")
+        if verbose:
+            print("1c) Three‑Stage DDM:")
+        _, vps = ddm_three_stage(div0, g_high_div, g_stable_eq, years_high, years_transition, r_e, shares)
+        if verbose:
+            print(f"     Equity value: {currency}{_:,.0f}, Value/share: {currency}{vps:.2f}\n")
+        scenario_vps.append(vps)
 
-    print("1b) Two‑Stage DDM:")
-    ev, vps = ddm_two_stage(div0, g_high_div, g_stable, years_high, r_e, shares)
-    print(f"     Equity value: ${ev:,.0f}, Value/share: ${vps:.2f}\n")
+        if verbose:
+            print("1d) H‑Model DDM:")
+        _, vps = ddm_h_model(div0, g_high_div, g_stable_eq, half_life_H, r_e, shares)
+        if verbose:
+            print(f"     Equity value: {currency}{_:,.0f}, Value/share: {currency}{vps:.2f}\n")
+        scenario_vps.append(vps)
 
-    print("1c) Three‑Stage DDM:")
-    ev, vps = ddm_three_stage(div0, g_high_div, g_stable, 2, years_transition, r_e, shares)
-    print(f"     Equity value: ${ev:,.0f}, Value/share: ${vps:.2f}\n")
+        if verbose:
+            print("2a) FCFF Single Stage:")
+        _, vps = fcff_single_stage(fcff0, wacc, g_stable_wacc, shares, net_debt)
+        if verbose:
+            print(f"     Enterprise value: {currency}{_:,.0f}, Value/share: {currency}{vps:.2f}\n")
+        scenario_vps.append(vps)
 
-    print("1d) H‑Model DDM:")
-    ev, vps = ddm_h_model(div0, g_high_div, g_stable, half_life_H, r_e, shares)
-    print(f"     Equity value: ${ev:,.0f}, Value/share: ${vps:.2f}\n")
+        if verbose:
+            print("2b) FCFF Two‑Stage:")
+        _, vps = fcff_two_stage(fcff0, g_high_fcff, g_stable_wacc, years_high, wacc, shares, net_debt)
+        if verbose:
+            print(f"     Enterprise value: {currency}{_:,.0f}, Value/share: {currency}{vps:.2f}\n")
+        scenario_vps.append(vps)
 
-    # ---- 2. FCFF Models ----
-    print("2a) FCFF Single Stage:")
-    ev, vps = fcff_single_stage(fcff0, wacc, g_stable, shares, net_debt)
-    print(f"     Enterprise value: ${ev:,.0f}, Value/share: ${vps:.2f}\n")
+        if verbose:
+            print("3a) FCFE Constant Growth:")
+        _, vps = fcfe_constant_growth(fcfe0, r_e, g_stable_eq, shares)
+        if verbose:
+            print(f"     Equity value: {currency}{_:,.0f}, Value/share: {currency}{vps:.2f}\n")
+        scenario_vps.append(vps)
 
-    print("2b) FCFF Two‑Stage:")
-    ev, vps = fcff_two_stage(fcff0, g_high_fcff, g_stable, years_high, wacc, shares, net_debt)
-    print(f"     Enterprise value: ${ev:,.0f}, Value/share: ${vps:.2f}\n")
+        if verbose:
+            print("3b) FCFE Two‑Stage:")
+        _, vps = fcfe_two_stage(fcfe0, g_high_fcff, g_stable_eq, years_high, r_e, shares)
+        if verbose:
+            print(f"     Equity value: {currency}{_:,.0f}, Value/share: {currency}{vps:.2f}\n")
+        scenario_vps.append(vps)
 
-    # ---- 3. FCFE Models ----
-    print("3a) FCFE Constant Growth:")
-    ev, vps = fcfe_constant_growth(fcfe0, r_e, g_stable, shares)
-    print(f"     Equity value: ${ev:,.0f}, Value/share: ${vps:.2f}\n")
+        if verbose:
+            print("4) APV (3yr explicit, terminal growth):")
+        _, vps = apv(unlevered_fcff, r_e, interest_tax_shields, 0.04, net_debt, shares,
+                      terminal_growth=g_stable_eq)
+        if verbose:
+            print(f"     Enterprise value: {currency}{_:,.0f}, Value/share: {currency}{vps:.2f}\n")
+        scenario_vps.append(vps)
 
-    print("3b) FCFE Two‑Stage:")
-    ev, vps = fcfe_two_stage(fcfe0, g_high_fcff, g_stable, years_high, r_e, shares)
-    print(f"     Equity value: ${ev:,.0f}, Value/share: ${vps:.2f}\n")
+        if verbose:
+            print("5) Capital Cash Flow (CCF):")
+        _, vps = ccf(capital_cf, r_e, net_debt, shares, terminal_growth=g_stable_eq)
+        if verbose:
+            print(f"     Enterprise value: {currency}{_:,.0f}, Value/share: {currency}{vps:.2f}\n")
+        scenario_vps.append(vps)
 
-    # ---- 4. Adjusted Present Value ----
-    print("4) APV (3yr explicit, terminal 2.5%):")
-    ev, vps = apv(unlevered_fcff, r_e, interest_tax_shields, 0.04, net_debt, shares,
-                  terminal_growth=g_stable)
-    print(f"     Enterprise value: ${ev:,.0f}, Value/share: ${vps:.2f}\n")
+        if verbose:
+            print("6) Equity Cash Flow (ECF):")
+        _, vps = ecf(equity_cf, r_e, shares, terminal_growth=g_stable_eq)
+        if verbose:
+            print(f"     Equity value: {currency}{_:,.0f}, Value/share: {currency}{vps:.2f}\n")
+        scenario_vps.append(vps)
 
-    # ---- 5. Capital Cash Flow ----
-    print("5) Capital Cash Flow (CCF):")
-    ev, vps = ccf(capital_cf, r_e, net_debt, shares, terminal_growth=g_stable)
-    print(f"     Enterprise value: ${ev:,.0f}, Value/share: ${vps:.2f}\n")
+        if verbose:
+            print("7a) Residual Income Model (RIM):")
+        _, vps = residual_income(book_equity0, ni_forecast, bv_forecast, r_e, shares,
+                                  terminal_growth=g_stable_eq)
+        if verbose:
+            print(f"     Equity value: {currency}{_:,.0f}, Value/share: {currency}{vps:.2f}\n")
+        scenario_vps.append(vps)
 
-    # ---- 6. Equity Cash Flow ----
-    print("6) Equity Cash Flow (ECF):")
-    ev, vps = ecf(equity_cf, r_e, shares, terminal_growth=g_stable)
-    print(f"     Equity value: ${ev:,.0f}, Value/share: ${vps:.2f}\n")
+        if verbose:
+            print("7b) Economic Value Added (EVA):")
+        _, vps = eva(invested_capital0, nopat_forecast, ic_forecast, wacc, net_debt, shares,
+                      terminal_growth=g_stable_wacc)
+        if verbose:
+            print(f"     Enterprise value: {currency}{_:,.0f}, Value/share: {currency}{vps:.2f}\n")
+        scenario_vps.append(vps)
 
-    # ---- 7. Residual Income & EVA ----
-    print("7a) Residual Income Model (RIM):")
-    ev, vps = residual_income(book_equity0, ni_forecast, bv_forecast, r_e, shares,
-                              terminal_growth=g_stable)
-    print(f"     Equity value: ${ev:,.0f}, Value/share: ${vps:.2f}\n")
+        if verbose:
+            print("8) Sum‑of‑the‑Parts (2 segments):")
+        _, vps = sum_of_the_parts(segment_values, net_debt, shares)
+        if verbose:
+            print(f"     Enterprise value: {currency}{_:,.0f}, Value/share: {currency}{vps:.2f}\n")
+        scenario_vps.append(vps)
 
-    print("7b) Economic Value Added (EVA):")
-    ev, vps = eva(invested_capital0, nopat_forecast, ic_forecast, wacc, net_debt, shares,
-                  terminal_growth=g_stable)
-    print(f"     Enterprise value: ${ev:,.0f}, Value/share: ${vps:.2f}\n")
+        if verbose:
+            print("9a) Decision Tree DCF:")
+        _, vps = decision_tree_dcf_wrapper(scenarios_dt, net_debt, shares)
+        if verbose:
+            print(f"     Expected enterprise value: {currency}{_:,.0f}, Value/share: {currency}{vps:.2f}\n")
+        scenario_vps.append(vps)
 
-    # ---- 8. Sum‑of‑the‑Parts ----
-    print("8) Sum‑of‑the‑Parts (2 segments):")
-    ev, vps = sum_of_the_parts(segment_values, net_debt, shares)
-    print(f"     Enterprise value: ${ev:,.0f}, Value/share: ${vps:.2f}\n")
+        if verbose:
+            print("9b) Real Option (Black‑Scholes expansion option):")
+        option_val = real_option_black_scholes(200e9, 180e9, r_f, 0.3, 3)
+        if verbose:
+            print(f"     Option premium: {currency}{option_val:,.0f} (add to base NPV)\n")
+        scenario_vps.append(vps)
 
-    # ---- 9. Real Options (Extended DCF) ----
-    print("9a) Decision Tree DCF:")
-    ev, vps = decision_tree_dcf_wrapper(scenarios_dt, net_debt, shares)
-    print(f"     Expected enterprise value: ${ev:,.0f}, Value/share: ${vps:.2f}\n")
+        if verbose:
+            print("10a) Monte Carlo DCF (5,000 paths):")
+        _, vps = monte_carlo_dcf_wrapper(fcff0, g_high_fcff, 0.05, wacc, years_high, 5000,
+                                          net_debt, shares, terminal_growth=g_stable_wacc)
+        if verbose:
+            print(f"     Expected enterprise value: {currency}{_:,.0f}, Value/share: {currency}{vps:.2f}\n")
+        scenario_vps.append(vps)
 
-    print("9b) Real Option (Black‑Scholes expansion option):")
-    # Assume an expansion project with PV=200e9, invest=180e9 in 3 years
-    option_val = real_option_black_scholes(200e9, 180e9, r_f, 0.3, 3)
-    print(f"     Option premium: ${option_val:,.0f} (add to base NPV)\n")
+        if verbose:
+            print("10b) Certainty‑Equivalent DCF (FCFF, α=0.85):")
+        _, vps = certainty_equivalent_dcf_wrapper(fcff_forecast, ce_coeffs, r_f, True,
+                                                   net_debt, shares)
+        if verbose:
+            print(f"     PV of CE cash flows: {currency}{_:,.0f}, Value/share: {currency}{vps:.2f}\n")
+        scenario_vps.append(vps)
 
-    # ---- 10. Stochastic / Simulation DCF ----
-    print("10a) Monte Carlo DCF (5,000 paths):")
-    ev, vps = monte_carlo_dcf_wrapper(fcff0, g_high_fcff, 0.05, wacc, years_high, 5000,
-                                      net_debt, shares, terminal_growth=g_stable)
-    print(f"     Expected enterprise value: ${ev:,.0f}, Value/share: ${vps:.2f}\n")
+        if verbose:
+            print("=================================================\n")
 
-    print("10b) Certainty‑Equivalent DCF (FCFF, α=0.85):")
-    ev, vps = certainty_equivalent_dcf_wrapper(fcff_forecast, ce_coeffs, r_f, True,
-                                               net_debt, shares)
-    print(f"     PV of CE cash flows: ${ev:,.0f}, Value/share: ${vps:.2f}\n")
+        scenario_results.append({
+            'label': scenario['label'],
+            'values_per_share': scenario_vps,
+            'average_value_per_share': np.mean(scenario_vps),
+        })
+        all_value_per_share.extend(scenario_vps)
 
-    print("=================================================")
+    if verbose:
+        print("============= SCENARIO SUMMARY =============\n")
+        for scenario in scenario_results:
+            print(f"{scenario['label'].capitalize()} scenario average value/share: {currency}{scenario['average_value_per_share']:.2f}")
+        print(f"\nAverage value per share across all scenarios: {currency}{np.mean(all_value_per_share):.2f}\n")
+        print("=================================================")
+
+    base_val = scenario_results[0]['average_value_per_share']
+    bull_val = scenario_results[1]['average_value_per_share']
+    bear_val = scenario_results[2]['average_value_per_share']
+    base_val, bull_val, bear_val, base_rmse, bull_rmse, bear_rmse = \
+        scenario_error_analysis(ticker, base_val, bull_val, bear_val, currency)
+
+    return {
+        'scenario_results': scenario_results,
+        'all_values_per_share': all_value_per_share,
+        'average_all': np.mean(all_value_per_share),
+        'base_val': base_val,
+        'bull_val': bull_val,
+        'bear_val': bear_val,
+        'base_rmse': base_rmse,
+        'bull_rmse': bull_rmse,
+        'bear_rmse': bear_rmse,
+        'ticker': ticker,
+        'currency': currency,
+    }
+
+
+if __name__ == "__main__":
+    run_valuation_analysis()
