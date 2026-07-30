@@ -32,3 +32,6 @@ twscrape
 # httpx — pinned to >=0.28 for langchain-openai compatibility
 # (twscrape declares httpx==0.24.0 but works fine with 0.28+)
 httpx>=0.28.0
+
+# Streamlit — interactive web dashboard for stock analysis
+streamlit>=1.40.0

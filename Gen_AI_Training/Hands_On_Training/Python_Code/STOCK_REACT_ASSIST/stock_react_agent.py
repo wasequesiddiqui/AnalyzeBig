@@ -1483,7 +1483,7 @@ def main():
     sentiment_data = analyze_news_sentiment.invoke(company_name)
 
     # ── AI Analysis ──
-    # The LLM receives all collected data and returns a structured markdown
+    # The LLM receives all collected data and returns a structured    markdown
     # analysis with four labeled sections.
     print("Generating AI analysis...")
     analysis = generate_analysis(ticker, stock_data, sentiment_data, news)
