@@ -20,6 +20,7 @@ import re
 import streamlit as st
 import yfinance as yf
 import pandas as pd
+import ALL_DCF_MODELS as adm
 
 from datetime import datetime
 from textblob import TextBlob
@@ -55,6 +56,7 @@ if "analysis_complete" not in st.session_state:
     st.session_state.parsed_sections = None
     st.session_state.ticker = None
     st.session_state.company_name = None
+    st.session_state.dcf_data = None
 
 # =========================================================
 # LLM SETUP
@@ -110,8 +112,108 @@ def get_sentiment_color(s: str) -> str:
     return mapping.get(s.lower(), "gray")
 
 # =========================================================
+# CURRENCY HELPERS
+# =========================================================
+
+CURRENCY_SYMBOLS = {
+    "INR": "₹",
+    "USD": "$",
+    "EUR": "€",
+    "GBP": "£",
+    "JPY": "¥",
+    "AUD": "A$",
+    "CAD": "C$",
+}
+
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def _fx_lookup(ticker: str):
+    """Fetch the latest close for a Yahoo Finance FX ticker (e.g. 'INR=X')."""
+    try:
+        hist = yf.Ticker(ticker).history(period="5d")
+        if not hist.empty:
+            return float(hist["Close"].iloc[-1])
+    except Exception:
+        pass
+    return None
+
+
+def get_fx_rate(from_currency: str, to_currency: str) -> float:
+    """Live FX rate: value of 1 unit of from_currency expressed in to_currency."""
+    if from_currency == to_currency:
+        return 1.0
+    try:
+        if from_currency == "USD":
+            rate = _fx_lookup(f"{to_currency}=X")  # USD/TO rate
+            return rate if rate else 1.0
+        if to_currency == "USD":
+            rate = _fx_lookup(f"{from_currency}=X")  # USD/FROM rate
+            return (1.0 / rate) if rate else 1.0
+        usd = get_fx_rate(from_currency, "USD")
+        to = get_fx_rate("USD", to_currency)
+        return usd * to
+    except Exception:
+        return 1.0
+
+
+def convert_price(value: float, from_currency: str, to_currency: str) -> float:
+    """Convert a price from its native currency to the display currency."""
+    return round(value * get_fx_rate(from_currency, to_currency), 2)
+
+
+def format_price(value: float, native_currency: str, display_currency: str) -> str:
+    """Format a price with the selected display currency symbol."""
+    symbol = CURRENCY_SYMBOLS.get(display_currency, display_currency)
+    converted = convert_price(value, native_currency, display_currency)
+    return f"{symbol}{converted:,.2f}"
+
+def current_selected_currency() -> str:
+    """Get the currently selected display currency from session state."""
+    return st.session_state.get("display_currency", "INR")
+
+
+def currency_display_string(currency: str = "") -> str:
+    """Return the currency display string (symbol + space) used by the DCF module."""
+    currency = currency or current_selected_currency()
+    symbol = CURRENCY_SYMBOLS.get(currency, currency)
+    return f"{symbol} "
+
+
+@st.cache_data(ttl=3600, show_spinner=False)
+def resolve_exchange_ticker(ticker: str) -> str:
+    """Return the first Yahoo-resolvable ticker: NSE → BSE → plain."""
+    ticker = ticker.upper().strip()
+    for candidate in (f"{ticker}.NS", f"{ticker}.BO", ticker):
+        try:
+            if not yf.Ticker(candidate).history(period="5d").empty:
+                return candidate
+        except Exception:
+            continue
+    return ticker
+
+# =========================================================
 # TOOLS  (same logic as original)
 # =========================================================
+
+@tool
+def get_dcf_valuation(ticker: str) -> dict:
+    """Fetch multi-model DCF valuation data for a given ticker symbol.
+
+    Returns a dict with keys: ticker, currency, base_val, bull_val, bear_val,
+    average_all, all_values_per_share, scenario_results and RMSE metrics.
+    """
+    try:
+        resolved = resolve_exchange_ticker(ticker)
+        dcf_data = adm.run_valuation_analysis(
+            ticker=resolved,
+            currency=currency_display_string(),
+            verbose=False,
+        )
+        if not dcf_data:
+            return {"error": "No DCF data found."}
+        return dcf_data
+    except Exception as e:
+        return {"error": str(e)}
 
 @tool
 def get_stock_price(ticker: str) -> dict:
@@ -137,6 +239,7 @@ def get_stock_price(ticker: str) -> dict:
                 stock_data = {
                     "ticker": symbol,
                     "exchange": exchange,
+                    "currency": "INR" if exchange in ("NSE India", "BSE India") else "USD",
                     "current_price": round(latest["Close"], 2),
                     "open": round(latest["Open"], 2),
                     "high": round(latest["High"], 2),
@@ -225,7 +328,7 @@ def analyze_news_sentiment(company_name: str) -> dict:
 # AI ANALYSIS
 # =========================================================
 
-def generate_analysis(ticker: str, stock_data: dict, sentiment_data: dict, news: list) -> str:
+def generate_analysis(ticker: str, stock_data: dict, sentiment_data: dict, news: list, dcf_data: dict, display_currency: str = "INR") -> str:
     """Generate a structured AI investment analysis using DeepSeek."""
     prompt = f"""
 You are a senior Wall Street analyst.
@@ -235,6 +338,9 @@ Analyze this stock.
 Ticker:
 {ticker}
 
+Display Currency:
+{display_currency}
+
 Stock Data:
 {stock_data}
 
@@ -243,6 +349,9 @@ Sentiment:
 
 News:
 {news}
+
+Discounted Cashflow Analysis with all scenarios (valuation) data:
+{dcf_data}
 
 Provide a structured analysis with EXACTLY these four sections.
 Use the exact section headers below (with the emoji), and format each as flowing paragraphs:
@@ -370,6 +479,14 @@ def render_sidebar():
 
         st.markdown("---")
         st.markdown("#### ⚙️ Configuration")
+        currency = st.selectbox(
+            "Display Currency",
+            options=list(CURRENCY_SYMBOLS.keys()),
+            index=list(CURRENCY_SYMBOLS.keys()).index("INR"),
+            format_func=lambda c: f"{c} ({CURRENCY_SYMBOLS[c]})",
+            key="display_currency",
+            help="Prices will be converted to the selected currency for display"
+        )
         api_key_ok = bool(os.getenv("DEEPSEEK_API_KEY"))
         news_key_ok = bool(os.getenv("NEWS_API_KEY"))
         st.markdown(
@@ -387,23 +504,80 @@ def render_sidebar():
             unsafe_allow_html=True
         )
 
-    return ticker, company_name, analyze_btn
+    return ticker, company_name, currency, analyze_btn
 
 
-def render_metrics(stock_data: dict):
+def render_metrics(stock_data: dict, display_currency: str = "INR"):
     """Render the key metrics strip."""
+    native_currency = stock_data.get("currency", "USD")
     spread_pct = round((stock_data["high"] - stock_data["low"]) / stock_data["low"] * 100, 1)
     cols = st.columns(5)
     metrics = [
-        ("💰 Current Price", f"₹{stock_data['current_price']:,}", f"{stock_data['exchange']}"),
-        ("📂 Open", f"₹{stock_data['open']:,}", "Today's open"),
-        ("📈 High", f"₹{stock_data['high']:,}", "Day high"),
-        ("📉 Low", f"₹{stock_data['low']:,}", "Day low"),
+        ("💰 Current Price", format_price(stock_data["current_price"], native_currency, display_currency), f"{stock_data['exchange']}"),
+        ("📂 Open", format_price(stock_data["open"], native_currency, display_currency), "Today's open"),
+        ("📈 High", format_price(stock_data["high"], native_currency, display_currency), "Day high"),
+        ("📉 Low", format_price(stock_data["low"], native_currency, display_currency), "Day low"),
         ("📊 Volume", format_volume(stock_data['volume']), f"Range: {spread_pct}%"),
     ]
     for col, (label, value, sub) in zip(cols, metrics):
         with col:
             st.metric(label=label, value=value, help=sub)
+
+
+def render_dcf_valuation(dcf_data: dict, stock_data: dict, display_currency: str = "INR"):
+    """Render separate fair-value cards for each DCF scenario."""
+    if not dcf_data or "error" in dcf_data:
+        st.info("💹 DCF valuation data not available.")
+        return
+
+    native = stock_data.get("currency", "USD")
+    market_price = stock_data.get("current_price")
+
+    st.markdown("---")
+    st.markdown("## 💹 DCF Valuation")
+    st.caption("Fair value per share from multi-model DCF analysis across scenarios")
+
+    def _fmt(value) -> str:
+        if value is None:
+            return "—"
+        return format_price(float(value), native, display_currency)
+
+    def _delta_pct(value):
+        if value is None or not market_price:
+            return None
+        return (float(value) - market_price) / market_price * 100
+
+    cols = st.columns(4)
+    cards = [
+        ("⚖️ Base", dcf_data.get("base_val"), "#1a3a6b"),
+        ("🚀 Bull", dcf_data.get("bull_val"), "#1a6b3a"),
+        ("🐻 Bear", dcf_data.get("bear_val"), "#b01a1a"),
+        ("📊 Average", dcf_data.get("average_all"), "#92600a"),
+    ]
+    for col, (label, value, color) in zip(cols, cards):
+        with col:
+            with st.container(border=True):
+                st.markdown(
+                    f"<p style='margin:0; font-size:0.8rem; font-weight:600; color:{color};'>{label}</p>",
+                    unsafe_allow_html=True
+                )
+                pct = _delta_pct(value)
+                if pct is not None:
+                    st.metric(
+                        "Value / Share",
+                        _fmt(value),
+                        delta=f"{pct:+.1f}% vs market",
+                        delta_color="normal",
+                    )
+                else:
+                    st.metric("Value / Share", _fmt(value))
+
+    n_scenarios = len(dcf_data.get("scenario_results", []))
+    n_estimates = len(dcf_data.get("all_values_per_share", []))
+    st.caption(
+        f"Market price: {_fmt(market_price)} · "
+        f"{n_scenarios} scenarios · {n_estimates} model estimates"
+    )
 
 
 def render_sentiment(sentiment_data: dict):
@@ -559,10 +733,23 @@ def run_analysis(ticker: str, company_name: str):
         sentiment_data = analyze_news_sentiment.invoke(company_name)
         st.session_state.sentiment_data = sentiment_data
 
-        # Step 4: AI Analysis
+        # step 4: Discounted Cash Flow (DCF) Valuation
+        status_text.info("💹 Fetching DCF valuation data...")
+        progress_bar.progress(65, text="Fetching DCF valuation data...")
+        dcf_data = get_dcf_valuation.invoke(ticker)
+        st.session_state.dcf_data = dcf_data
+
+        # Step 5: AI Analysis
         status_text.info("🤖 Generating AI investment analysis...")
         progress_bar.progress(75, text="Generating AI investment analysis...")
-        analysis = generate_analysis(ticker, stock_data, sentiment_data, news)
+        analysis = generate_analysis(
+            ticker,
+            stock_data,
+            sentiment_data,
+            news,
+            dcf_data,
+            st.session_state.get("display_currency", "INR")
+        )
         st.session_state.analysis = analysis
 
         # Step 5: Parse
@@ -589,7 +776,7 @@ def run_analysis(ticker: str, company_name: str):
 
 def main():
     render_header()
-    ticker, company_name, analyze_btn = render_sidebar()
+    ticker, company_name, display_currency, analyze_btn = render_sidebar()
 
     # ── Trigger analysis ──
     if analyze_btn and ticker and company_name:
@@ -603,6 +790,7 @@ def main():
         news = st.session_state.news
         parsed_sections = st.session_state.parsed_sections
         ticker_display = st.session_state.ticker
+        dcf_data = st.session_state.get("dcf_data")
 
         # ── Hero Section ──
         col1, col2 = st.columns([2, 1])
@@ -614,10 +802,11 @@ def main():
                 unsafe_allow_html=True
             )
         with col2:
+            native_currency = stock_data.get("currency", "USD")
             st.markdown(
                 f"<div style='text-align: right;'>"
                 f"<p style='font-size: 0.75rem; color: var(--text-color-secondary); margin-bottom: 0;'>Current Price</p>"
-                f"<h1 style='font-size: 2.5rem;'>₹{stock_data['current_price']:,}</h1>"
+                f"<h1 style='font-size: 2.5rem;'>{format_price(stock_data['current_price'], native_currency, display_currency)}</h1>"
                 f"</div>",
                 unsafe_allow_html=True
             )
@@ -625,7 +814,12 @@ def main():
         st.divider()
 
         # ── Metrics Strip ──
-        render_metrics(stock_data)
+        render_metrics(stock_data, display_currency)
+
+        st.divider()
+
+        # ── DCF Valuation Scenario Cards ──
+        render_dcf_valuation(dcf_data, stock_data, display_currency)
 
         st.divider()
 
