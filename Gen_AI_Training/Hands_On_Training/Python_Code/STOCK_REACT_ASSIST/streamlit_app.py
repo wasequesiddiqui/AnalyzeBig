@@ -17,6 +17,7 @@ Environment Variables (.env)
 
 import os
 import re
+import io
 import streamlit as st
 import yfinance as yf
 import pandas as pd
@@ -28,6 +29,7 @@ from dotenv import load_dotenv
 from newsapi import NewsApiClient
 from langchain.tools import tool
 from langchain_openai import ChatOpenAI
+from pypdf import PdfReader
 
 # =========================================================
 # PAGE CONFIG — must be the first Streamlit command
@@ -57,6 +59,15 @@ if "analysis_complete" not in st.session_state:
     st.session_state.ticker = None
     st.session_state.company_name = None
     st.session_state.dcf_data = None
+    # Vectorless RAG state: raw uploaded files (bytes snapshot, extracted only
+    # on Analyze), extracted chunks, per-file summary, dedup keys, and the
+    # chunks retrieved at analysis time.
+    st.session_state.uploaded_files_raw = []
+    st.session_state.uploaded_keys = []
+    st.session_state.document_corpus = []
+    st.session_state.rag_sources = []
+    st.session_state.rag_keys = []
+    st.session_state.retrieved_chunks = []
 
 # =========================================================
 # LLM SETUP
@@ -328,8 +339,28 @@ def analyze_news_sentiment(company_name: str) -> dict:
 # AI ANALYSIS
 # =========================================================
 
-def generate_analysis(ticker: str, stock_data: dict, sentiment_data: dict, news: list, dcf_data: dict, display_currency: str = "INR") -> str:
-    """Generate a structured AI investment analysis using DeepSeek."""
+def generate_analysis(ticker: str, stock_data: dict, sentiment_data: dict, news: list, dcf_data: dict, display_currency: str = "INR", rag_context: str = "") -> str:
+    """Generate a structured AI investment analysis using DeepSeek.
+
+    When ``rag_context`` (produced by the vectorless-RAG pipeline) is non-empty,
+    it is injected into the prompt so the analysis is grounded on the uploaded
+    regulatory filing documents.
+    """
+    rag_section = ""
+    if rag_context.strip():
+        rag_section = f"""
+Regulatory Filing Context (extracted from the uploaded documents via vectorless RAG):
+{rag_context}
+
+Instructions for using the Regulatory Filing Context:
+- Treat it as authoritative company-disclosed information (e.g. revenue,
+  profit, debt, guidance, and risk factors).
+- Use it to enrich and ground every section of your analysis.
+- When you cite a figure from the filings, reference its source inline as
+  [File: <filename>, Page <n>].
+- Do NOT invent facts that appear in neither the filing context nor the
+  market/valuation data above.
+"""
     prompt = f"""
 You are a senior Wall Street analyst.
 
@@ -353,6 +384,7 @@ News:
 Discounted Cashflow Analysis with all scenarios (valuation) data:
 {dcf_data}
 
+{rag_section}
 Provide a structured analysis with EXACTLY these four sections.
 Use the exact section headers below (with the emoji), and format each as flowing paragraphs:
 
@@ -435,6 +467,294 @@ def parse_analysis(analysis: str) -> list:
 
 
 # =========================================================
+# VECTORLESS RAG  (in-memory document context — no vector DB)
+# =========================================================
+#
+# WHAT IS VECTORLESS RAG?
+# -----------------------
+# Retrieval-Augmented Generation (RAG) normally works like this:
+#     1. Chunk the documents, then embed every chunk into a high-dimensional
+#        vector using an embedding model (OpenAI, BGE, etc.).
+#     2. Store the vectors in a vector database (FAISS, Chroma, Pinecone...).
+#     3. Embed the user's question, run a vector similarity search, and return
+#        the top-k most similar chunks.
+#     4. Stuff those chunks into the LLM prompt as extra context.
+#
+# "Vectorless RAG" keeps the *retrieval + augmented generation* idea but drops
+# the embedding + vector-database machinery entirely:
+#     1. EXTRACT  — pull the raw text out of each uploaded PDF with pypdf.
+#     2. CHUNK    — split the text into overlapping chunks (chunk_text) so the
+#        LLM can read the filing in digestible pieces, keeping surrounding
+#        context across chunk boundaries.
+#     3. STORE    — keep the chunks in a plain Python list held in
+#        st.session_state. There is NO vector index, NO embedding model, and
+#        NO external service — the list IS the "database".
+#     4. RETRIEVE — at query time, score every chunk with a lightweight LEXICAL
+#        (keyword-overlap) search: count how many query terms appear in each
+#        chunk, then keep the top-k highest-scoring chunks (lexical_search).
+#     5. AUGMENT  — inject those chunks into the LLM prompt as plain text. The
+#        LLM's own long context window does the semantic "reading", so no
+#        vectors are ever needed.
+#
+# WHY USE VECTORLESS RAG HERE?
+# ----------------------------
+#   * Zero infrastructure: no embedding model to download/call and no vector
+#     database to set up, run, or maintain.
+#   * Zero embedding cost: only the DeepSeek context window is consumed.
+#   * Fully transparent: you can always inspect exactly which text is fed to
+#     the LLM (the retrieved chunks are rendered in the UI), which makes the
+#     results easy to audit — important for regulatory filings.
+#   * Well suited to regulatory reports: filings are factual, term-heavy
+#     documents (revenue, EBITDA, debt, risk, guidance...), and the exact
+#     wording appears verbatim, so keyword overlap is an effective matcher.
+#
+# TRADE-OFFS (why traditional vector RAG exists):
+#   * No semantic matching: keyword scoring misses paraphrased queries that a
+#     true embedding similarity search would catch.
+#   * Context-window bound: we cap the number of injected chunks (top_k) so
+#     large filings never overflow the LLM context window.
+#
+# EXTRACTION TIMING
+# -----------------
+# Uploading files only snapshots their bytes (_store_uploaded_files) — the
+# expensive PDF text extraction + chunking runs ONCE, when the user clicks
+# "🚀 Analyze Stock" (run_analysis Step 4.5). Every stage prints progress to
+# the terminal (the console running `streamlit run`) so the pipeline is
+# observable end-to-end.
+
+def extract_pdf_text(uploaded_file) -> list[dict]:
+    """Extract the text of an uploaded PDF page-by-page using pypdf.
+
+    Accepts either a Streamlit UploadedFile or a raw dict with
+    {"name": str, "bytes": bytes} (the form stored in session state by
+    _store_uploaded_files).
+
+    Returns a list of page records:
+        [{"file": "<name>", "page": 1, "text": "..."}, ...]
+    Scanned / image-only PDFs yield no text and are reported by the caller.
+    """
+    # Normalise the input: Streamlit UploadedFile OR a {"name", "bytes"} dict.
+    if isinstance(uploaded_file, dict):
+        doc_name = uploaded_file.get("name", "document.pdf")
+        pdf_bytes = uploaded_file.get("bytes", b"")
+    else:
+        doc_name = uploaded_file.name
+        uploaded_file.seek(0)
+        pdf_bytes = uploaded_file.getvalue()
+
+    pages = []
+    print(f"[RAG] Extracting text from '{doc_name}' ...")
+    try:
+        reader = PdfReader(io.BytesIO(pdf_bytes))
+        for page_number, page in enumerate(reader.pages, start=1):
+            text = (page.extract_text() or "").strip()
+            if text:
+                pages.append({
+                    "file": doc_name,
+                    "page": page_number,
+                    "text": text,
+                })
+        print(f"[RAG]   -> '{doc_name}': {len(pages)} page(s) with text extracted.")
+    except Exception as e:
+        st.warning(f"⚠️ Could not read '{doc_name}': {e}")
+        print(f"[RAG]   -> ERROR reading '{doc_name}': {e}")
+    return pages
+
+
+def chunk_text(text: str, max_chars: int = 1800, overlap: int = 200) -> list[str]:
+    """Split a page of text into overlapping chunks.
+
+    Overlap preserves the context that spans chunk boundaries, so a sentence
+    or a financial figure split across two chunks remains fully readable by
+    the LLM. Chunks are cut at sentence boundaries when possible.
+    """
+    text = re.sub(r"\s+", " ", text).strip()
+    if len(text) <= max_chars:
+        return [text] if text else []
+    chunks = []
+    start = 0
+    while start < len(text):
+        end = min(start + max_chars, len(text))
+        if end < len(text):
+            # Prefer a natural sentence boundary near the end of the chunk.
+            boundary = text.rfind(". ", start + int(max_chars * 0.6), end)
+            if boundary != -1:
+                end = boundary + 1
+        chunks.append(text[start:end].strip())
+        if end >= len(text):
+            break
+        start = end - overlap  # carry the tail over into the next chunk
+    return [c for c in chunks if c]
+
+
+def build_document_corpus(uploaded_files) -> tuple[list[dict], list[dict]]:
+    """Turn the uploaded PDFs into the vectorless-RAG corpus.
+
+    Step 2 of the vectorless pipeline above. Every page of every document is
+    extracted and chunked, and each chunk is tagged with its source file and
+    page number so the LLM can cite it and we can trace it in the UI. Progress
+    is printed to the terminal so the extraction is observable.
+
+    Returns:
+        corpus:  [{"file": str, "page": int, "text": str}, ...]  (the "index")
+        sources: [{"name", "pages", "chars", "chunks", "status"}, ...] (for UI)
+    """
+    corpus: list[dict] = []
+    sources: list[dict] = []
+    for uploaded_file in uploaded_files or []:
+        doc_name = (
+            uploaded_file.get("name", "document.pdf")
+            if isinstance(uploaded_file, dict)
+            else uploaded_file.name
+        )
+        pages = extract_pdf_text(uploaded_file)
+        if not pages:
+            print(f"[RAG]   -> '{doc_name}': no extractable text (scanned/image PDF?).")
+            sources.append({
+                "name": doc_name, "pages": 0, "chars": 0,
+                "chunks": 0, "status": "⚠️ No extractable text",
+            })
+            continue
+        file_chars = sum(len(p["text"]) for p in pages)
+        file_chunks = 0
+        for page in pages:
+            for chunk in chunk_text(page["text"]):
+                corpus.append({
+                    "file": page["file"],
+                    "page": page["page"],
+                    "text": chunk,
+                })
+                file_chunks += 1
+        print(f"[RAG]   -> '{doc_name}': {file_chars:,} chars -> {file_chunks} chunk(s).")
+        sources.append({
+            "name": doc_name,
+            "pages": len(pages),
+            "chars": file_chars,
+            "chunks": file_chunks,
+            "status": "✅",
+        })
+    return corpus, sources
+
+
+def lexical_search(query: str, corpus: list[dict], top_k: int = 10) -> list[dict]:
+    """Step 4 of the vectorless pipeline: keyword-overlap retrieval.
+
+    This is the stand-in for embedding similarity search. Every chunk is
+    scored by how many of the query's meaningful terms appear in it (case-
+    insensitive substring match), then the top_k highest-scoring chunks are
+    returned in descending order. Because we only do string matching there are
+    no models, no vectors, and no database involved.
+    """
+    if not corpus:
+        return []
+    # Stop words that would add noise to the overlap score.
+    STOPWORDS = {
+        "the", "and", "for", "with", "this", "that", "from", "what", "are",
+        "about", "stock", "company", "report", "filing", "analysis",
+        "provide", "based", "information", "regulatory", "your", "you",
+        "will", "has", "have", "its", "their", "also", "into", "such",
+    }
+    query_terms = [
+        t for t in re.findall(r"[a-zA-Z]{3,}", query.lower())
+        if t not in STOPWORDS
+    ]
+    if not query_terms:
+        # No useful terms (empty/short query) — return the first top_k chunks.
+        return corpus[:top_k]
+    scored = []
+    for chunk in corpus:
+        text_lower = chunk["text"].lower()
+        score = sum(1 for t in query_terms if t in text_lower)
+        if score > 0:
+            scored.append((score, chunk))
+    scored.sort(key=lambda item: item[0], reverse=True)
+    return [chunk for _, chunk in scored[:top_k]]
+
+
+def format_rag_context(rag_chunks: list[dict]) -> str:
+    """Serialize the retrieved chunks into one text block for the LLM prompt.
+
+    Each chunk is prefixed with its source file and page so the model can cite
+    the filing it is drawing a fact from.
+    """
+    if not rag_chunks:
+        return ""
+    blocks = []
+    for i, chunk in enumerate(rag_chunks, start=1):
+        blocks.append(
+            f"[Excerpt {i} | File: {chunk['file']} | Page {chunk['page']}]\n{chunk['text']}"
+        )
+    return "\n\n".join(blocks)
+
+
+# ---------------------------------------------------------------------------
+# Upload processing + sidebar summary (UI helpers that use st.*)
+# ---------------------------------------------------------------------------
+
+def _store_uploaded_files(uploaded_files):
+    """Snapshot raw uploaded PDFs into session state WITHOUT extracting text.
+
+    PDF parsing is deliberately deferred until the user clicks
+    '🚀 Analyze Stock' (see run_analysis Step 4.5). Here we only persist the
+    file bytes — Streamlit UploadedFile objects are recreated on every rerun
+    and are not guaranteed to remain usable, so we snapshot each one as
+    {"name", "size", "bytes"}.
+    """
+    if not uploaded_files:
+        st.session_state.uploaded_files_raw = []
+        st.session_state.uploaded_keys = []
+        return
+    current_keys = sorted((f.name, f.size) for f in uploaded_files)
+    if st.session_state.get("uploaded_keys") == current_keys:
+        return  # Same set of files already snapshotted.
+    st.session_state.uploaded_files_raw = [
+        {"name": f.name, "size": f.size, "bytes": f.getvalue()}
+        for f in uploaded_files
+    ]
+    st.session_state.uploaded_keys = current_keys
+    # Upload set changed -> invalidate previously built RAG artifacts. They
+    # are rebuilt on the next 'Analyze Stock' click.
+    st.session_state.document_corpus = []
+    st.session_state.rag_sources = []
+    st.session_state.rag_keys = []
+    st.session_state.retrieved_chunks = []
+
+
+def _render_uploaded_docs_summary():
+    """Show uploaded filings and their extraction status in the sidebar."""
+    raw = st.session_state.get("uploaded_files_raw", [])
+    sources = st.session_state.get("rag_sources", [])
+    if not raw and not sources:
+        st.caption("No documents uploaded yet.")
+        return
+    if sources:
+        total_pages = sum(s["pages"] for s in sources)
+        total_chunks = sum(s["chunks"] for s in sources)
+        st.markdown(
+            f"**{len(sources)} document(s)** · {total_pages} pages · "
+            f"{total_chunks} chunks"
+        )
+        for s in sources:
+            st.markdown(
+                f"- {s['status']} `{s['name']}` — {s['pages']}p · {s['chars']:,} chars",
+            )
+    else:
+        st.markdown(f"**{len(raw)} document(s) queued**")
+        for f in raw:
+            st.markdown(
+                f"- ⏳ `{f['name']}` — {f['size']:,} bytes (extracted on Analyze)",
+            )
+    if st.button("🗑️ Clear documents", use_container_width=True):
+        st.session_state.uploaded_files_raw = []
+        st.session_state.uploaded_keys = []
+        st.session_state.document_corpus = []
+        st.session_state.rag_sources = []
+        st.session_state.rag_keys = []
+        st.session_state.retrieved_chunks = []
+        st.rerun()
+
+
+# =========================================================
 # STREAMLIT UI
 # =========================================================
 
@@ -461,9 +781,14 @@ def render_sidebar():
     with st.sidebar:
         st.markdown("## 🔍 Stock Lookup")
         ticker = st.text_input(
-            "Ticker Symbol",
-            placeholder="e.g. INFY, TCS, AAPL",
-            help="Enter the stock ticker symbol (Indian stocks: NSE/BSE auto-detected)"
+            "Ticker Symbol (Yahoo Finance)",
+            placeholder="e.g. INFY.NS, RELIANCE.BO, AAPL, MSFT",
+            help=(
+                "Type the COMPLETE Yahoo Finance ticker symbol, e.g. "
+                "INFY.NS (NSE India), INFY.BO (BSE India), or AAPL / MSFT "
+                "(US markets). The full ticker you type is used as-is to "
+                "fetch market data."
+            )
         ).strip().upper()
         company_name = st.text_input(
             "Company Name",
@@ -476,6 +801,22 @@ def render_sidebar():
             use_container_width=True,
             disabled=not (ticker and company_name)
         )
+
+        st.markdown("---")
+        st.markdown("#### 📄 Regulatory Filings (Vectorless RAG)")
+        uploaded_files = st.file_uploader(
+            "Upload the regulatory filing report here",
+            type=["pdf"],
+            accept_multiple_files=True,
+            help=(
+                "Upload one or more regulatory filing reports (PDF) — e.g. annual "
+                "reports, quarterly results, or prospectuses. The text is extracted "
+                "from each PDF and used as in-context evidence for the AI analysis "
+                "via vectorless RAG (no embeddings or vector database required)."
+            ),
+        )
+        _store_uploaded_files(uploaded_files)
+        _render_uploaded_docs_summary()
 
         st.markdown("---")
         st.markdown("#### ⚙️ Configuration")
@@ -653,6 +994,26 @@ def render_news(news: list):
                 st.markdown(f"[Read more →]({article['url']})")
 
 
+def render_document_context(rag_chunks: list[dict]):
+    """Render the vectorless-RAG document evidence used in the analysis."""
+    sources = st.session_state.get("rag_sources", [])
+    if not sources:
+        return
+    st.markdown("---")
+    st.markdown("## 📄 Regulatory Filing Context")
+    st.caption(
+        "Chunks below were extracted from your uploaded PDFs and retrieved by "
+        "keyword (lexical) scoring — vectorless RAG, so no embeddings or vector "
+        "database were used. They were injected into the AI analysis prompt."
+    )
+    if not rag_chunks:
+        st.info("No relevant chunks matched the query from the uploaded documents.")
+        return
+    for i, chunk in enumerate(rag_chunks, start=1):
+        with st.expander(f"Chunk {i} — {chunk['file']} (Page {chunk['page']})"):
+            st.markdown(chunk["text"])
+
+
 def render_analysis(parsed_sections: list):
     """Render the AI analysis sections."""
     st.markdown("---")
@@ -739,6 +1100,34 @@ def run_analysis(ticker: str, company_name: str):
         dcf_data = get_dcf_valuation.invoke(ticker)
         st.session_state.dcf_data = dcf_data
 
+        # Step 4.5: Vectorless RAG — extract text from the uploaded PDFs NOW.
+        # Extraction is triggered only by this Analyze click (upload merely
+        # snapshots bytes); every stage prints progress to the terminal so the
+        # pipeline is observable in the `streamlit run` console.
+        uploaded_files_raw = st.session_state.get("uploaded_files_raw", [])
+        corpus = st.session_state.get("document_corpus", [])
+        if st.session_state.get("rag_keys") != st.session_state.get("uploaded_keys", []):
+            status_text.info("📄 Extracting text from uploaded PDFs...")
+            progress_bar.progress(68, text="Extracting text from uploaded PDFs...")
+            print("[RAG] ===== Building vectorless RAG corpus =====")
+            corpus, sources = build_document_corpus(uploaded_files_raw)
+            st.session_state.document_corpus = corpus
+            st.session_state.rag_sources = sources
+            st.session_state.rag_keys = st.session_state.get("uploaded_keys", [])
+            print(f"[RAG] Corpus ready: {len(corpus)} chunks across {len(sources)} document(s).")
+
+        # Step 4.6: Retrieve the most relevant chunks via keyword scoring
+        # (no embeddings / vector DB) and turn them into prompt context.
+        rag_query = (
+            f"{ticker} {company_name} revenue profit debt growth risks "
+            "guidance outlook valuation"
+        )
+        rag_chunks = lexical_search(rag_query, corpus, top_k=10)
+        rag_context = format_rag_context(rag_chunks)
+        st.session_state.retrieved_chunks = rag_chunks
+        print(f"[RAG] Retrieved {len(rag_chunks)} chunk(s) -> "
+              f"{len(rag_context):,} chars injected into the analysis prompt.")
+
         # Step 5: AI Analysis
         status_text.info("🤖 Generating AI investment analysis...")
         progress_bar.progress(75, text="Generating AI investment analysis...")
@@ -748,7 +1137,8 @@ def run_analysis(ticker: str, company_name: str):
             sentiment_data,
             news,
             dcf_data,
-            st.session_state.get("display_currency", "INR")
+            st.session_state.get("display_currency", "INR"),
+            rag_context=rag_context,
         )
         st.session_state.analysis = analysis
 
@@ -830,6 +1220,9 @@ def main():
         with news_col:
             render_news(news)
 
+        # ── Vectorless RAG: uploaded regulatory filings used in the analysis ──
+        render_document_context(st.session_state.get("retrieved_chunks", []))
+
         # ── AI Analysis ──
         if parsed_sections:
             render_analysis(parsed_sections)
@@ -851,7 +1244,9 @@ def main():
             "1. 📡 Fetch real-time stock price data\n"
             "2. 📰 Retrieve latest financial news\n"
             "3. 📊 Analyze market sentiment via NLP\n"
-            "4. 🤖 Generate AI-powered investment analysis\n\n"
+            "4. 📄 Ground the analysis on your uploaded regulatory filings "
+            "(vectorless RAG — upload PDFs in the sidebar)\n"
+            "5. 🤖 Generate AI-powered investment analysis\n\n"
             "---\n"
             "**Supported Markets:** NSE India (.NS), BSE India (.BO), Global (NYSE/NASDAQ)"
         )

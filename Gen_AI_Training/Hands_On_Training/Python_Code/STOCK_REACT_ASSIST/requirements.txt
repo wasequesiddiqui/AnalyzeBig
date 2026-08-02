@@ -35,3 +35,6 @@ httpx>=0.28.0
 
 # Streamlit — interactive web dashboard for stock analysis
 streamlit>=1.40.0
+
+# pypdf — extracts text from uploaded PDF regulatory filings (vectorless RAG)
+pypdf>=4.0.0
