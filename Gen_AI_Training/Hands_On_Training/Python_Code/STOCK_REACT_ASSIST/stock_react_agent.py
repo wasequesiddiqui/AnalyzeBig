@@ -16,19 +16,24 @@ The agent follows a ReAct (Reasoning + Acting) pattern using LangChain:
     *   `get_stock_news`    — Retrieves latest headlines via NewsAPI.
     *   `analyze_news_sentiment` — Computes sentiment polarity using TextBlob.
 
-2.  **AI Analysis Layer** — `generate_analysis()` sends the collected data to a
-    DeepSeek LLM with a structured prompt that instructs it to act as a senior
-    Wall Street analyst and produce four clearly labeled sections.
+2.  **AI Analysis Layer** — Two LLM agents run IN PARALLEL (threads):
+    *   `generate_analysis()` — the fundamental/sentiment analyst (senior
+        Wall Street role) producing four clearly labeled sections.
+    *   `generate_technical_analysis()` — the quantitative technical analyst
+        that reads the DataFrame from `TECH_ANALYSIS.py`, analyses every
+        technical indicator (price & volume), and classifies the stock into
+        STRONG BUY / BUY / SELL / STRONG SELL.
 
-3.  **Presentation Layer** — `generate_html_report()` takes the AI-generated
-    markdown, parses it into structured sections, detects the investment verdict
-    (BUY / HOLD / SELL), and renders a responsive, animated HTML dashboard using
-    Jinja2 templates with embedded CSS and JavaScript.
+3.  **Presentation Layer** — `generate_html_report()` takes the markdown from
+    both agents, parses it into structured sections, detects the verdicts
+    (fundamental BUY/HOLD/SELL and the 4-flag technical verdict), merges them
+    into an Overall Summary, and renders a responsive, animated HTML dashboard
+    using Jinja2 templates with embedded CSS and JavaScript.
 
 4.  **Orchestration** — `main()` wires everything together: prompts the user for
-    a ticker and company name, invokes each tool sequentially, calls the LLM for
-    analysis, generates the HTML report, and automatically opens it in the
-    default browser.
+    a ticker and company name, invokes the data tools, computes the technical
+    indicator DataFrame, runs both AI agents in parallel, generates the HTML
+    report, and automatically opens it in the default browser.
 
 Dependencies
 ------------
@@ -52,21 +57,25 @@ displays price metrics, market sentiment, latest news, and AI-generated
 investment analysis with visual styling.
 """
 
+from __future__ import annotations  # Lazy (string) type hints — cleaner for DataFrames
+
 import os
 import re
 import webbrowser
 import yfinance as yf  # Yahoo Finance — fetches real-time & historical stock data
 
-from datetime import datetime
-from textblob import TextBlob  # Lexicon-based NLP sentiment analyzer
+import pandas as pd  # DataFrames (type hints + indicator value lookups from TECH_ANALYSIS)
 
+from datetime import datetime
+from concurrent.futures import ThreadPoolExecutor  # Runs the two AI agents in parallel
+from textblob import TextBlob  # Lexicon-based NLP sentiment analyzer
 from dotenv import load_dotenv  # Loads .env file into os.environ
 from newsapi import NewsApiClient  # NewsAPI.org client for financial headlines
-
 from jinja2 import Template  # Jinja2 HTML templating engine
-
 from langchain.tools import tool  # Decorator to register functions as LLM-callable tools
 from langchain_openai import ChatOpenAI  # OpenAI-compatible chat model (used with DeepSeek)
+
+import TECH_ANALYSIS  # Builds the 5-year technical-indicator DataFrame (OHLCV + indicators)
 
 # =========================================================
 # LOAD ENVIRONMENT VARIABLES
@@ -585,6 +594,645 @@ Do NOT use <mark> tags in any other section.
 
 
 # =========================================================
+# TECHNICAL ANALYSIS AGENT (QUANTITATIVE)
+# =========================================================
+# A second, parallel LLM agent that acts as an expert quantitative analyst.
+# It reads the DataFrame produced by TECH_ANALYSIS.compute_technical_indicators()
+# (5 years of daily OHLCV + 35 indicator columns), condenses it into a compact
+# prompt payload, and asks the LLM to analyse EVERY technical indicator for
+# price and volume and classify the stock into one of four flags:
+#     STRONG BUY / BUY / SELL / STRONG SELL
+# The result (raw markdown) is later parsed by parse_technical_analysis() and
+# rendered by generate_html_report() alongside the fundamental analysis.
+
+# Display metadata for each technical group the LLM is asked to produce.
+# The emoji is used in the rendered card header.
+TECH_GROUP_META = {
+    "price moving average": {"emoji": "📊", "title": "Price Moving Averages"},
+    "volume moving average": {"emoji": "📈", "title": "Volume Moving Averages"},
+    "momentum":              {"emoji": "⚡", "title": "Momentum Indicators"},
+    "volatility":            {"emoji": "📏", "title": "Volatility — Bollinger Bands"},
+    "volume flow":           {"emoji": "🔄", "title": "Volume Flow"},
+    "technical verdict":     {"emoji": "🎯", "title": "Technical Verdict"},
+}
+
+
+def _tokenize(text: str) -> list[str]:
+    """
+    Split text into lower-case alphanumeric word tokens.
+
+    Used by the RAG retriever to score how relevant each document is to a
+    natural-language query.
+
+    Args:
+        text (str): raw text to tokenize.
+
+    Returns:
+        list[str]: the word tokens (e.g. "MACD signal" -> ["macd", "signal"]).
+    """
+    return re.findall(r"[a-z0-9]+", text.lower())
+
+
+def _format_recent_series(tech_df: pd.DataFrame, column: str, n: int = 30) -> str:
+    """
+    Format the last ``n`` values of a single indicator column as a compact
+    ``date:value`` list so the LLM can see a short recent history.
+
+    Args:
+        tech_df : DataFrame from TECH_ANALYSIS.compute_technical_indicators().
+        column  : name of the indicator column (e.g. "RSI", "OBV").
+        n       : how many most-recent values to include (default 30).
+
+    Returns:
+        str: a comma-separated list of ``date:value`` pairs.
+    """
+    vals = tech_df[column].dropna().tail(n)
+    if vals.empty:
+        return "No history available."
+    return ", ".join(f"{d.date()}:{v:.2f}" for d, v in vals.items())
+
+
+def _build_technical_corpus(tech_df: pd.DataFrame) -> list[dict]:
+    """
+    Convert the technical-indicator DataFrame into a retrievable RAG corpus.
+
+    Each returned "document" is a self-contained text chunk about ONE aspect
+    of the data (latest snapshot, price/volume moving averages, RSI, MACD,
+    Bollinger Bands, Stochastic, OBV, recent price history) together with
+    retrieval keywords so the retriever can rank it against a query.
+
+    This is the indexing step of the RAG pipeline: the DataFrame (a table)
+    is turned into a small set of topic documents that can be retrieved and
+    fed to the LLM as context.
+
+    Args:
+        tech_df : DataFrame from TECH_ANALYSIS.compute_technical_indicators().
+
+    Returns:
+        list[dict]: each item = {"id", "title", "keywords", "content"}.
+    """
+    latest = tech_df.iloc[-1]
+    close = float(latest["Close"])
+    volume = float(latest["Volume"])
+    docs = []
+
+    # --- 1. Overview: date range + the FULL latest row (all 35 indicators) ---
+    overview_lines = [
+        f"Date range: {tech_df.index[0].date()} → {tech_df.index[-1].date()} "
+        f"({len(tech_df)} trading days)",
+        f"Latest close: {close:,.2f} | Latest volume: {volume:,.0f}",
+        "Latest values of every indicator:",
+    ]
+    for col in tech_df.columns:
+        v = latest[col]
+        try:
+            overview_lines.append(f"  {col}: {float(v):,.2f}")
+        except (TypeError, ValueError):
+            overview_lines.append(f"  {col}: {v}")
+    docs.append({
+        "id": "overview",
+        "title": "Market Overview & Latest Indicator Snapshot",
+        "keywords": ["overview", "latest", "close", "price", "volume", "snapshot", "current", "date", "range"],
+        "content": "\n".join(overview_lines),
+    })
+
+    # --- 2. Price moving averages ---
+    ma_lines = []
+    for n in TECH_ANALYSIS.MA_WINDOWS:
+        sma = float(latest[f"SMA_{n}"])
+        ema = float(latest[f"EMA_{n}"])
+        vs_sma = (close - sma) / sma * 100.0 if sma else 0.0
+        vs_ema = (close - ema) / ema * 100.0 if ema else 0.0
+        stance = "bullish (EMA > SMA)" if ema > sma else "bearish (EMA <= SMA)"
+        ma_lines.append(
+            f"SMA_{n}={sma:,.2f} (price {vs_sma:+.2f}%) | "
+            f"EMA_{n}={ema:,.2f} (price {vs_ema:+.2f}%) | {stance}"
+        )
+    docs.append({
+        "id": "price_ma",
+        "title": "Price Moving Averages (SMA & EMA, 5/13/23/90/200)",
+        "keywords": ["price", "moving", "average", "sma", "ema", "trend", "support", "resistance", "golden", "death", "cross"],
+        "content": "\n".join(ma_lines),
+    })
+
+    # --- 3. Volume moving averages ---
+    vol_lines = []
+    for n in TECH_ANALYSIS.MA_WINDOWS:
+        vsma = float(latest[f"VOL_SMA_{n}"])
+        vema = float(latest[f"VOL_EMA_{n}"])
+        vs_vsma = (volume - vsma) / vsma * 100.0 if vsma else 0.0
+        vs_vema = (volume - vema) / vema * 100.0 if vema else 0.0
+        vol_lines.append(
+            f"VOL_SMA_{n}={vsma:,.0f} (vol {vs_vsma:+.2f}%) | "
+            f"VOL_EMA_{n}={vema:,.0f} (vol {vs_vema:+.2f}%)"
+        )
+    docs.append({
+        "id": "volume_ma",
+        "title": "Volume Moving Averages (VOL_SMA & VOL_EMA, 5/13/23/90/200)",
+        "keywords": ["volume", "vol", "moving", "average", "liquidity", "activity", "shares"],
+        "content": "\n".join(vol_lines),
+    })
+
+    # --- 4. RSI ---
+    rsi = float(latest["RSI"])
+    rsi_state = "overbought (>70)" if rsi > 70 else ("oversold (<30)" if rsi < 30 else "neutral")
+    docs.append({
+        "id": "rsi",
+        "title": "Relative Strength Index (RSI, 14-day)",
+        "keywords": ["rsi", "momentum", "relative", "strength", "overbought", "oversold"],
+        "content": (
+            f"RSI (latest) = {rsi:.2f} — {rsi_state}.\n"
+            f"RSI history (last 30 days): {_format_recent_series(tech_df, 'RSI')}"
+        ),
+    })
+
+    # --- 5. MACD ---
+    macd = float(latest["MACD"])
+    sig = float(latest["MACD_SIGNAL"])
+    hist = float(latest["MACD_HIST"])
+    prev_macd = float(tech_df["MACD"].iloc[-2])
+    prev_sig = float(tech_df["MACD_SIGNAL"].iloc[-2])
+    if prev_macd <= prev_sig and macd > sig:
+        cross = "MACD crossed above signal (bullish)"
+    elif prev_macd >= prev_sig and macd < sig:
+        cross = "MACD crossed below signal (bearish)"
+    else:
+        cross = "no fresh crossover"
+    docs.append({
+        "id": "macd",
+        "title": "Moving Average Convergence/Divergence (MACD 12,26,9)",
+        "keywords": ["macd", "momentum", "signal", "histogram", "crossover", "divergence"],
+        "content": (
+            f"MACD={macd:.2f}, Signal={sig:.2f}, Histogram={hist:.2f} — {cross}.\n"
+            f"MACD history (last 30 days): {_format_recent_series(tech_df, 'MACD')}\n"
+            f"Signal history (last 30 days): {_format_recent_series(tech_df, 'MACD_SIGNAL')}"
+        ),
+    })
+
+    # --- 6. Bollinger Bands ---
+    bb_up = float(latest["BB_UPPER"])
+    bb_mid = float(latest["BB_MIDDLE"])
+    bb_lo = float(latest["BB_LOWER"])
+    pct_b = (close - bb_lo) / (bb_up - bb_lo) if bb_up > bb_lo else float("nan")
+    band_w = (bb_up - bb_lo) / bb_mid * 100.0 if bb_mid else float("nan")
+    if close > bb_up:
+        bb_pos = "above the upper band"
+    elif close < bb_lo:
+        bb_pos = "below the lower band"
+    else:
+        bb_pos = "inside the bands"
+    docs.append({
+        "id": "bollinger",
+        "title": "Bollinger Bands (20-day, 2σ)",
+        "keywords": ["bollinger", "band", "volatility", "squeeze", "upper", "lower", "middle"],
+        "content": (
+            f"Upper={bb_up:,.2f}, Middle={bb_mid:,.2f}, Lower={bb_lo:,.2f} | "
+            f"close is {bb_pos} | %B={pct_b:.2f}, BandWidth={band_w:.2f}%"
+        ),
+    })
+
+    # --- 7. Stochastic ---
+    k = float(latest["STOCH_K"])
+    d = float(latest["STOCH_D"])
+    k_prev = float(tech_df["STOCH_K"].iloc[-2])
+    d_prev = float(tech_df["STOCH_D"].iloc[-2])
+    stoch_state = "overbought (>80)" if k > 80 else ("oversold (<20)" if k < 20 else "neutral")
+    if k_prev <= d_prev and k > d:
+        stoch_cross = "K crossed above D (bullish)"
+    elif k_prev >= d_prev and k < d:
+        stoch_cross = "K crossed below D (bearish)"
+    else:
+        stoch_cross = "no fresh crossover"
+    docs.append({
+        "id": "stochastic",
+        "title": "Stochastic Oscillator (%K 14, %D 3)",
+        "keywords": ["stochastic", "stoch", "oscillator", "overbought", "oversold", "momentum"],
+        "content": (
+            f"%K={k:.2f}, %D={d:.2f} — {stoch_state}; {stoch_cross}.\n"
+            f"%K history (last 30 days): {_format_recent_series(tech_df, 'STOCH_K')}"
+        ),
+    })
+
+    # --- 8. OBV ---
+    obv = float(latest["OBV"])
+    obv_5 = obv - float(tech_df["OBV"].iloc[-6]) if len(tech_df) >= 6 else 0.0
+    obv_20 = obv - float(tech_df["OBV"].iloc[-21]) if len(tech_df) >= 21 else 0.0
+    obv_60 = obv - float(tech_df["OBV"].iloc[-61]) if len(tech_df) >= 61 else 0.0
+    docs.append({
+        "id": "obv",
+        "title": "On-Balance Volume (OBV)",
+        "keywords": ["obv", "on", "balance", "volume", "accumulation", "distribution", "flow"],
+        "content": (
+            f"OBV (latest) = {obv:,.0f} | 5d Δ={obv_5:+,.0f}, 20d Δ={obv_20:+,.0f}, 60d Δ={obv_60:+,.0f}\n"
+            f"OBV history (last 30 days): {_format_recent_series(tech_df, 'OBV')}"
+        ),
+    })
+
+    # --- 9. Recent price & volume history ---
+    docs.append({
+        "id": "recent_price",
+        "title": "Recent Price & Volume History (last 30 trading days)",
+        "keywords": ["recent", "price", "history", "close", "trend", "last", "days"],
+        "content": tech_df[["Close", "Volume"]].tail(30).round(2).to_string(),
+    })
+
+    return docs
+
+
+def _retrieve_technical_docs(tech_df: pd.DataFrame, query: str, k: int = None) -> list[dict]:
+    """
+    Retrieve the most relevant documents from the technical-indicator RAG
+    corpus for a natural-language query.
+
+    This is the retrieval step of the RAG pipeline. It uses a lightweight,
+    dependency-free BM25-style keyword scorer over each document's keywords,
+    title and content — fast, and no embedding model or vector database is
+    required.
+
+    Args:
+        tech_df : DataFrame from TECH_ANALYSIS.compute_technical_indicators().
+        query   : natural-language retrieval query (e.g. "momentum indicators").
+        k       : maximum number of documents to return. Default ``None``
+                  returns every document in the corpus.
+
+    Returns:
+        list[dict]: the top ``k`` documents (each = {"id", "title",
+        "keywords", "content"}), ranked by relevance to ``query``.
+    """
+    docs = _build_technical_corpus(tech_df)
+    if k is None:
+        k = len(docs)
+
+    query_tokens = _tokenize(query)
+    if not query_tokens:
+        return docs[:k]
+
+    scored = []
+    for doc in docs:
+        kw = set(_tokenize(" ".join(doc.get("keywords", []))))
+        title = set(_tokenize(doc.get("title", "")))
+        content_tokens = _tokenize(doc.get("content", ""))
+        score = 0.0
+        for term in query_tokens:
+            if term in kw:
+                score += 3.0          # strong signal: keyword match
+            elif term in title:
+                score += 1.5          # medium signal: title match
+            score += min(content_tokens.count(term), 5) * 0.2  # weak: content match
+        scored.append((score, doc))
+
+    # Rank descending by score; ties keep the original corpus order.
+    scored.sort(key=lambda t: t[0], reverse=True)
+    return [doc for _, doc in scored[:k]]
+
+
+def generate_technical_analysis(ticker: str, tech_df: pd.DataFrame) -> str:
+    """
+    Second LLM agent — an expert quantitative analyst.
+
+    Reads the technical-indicator DataFrame produced by
+    ``TECH_ANALYSIS.compute_technical_indicators()`` and asks the LLM to:
+
+      1. analyse EVERY technical indicator (price & volume moving averages,
+         RSI, MACD, Bollinger Bands, Stochastic, OBV);
+      2. classify the stock into one of four flags:
+         ``STRONG BUY`` / ``BUY`` / ``SELL`` / ``STRONG SELL``.
+
+    The output is raw markdown with ``##`` groups and ``###`` per-indicator
+    sub-sections, parsed later by ``parse_technical_analysis()``.
+
+    Args:
+        ticker  : Yahoo Finance symbol (e.g. "AAPL", "RELIANCE.NS").
+        tech_df : DataFrame from TECH_ANALYSIS.compute_technical_indicators().
+
+    Returns:
+        str: raw markdown technical analysis ending with a
+             ``## 🎯 Technical Verdict`` section whose first line is the flag.
+    """
+    # ── RAG pipeline ──
+    # Treat the technical-indicator DataFrame as a retrievable knowledge base:
+    # split it into topic documents, retrieve the documents relevant to a
+    # comprehensive technical analysis, and feed the retrieved context to the
+    # LLM (retrieval-augmented generation).
+    query = (
+        "technical analysis price moving averages sma ema volume moving averages "
+        "momentum indicators rsi macd stochastic volatility bollinger bands "
+        "volume flow obv recent price trend"
+    )
+    retrieved_docs = _retrieve_technical_docs(tech_df, query)
+
+    # Label each retrieved document clearly so the LLM can reference it.
+    rag_context = "\n\n".join(
+        f"### DOCUMENT {i + 1}: {doc['title']}\n{doc['content']}"
+        for i, doc in enumerate(retrieved_docs)
+    )
+
+    prompt = f"""
+You are an expert quantitative analyst specialising in technical analysis.
+
+Analyse the technical indicators below for the stock {ticker} using ONLY the
+retrieved documents provided. These documents were retrieved via
+retrieval-augmented generation (RAG) from a 5-year daily technical-indicator
+database.
+
+Retrieved Documents (RAG):
+{rag_context}
+
+Produce a structured technical analysis. Use the EXACT section headers below
+(with the emoji). Inside each section, analyse EVERY indicator by writing a
+### sub-header with the indicator name followed by 1-2 sentences of
+interpretation tied strictly to the numbers provided.
+
+## 📊 Price Moving Averages
+Analyse every window 5, 13, 23, 90 and 200 for both SMA and EMA, e.g.:
+### SMA_5
+[interpretation]
+### SMA_13
+[interpretation]
+### SMA_200
+[interpretation]
+### EMA_5
+[interpretation]
+... (continue for EMA_13, EMA_23, EMA_90, EMA_200)
+
+## 📈 Volume Moving Averages
+Analyse every window 5, 13, 23, 90 and 200 for both VOL_SMA and VOL_EMA, e.g.:
+### VOL_SMA_5
+[interpretation]
+... (continue for all VOL_SMA and VOL_EMA windows)
+
+## ⚡ Momentum Indicators
+### RSI
+[interpretation]
+### MACD
+[interpretation]
+### STOCH_K
+[interpretation]
+### STOCH_D
+[interpretation]
+
+## 📏 Volatility — Bollinger Bands
+### BB_UPPER
+[interpretation]
+### BB_MIDDLE
+[interpretation]
+### BB_LOWER
+[interpretation]
+
+## 🔄 Volume Flow
+### OBV
+[interpretation]
+
+## 🎯 Technical Verdict
+Begin this section with a SINGLE line containing EXACTLY one of:
+**STRONG BUY**
+**BUY**
+**SELL**
+**STRONG SELL**
+Then write a concise 2-3 sentence overall summary of the technical picture
+(trend, momentum, volatility, volume) and explain why you chose that flag.
+
+Rules:
+- Base every statement strictly on the numbers provided; never invent values.
+- Do not add any preamble before the first section header.
+- Keep every indicator analysis to 1-2 sentences.
+- Use only the four verdict flags above.
+"""
+    response = llm.invoke(prompt)
+    return response.content
+
+
+def _detect_technical_verdict(text: str) -> str:
+    """
+    Extract the technical verdict flag from the Technical Verdict section.
+
+    Looks first for an explicit ``**FLAG**`` marker, then for a leading flag
+    word. Returns one of ``STRONG BUY`` / ``BUY`` / ``SELL`` / ``STRONG SELL``.
+    Falls back to ``NEUTRAL`` if no flag can be found (e.g. malformed output).
+
+    Args:
+        text (str): body text of the ``## 🎯 Technical Verdict`` section.
+
+    Returns:
+        str: normalised verdict flag (upper-case, single-spaced).
+    """
+    t = text.strip()
+
+    # 1. Explicit **FLAG** marker anywhere in the section.
+    m = re.search(
+        r'\*\*\s*(STRONG\s+BUY|BUY|STRONG\s+SELL|SELL)\s*\*\*',
+        t, re.IGNORECASE
+    )
+    if m:
+        return " ".join(m.group(1).upper().split())
+
+    # 2. Leading flag word without asterisks, e.g. "BUY — ...".
+    m = re.match(r'^(STRONG\s+BUY|BUY|SELL|STRONG\s+SELL)\b', t, re.IGNORECASE)
+    if m:
+        return " ".join(m.group(1).upper().split())
+
+    return "NEUTRAL"
+
+
+def _format_indicator_value(name: str, value: float) -> str:
+    """
+    Format an indicator's latest value for display.
+
+    Volume / OBV style columns are shown as integers with thousands
+    separators; everything else is shown with two decimal places.
+
+    Args:
+        name  (str)  : indicator column name (e.g. "SMA_5", "VOL_SMA_5", "OBV").
+        value (float): latest value from the DataFrame.
+
+    Returns:
+        str: human-friendly formatted value ("—" for missing/NaN).
+    """
+    if value is None:
+        return "—"
+    if isinstance(value, float) and value != value:  # NaN check
+        return "—"
+    try:
+        fv = float(value)
+    except (TypeError, ValueError):
+        return str(value)
+    if name.startswith("VOL") or name == "OBV":
+        return f"{fv:,.0f}"
+    return f"{fv:,.2f}"
+
+
+def parse_technical_analysis(tech_analysis: str, tech_df: pd.DataFrame = None) -> dict:
+    """
+    Parse the raw markdown from ``generate_technical_analysis()`` into a
+    structured dict the HTML template can render.
+
+    * Splits the markdown on ``##`` headers to find the indicator groups.
+    * Splits each group on ``###`` headers to find per-indicator entries.
+    * Attaches the DETERMINISTIC latest value for each indicator (from
+      ``tech_df``) so the displayed numbers never depend on the LLM.
+    * Extracts the 4-flag verdict and the overall technical summary.
+
+    Args:
+        tech_analysis (str): raw output of ``generate_technical_analysis()``.
+        tech_df       : DataFrame used to attach live indicator values.
+
+    Returns:
+        dict: {
+            "groups":  [{"title", "emoji", "indicators": [{"name", "value", "analysis"}]}],
+            "verdict": "STRONG BUY" | "BUY" | "SELL" | "STRONG SELL" | "NEUTRAL",
+            "verdict_css": lower-case, no-space CSS class for the badge,
+            "summary": str,
+            "error":   None or message
+        }
+    """
+    empty = {
+        "groups": [],
+        "verdict": "NEUTRAL",
+        "verdict_css": "neutral",
+        "summary": "No technical analysis was generated for this report.",
+        "error": "Technical analysis unavailable.",
+    }
+
+    if not tech_analysis or not tech_analysis.strip():
+        return empty
+
+    latest = tech_df.iloc[-1] if tech_df is not None and not tech_df.empty else None
+
+    groups = []
+    verdict = "NEUTRAL"
+    summary = ""
+
+    # Split into ## groups (the LLM is prompted to use this exact format).
+    # NOTE: anchored to line-start with (?m)^ so "### " indicator headers are
+    # NOT mistaken for "## " group headers (a bare '##\s+' would also match
+    # the 2nd+3rd '#' of '### ' and corrupt the parse).
+    raw_groups = re.split(r'(?m)^##\s+', tech_analysis.strip())
+
+    for raw in raw_groups:
+        if not raw.strip():
+            continue
+
+        lines = raw.strip().splitlines()
+        header_line = lines[0].strip()
+        body = "\n".join(lines[1:]).strip()
+
+        # Match the group header to known metadata.
+        matched = None
+        for key, meta in TECH_GROUP_META.items():
+            if key in header_line.lower():
+                matched = meta
+                break
+        if matched is None:
+            continue
+
+        # --- Special handling for the verdict section ---
+        if matched["title"] == "Technical Verdict":
+            verdict = _detect_technical_verdict(body)
+            # Summary = body with the flag marker line(s) removed.
+            summary = "\n".join(
+                ln for ln in body.splitlines()
+                if not re.search(
+                    r'\*\*\s*(STRONG\s+BUY|BUY|SELL|STRONG\s+SELL)\s*\*\*',
+                    ln, re.IGNORECASE
+                )
+            ).strip()
+            continue
+
+        # --- Parse ### per-indicator entries ---
+        # Also anchored to line-start so nested headers are unambiguous.
+        indicators = []
+        raw_indicators = re.split(r'(?m)^###\s+', body)
+        for ri in raw_indicators:
+            if not ri.strip():
+                continue
+            ilines = ri.strip().splitlines()
+            name = ilines[0].strip()
+            analysis = "\n".join(ilines[1:]).strip()
+
+            # Attach the live value from the DataFrame when available.
+            value = None
+            if latest is not None and name in latest.index:
+                value = _format_indicator_value(name, latest[name])
+
+            indicators.append({
+                "name": name,
+                "value": value,
+                "analysis": analysis,
+            })
+
+        groups.append({
+            "title": matched["title"],
+            "emoji": matched["emoji"],
+            "indicators": indicators,
+        })
+
+    return {
+        "groups": groups,
+        "verdict": verdict,
+        "verdict_css": verdict.lower().replace(" ", ""),
+        "summary": summary,
+        "error": None,
+    }
+
+
+def build_overall_summary(fund_verdict: str, tech_verdict: str) -> dict:
+    """
+    Merge the fundamental verdict (BUY / HOLD / SELL) and the technical
+    verdict (STRONG BUY / BUY / SELL / STRONG SELL) into a single overall
+    stance using a rule-based matrix.
+
+    Strongly aligned signals produce a strong overall call; conflicting
+    signals resolve to HOLD (a warning that the two views disagree).
+
+    Args:
+        fund_verdict (str): BUY / HOLD / SELL from the fundamental analysis.
+        tech_verdict (str): STRONG BUY / BUY / SELL / STRONG SELL (or NEUTRAL).
+
+    Returns:
+        dict: {
+            "fundamental_verdict", "technical_verdict", "overall_verdict",
+            "overall_css", "fundamental_css", "technical_css", "text"
+        }
+    """
+    fund = " ".join((fund_verdict or "HOLD").upper().split())
+    tech = " ".join((tech_verdict or "NEUTRAL").upper().split())
+
+    # (fundamental, technical) -> (overall verdict, explanation)
+    matrix = {
+        ("BUY",  "STRONG BUY"):  ("STRONG BUY", "Fundamentals and technicals align decisively bullish."),
+        ("BUY",  "BUY"):         ("BUY", "Both fundamental and technical views are bullish."),
+        ("BUY",  "SELL"):        ("HOLD", "Fundamentals are bullish but technicals are bearish — the signals conflict; stay neutral."),
+        ("BUY",  "STRONG SELL"): ("HOLD", "Fundamentals are bullish but technicals are strongly bearish — the signals conflict; stay neutral."),
+        ("BUY",  "NEUTRAL"):     ("BUY", "Fundamentals are bullish; technical analysis was unavailable."),
+        ("HOLD", "STRONG BUY"):  ("BUY", "Fundamentals are neutral but technical momentum is strong — lean bullish."),
+        ("HOLD", "BUY"):         ("BUY", "Fundamentals are neutral with positive technicals — lean bullish."),
+        ("HOLD", "SELL"):        ("SELL", "Fundamentals are neutral with negative technicals — lean bearish."),
+        ("HOLD", "STRONG SELL"): ("SELL", "Fundamentals are neutral with strongly negative technicals — lean bearish."),
+        ("HOLD", "NEUTRAL"):     ("HOLD", "Fundamentals are neutral and no technical signal was available."),
+        ("SELL", "STRONG BUY"):  ("HOLD", "Fundamentals are bearish but technicals are strongly bullish — the signals conflict; stay neutral."),
+        ("SELL", "BUY"):         ("HOLD", "Fundamentals are bearish but technicals are bullish — the signals conflict; stay neutral."),
+        ("SELL", "SELL"):        ("SELL", "Both fundamental and technical views are bearish."),
+        ("SELL", "STRONG SELL"): ("STRONG SELL", "Fundamentals and technicals align decisively bearish."),
+        ("SELL", "NEUTRAL"):     ("SELL", "Fundamentals are bearish; technical analysis was unavailable."),
+    }
+
+    overall, text = matrix.get(
+        (fund, tech),
+        ("HOLD", "Combined signals are mixed; adopt a neutral stance."),
+    )
+
+    return {
+        "fundamental_verdict": fund,
+        "technical_verdict": tech,
+        "overall_verdict": overall,
+        "overall_css": overall.lower().replace(" ", ""),
+        "fundamental_css": fund.lower().replace(" ", ""),
+        "technical_css": tech.lower().replace(" ", ""),
+        "text": text,
+    }
+
+
+# =========================================================
 # HTML GENERATOR
 # =========================================================
     # ─────────────────────────────────────────────────────────────
@@ -603,29 +1251,41 @@ def generate_html_report(
     stock_data: dict,
     sentiment_data: dict,
     news: list,
-    analysis: str
+    analysis: str,
+    tech_analysis: str = None,
+    tech_df: pd.DataFrame = None
 ) -> str:
     """
     Render a complete, self-contained HTML stock analysis report.
 
     This is the presentation engine of the agent.  It takes the raw outputs
-    from all three tools plus the LLM-generated analysis and produces a
-    single ``.html`` file with embedded CSS and JavaScript — no external
-    dependencies beyond Google Fonts.
+    from all three tools plus the LLM-generated analyses (fundamental AND
+    technical) and produces a single ``.html`` file with embedded CSS and
+    JavaScript — no external dependencies beyond Google Fonts.
 
     Processing Pipeline
     -------------------
-    1.  **Parse the LLM analysis** — Split the markdown on ``##`` headers,
-        match each section against a known mapping (Financial Outlook, Key
-        Risks, Growth Potential, Investment Recommendation), extract
-        paragraphs, and detect the BUY/HOLD/SELL verdict from keywords.
+    1.  **Parse the fundamental analysis** — Split the markdown on ``##``
+        headers, match each section against a known mapping (Financial
+        Outlook, Key Risks, Growth Potential, Investment Recommendation),
+        extract paragraphs, and detect the BUY/HOLD/SELL verdict.
 
-    2.  **Render via Jinja2** — The parsed data (stock metrics, sentiment,
-        news articles, analysis sections) is injected into a rich HTML
-        template with responsive CSS grid layout, animated sentiment bar,
-        volume number formatting, and color-coded recommendation badges.
+    2.  **Parse the technical analysis** — Split the technical agent's
+        markdown into per-indicator cards (price & volume moving averages,
+        RSI, MACD, Bollinger Bands, Stochastic, OBV), attach the live
+        indicator values from ``tech_df``, and extract the 4-flag verdict
+        (STRONG BUY / BUY / SELL / STRONG SELL).
 
-    3.  **Write to disk** — The rendered HTML is saved as
+    3.  **Build the Overall Summary** — Merge the fundamental verdict with
+        the technical verdict using a rule-based matrix.
+
+    4.  **Render via Jinja2** — The parsed data (stock metrics, sentiment,
+        news articles, fundamental + technical analysis sections, overall
+        summary) is injected into a rich HTML template with responsive CSS
+        grid layout, animated sentiment bar, volume number formatting, and
+        color-coded verdict badges.
+
+    5.  **Write to disk** — The rendered HTML is saved as
         ``{CLEAN_TICKER}_REPORT_{YYYY_MM_DD}.html`` in the current working
         directory.
 
@@ -636,6 +1296,13 @@ def generate_html_report(
         sentiment_data (dict):  Output from ``analyze_news_sentiment()``.
         news (list[dict]):      Output from ``get_stock_news()``.
         analysis (str):         Raw markdown output from ``generate_analysis()``.
+        tech_analysis (str):    Optional raw markdown output from
+                                ``generate_technical_analysis()`` (the
+                                quantitative agent). Default ``None``.
+        tech_df (pd.DataFrame): Optional DataFrame from
+                                ``TECH_ANALYSIS.compute_technical_indicators()``
+                                used to attach live indicator values.
+                                Default ``None``.
 
     Returns:
         str: The filename of the generated HTML report, e.g.
@@ -1052,6 +1719,8 @@ def generate_html_report(
     .rec-verdict.buy  { background: var(--green-light); color: var(--green); }
     .rec-verdict.hold { background: var(--amber-light); color: var(--amber); }
     .rec-verdict.sell { background: var(--red-light); color: var(--red); }
+    .rec-verdict.strongbuy  { background: #0f5c33; color: #eafff2; }
+    .rec-verdict.strongsell { background: #6e1010; color: #ffe9e9; }
 
     /* Highlighted sentences in recommendation */
     .analysis-section-body mark {
@@ -1062,6 +1731,155 @@ def generate_html_report(
         font-weight: 500;
         -webkit-box-decoration-break: clone;
         box-decoration-break: clone;
+    }
+
+    /* ─── TECHNICAL ANALYSIS ─── */
+    .tech-verdict-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 20px;
+    }
+    .tech-verdict {
+        display: inline-flex;
+        align-items: center;
+        padding: 8px 20px;
+        border-radius: 999px;
+        font-size: 15px;
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+    .tech-verdict.strongbuy  { background: #0f5c33; color: #eafff2; }
+    .tech-verdict.buy        { background: var(--green-light); color: var(--green); }
+    .tech-verdict.sell       { background: var(--red-light); color: var(--red); }
+    .tech-verdict.strongsell { background: #6e1010; color: #ffe9e9; }
+    .tech-verdict.neutral    { background: var(--amber-light); color: var(--amber); }
+    .tech-verdict-label {
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--ink-3);
+    }
+
+    .tech-group {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 24px;
+        margin-bottom: 16px;
+        box-shadow: var(--shadow);
+    }
+    .tech-group-title {
+        font-family: var(--serif);
+        font-size: 18px;
+        color: var(--ink);
+        margin-bottom: 16px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .tech-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 12px;
+    }
+    .tech-indicator {
+        background: var(--surface-2);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        padding: 14px 16px;
+    }
+    .tech-indicator-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 8px;
+        margin-bottom: 6px;
+    }
+    .tech-indicator-name {
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--ink-2);
+    }
+    .tech-indicator-value {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--ink);
+    }
+    .tech-indicator-analysis {
+        font-size: 13px;
+        line-height: 1.6;
+        color: var(--ink-2);
+        font-weight: 300;
+    }
+    .tech-summary {
+        background: var(--ink);
+        color: #faf8f5;
+        border-radius: var(--radius);
+        padding: 26px 28px;
+        margin-top: 8px;
+        box-shadow: var(--shadow-lg);
+    }
+    .tech-summary-title {
+        font-family: var(--serif);
+        font-size: 18px;
+        margin-bottom: 10px;
+        color: #faf8f5;
+    }
+    .tech-summary-body {
+        font-size: 14px;
+        line-height: 1.72;
+        color: rgba(250,248,245,0.82);
+        font-weight: 300;
+    }
+
+    /* ─── OVERALL SUMMARY ─── */
+    .overall-card {
+        background: var(--surface);
+        border: 2px solid var(--accent);
+        border-radius: var(--radius);
+        padding: 28px;
+        margin-top: 20px;
+        box-shadow: var(--shadow-lg);
+    }
+    .overall-card-title {
+        font-family: var(--serif);
+        font-size: 22px;
+        color: var(--ink);
+        margin-bottom: 18px;
+    }
+    .overall-verdicts {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 12px;
+        margin-bottom: 16px;
+    }
+    .overall-item {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 6px;
+    }
+    .overall-item-label {
+        font-size: 10px;
+        font-weight: 600;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--ink-3);
+    }
+    .overall-text {
+        font-size: 14px;
+        line-height: 1.72;
+        color: var(--ink-2);
+        font-weight: 300;
+        padding-top: 14px;
+        border-top: 1px solid var(--border);
     }
 
     /* ─── FOOTER ─── */
@@ -1233,6 +2051,76 @@ def generate_html_report(
         </div>
     </div>
 
+    <!-- TECHNICAL ANALYSIS -->
+    <div class="fade-up fade-up-4">
+        <div class="analysis-hero">
+        <div class="analysis-hero-label">Quantitative Intelligence</div>
+        <div class="analysis-hero-title">Technical Analysis</div>
+        <div class="analysis-hero-sub">Generated by Quantitative Analyst AI · {{ timestamp }}</div>
+        </div>
+
+        {% if tech.groups %}
+        <div class="tech-verdict-row">
+            <span class="tech-verdict {{ tech.verdict_css }}">{{ tech.verdict }}</span>
+            <span class="tech-verdict-label">Technical Signal</span>
+        </div>
+
+        {% for group in tech.groups %}
+        <div class="tech-group">
+            <div class="tech-group-title">
+            <span class="section-icon" aria-hidden="true">{{ group.emoji }}</span>
+            {{ group.title }}
+            </div>
+            <div class="tech-grid">
+            {% for ind in group.indicators %}
+            <div class="tech-indicator">
+                <div class="tech-indicator-head">
+                <span class="tech-indicator-name">{{ ind.name }}</span>
+                {% if ind.value %}<span class="tech-indicator-value">{{ ind.value }}</span>{% endif %}
+                </div>
+                <div class="tech-indicator-analysis">{{ ind.analysis }}</div>
+            </div>
+            {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+
+        {% if tech.summary %}
+        <div class="tech-summary">
+            <div class="tech-summary-title">🧮 Overall Technical Summary</div>
+            <div class="tech-summary-body">{{ tech.summary }}</div>
+        </div>
+        {% endif %}
+        {% else %}
+        <div class="tech-summary">
+            <div class="tech-summary-title">⚠️ Technical Analysis Unavailable</div>
+            <div class="tech-summary-body">{{ tech.error or "No technical analysis was generated for this report." }}</div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- OVERALL SUMMARY -->
+    <div class="fade-up fade-up-5">
+        <div class="overall-card">
+        <div class="overall-card-title">🧭 Overall Summary</div>
+        <div class="overall-verdicts">
+            <div class="overall-item">
+            <span class="overall-item-label">Fundamental</span>
+            <span class="rec-verdict {{ overall.fundamental_css }}">{{ overall.fundamental_verdict }}</span>
+            </div>
+            <div class="overall-item">
+            <span class="overall-item-label">Technical</span>
+            <span class="tech-verdict {{ overall.technical_css }}">{{ overall.technical_verdict }}</span>
+            </div>
+            <div class="overall-item">
+            <span class="overall-item-label">Overall</span>
+            <span class="rec-verdict {{ overall.overall_css }}">{{ overall.overall_verdict }}</span>
+            </div>
+        </div>
+        <div class="overall-text">{{ overall.text }}</div>
+        </div>
+    </div>
+
     <div class="footer">
         This report is for informational purposes only and does not constitute financial advice. &nbsp;·&nbsp;
         Generated {{ timestamp }}
@@ -1372,6 +2260,28 @@ def generate_html_report(
         })
 
     # ═══════════════════════════════════════════════════════════
+    # STEP 1b — Extract the fundamental verdict and parse the
+    #           technical analysis into cards + overall summary.
+    # ═══════════════════════════════════════════════════════════
+
+    # Fundamental verdict (BUY / HOLD / SELL) comes from the recommendation
+    # section parsed above — used to build the merged Overall Summary.
+    fund_verdict = "HOLD"
+    for sec in parsed_sections:
+        if sec.get("is_recommendation") and sec.get("verdict"):
+            fund_verdict = sec["verdict"]
+            break
+
+    # Parse the technical agent's markdown into per-indicator cards, attaching
+    # deterministic live values from the DataFrame. If it is absent (or the
+    # DataFrame is missing), parse_technical_analysis returns a graceful
+    # "unavailable" structure so the report still renders.
+    tech_parsed = parse_technical_analysis(tech_analysis or "", tech_df)
+
+    # Merge the two verdicts into a single overall stance.
+    overall_summary = build_overall_summary(fund_verdict, tech_parsed.get("verdict", "NEUTRAL"))
+
+    # ═══════════════════════════════════════════════════════════
     # STEP 2 — Render the Jinja2 template with all collected data.
     # ═══════════════════════════════════════════════════════════
 
@@ -1379,7 +2289,9 @@ def generate_html_report(
     template = Template(html_template)
 
     # Render with all context variables.
-    # `parsed_sections` is the structured analysis data from Step 1.
+    # `parsed_sections` is the structured fundamental analysis from Step 1.
+    # `tech` is the structured technical analysis (groups, verdict, summary).
+    # `overall` is the merged fundamental + technical Overall Summary.
     # `timestamp` is generated fresh at render time for the report footer.
     rendered_html = template.render(
         timestamp=datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
@@ -1387,7 +2299,9 @@ def generate_html_report(
         sentiment=sentiment_data,
         news=news,
         analysis=analysis,
-        parsed_sections=parsed_sections
+        parsed_sections=parsed_sections,
+        tech=tech_parsed,
+        overall=overall_summary
     )
 
     # ═══════════════════════════════════════════════════════════
@@ -1429,9 +2343,14 @@ def main():
         company name, not ticker).
     3.  **Invoke tools sequentially** — Call ``get_stock_price``,
         ``get_stock_news``, and ``analyze_news_sentiment`` via their
-        ``.invoke()`` methods (required by ``@tool``-decorated functions).
-    4.  **Generate AI analysis** — Pass all collected data to the LLM.
-    5.  **Render HTML report** — Produce the self-contained ``.html`` file.
+        ``.invoke()`` methods (required by ``@tool``-decorated functions),
+        then compute the technical-indicator DataFrame with
+        ``TECH_ANALYSIS.compute_technical_indicators()``.
+    4.  **Generate AI analysis (in parallel)** — Run the fundamental analyst
+        (``generate_analysis``) and the quantitative technical analyst
+        (``generate_technical_analysis``) concurrently in two threads.
+    5.  **Render HTML report** — Produce the self-contained ``.html`` file
+        (fundamental analysis + technical analysis + merged Overall Summary).
     6.  **Open in browser** — Launch the default web browser to display
         the report immediately.
 
@@ -1482,18 +2401,57 @@ def main():
     news = get_stock_news.invoke(company_name)
     sentiment_data = analyze_news_sentiment.invoke(company_name)
 
-    # ── AI Analysis ──
-    # The LLM receives all collected data and returns a structured    markdown
-    # analysis with four labeled sections.
-    print("Generating AI analysis...")
-    analysis = generate_analysis(ticker, stock_data, sentiment_data, news)
+    # ── Technical Indicators ──
+    # Download 5 years of daily OHLCV data and compute the full technical
+    # indicator DataFrame (moving averages, RSI, MACD, Bollinger, Stochastic,
+    # OBV). This DataFrame feeds the quantitative analyst agent.
+    print("Computing technical indicators...")
+    try:
+        tech_df = TECH_ANALYSIS.compute_technical_indicators(ticker)
+    except Exception as e:
+        # Don't let a technical-data failure stop the whole report.
+        print(f"  [!] Could not compute technical indicators: {e}")
+        tech_df = None
+
+    # ── Parallel AI Analysis ──
+    # Two LLM agents run IN PARALLEL using a thread pool:
+    #   1. generate_analysis()           — fundamental / sentiment analyst
+    #   2. generate_technical_analysis() — quantitative technical analyst
+    # Each llm.invoke() call is blocking (an HTTP request), so running them
+    # in two threads gives true concurrency and roughly halves the wait time.
+    print("Running AI agents in parallel (fundamental + technical)...")
+    with ThreadPoolExecutor(max_workers=2) as executor:
+        future_fund = executor.submit(
+            generate_analysis, ticker, stock_data, sentiment_data, news
+        )
+        # Only launch the technical agent if we have indicator data.
+        future_tech = (
+            executor.submit(generate_technical_analysis, ticker, tech_df)
+            if tech_df is not None else None
+        )
+
+        # Collect the fundamental analysis, with a graceful fallback.
+        try:
+            analysis = future_fund.result()
+        except Exception as e:
+            print(f"  [!] Fundamental analysis failed: {e}")
+            analysis = ""
+
+        # Collect the technical analysis, with a graceful fallback.
+        try:
+            tech_analysis = future_tech.result() if future_tech else None
+        except Exception as e:
+            print(f"  [!] Technical analysis failed: {e}")
+            tech_analysis = None
 
     # ── HTML Report Generation ──
-    # Parses the LLM output into structured sections, renders the Jinja2
-    # template, and writes the result to a date-stamped .html file.
+    # Parses both analyses into structured sections, merges them into an
+    # Overall Summary, renders the Jinja2 template, and writes the result
+    # to a date-stamped .html file.
     print("Generating HTML report...")
     report_file = generate_html_report(
-        ticker, stock_data, sentiment_data, news, analysis
+        ticker, stock_data, sentiment_data, news, analysis,
+        tech_analysis=tech_analysis, tech_df=tech_df
     )
 
     # ── Launch Browser ──

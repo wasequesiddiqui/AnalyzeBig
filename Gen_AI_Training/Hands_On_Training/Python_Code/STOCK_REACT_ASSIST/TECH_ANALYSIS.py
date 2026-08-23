@@ -798,6 +798,16 @@ def main() -> None:
     # Print the latest snapshot(s).
     show_latest(df, ticker=args.ticker, rows=args.rows)
 
+    # Print the full DataFrame shape and column names for reference.
+    print(f"DataFrame shape: {df.shape} (rows, columns)")
+    print(f"Column names: {list(df.columns)}")
+    print(f"Date range: {df.index.min()} to {df.index.max()}")
+    print(f"Number of trading days: {len(df)}")
+    print(f"Latest 10 days snapshot:")
+    print(df.tail(10)) # Show the last 10 rows for context
+    print(f"First 10 days snapshot:")
+    print(df.head(10)) # Show the first 10 rows for context
+
 
 # ======================================================================
 # 10) SCRIPT GUARD
