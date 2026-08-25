@@ -91,6 +91,11 @@ if "analysis_complete" not in st.session_state:
 # =========================================================
 # LLM SETUP
 # =========================================================
+# We instantiate a ChatOpenAI client pointed at DeepSeek's OpenAI-compatible
+# REST API, exactly as in stock_react_agent.py. DeepSeek exposes the same
+# /chat/completions interface as OpenAI, so langchain-openai's ChatOpenAI can
+# talk to it by overriding base_url. temperature=0 keeps the analysis
+# deterministic (best for factual stock reports).
 llm = ChatOpenAI(
     model="deepseek-chat",
     api_key=os.getenv("DEEPSEEK_API_KEY"),
@@ -108,12 +113,27 @@ newsapi = NewsApiClient(api_key=os.getenv("NEWS_API_KEY"))
 # =========================================================
 
 def strip_exchange_suffix(ticker: str) -> str:
-    """Strip Indian exchange suffix (.NS / .BO) from a ticker."""
+    """Strip the Indian exchange suffix from a ticker symbol.
+
+    Removes a trailing ``.NS`` (NSE) or ``.BO`` (BSE) suffix so the bare
+    company symbol can be used for display filenames and news queries, e.g.
+    ``"INFY.NS"`` → ``"INFY"``. Tickers without a suffix pass through
+    unchanged. Uppercases and trims the input for consistency.
+    """
+    # Split on ".NS" / ".BO" anchored at the END of the string and keep the
+    # first part (the base ticker). re.split returns the prefix as element 0.
     return re.split(r'\.(NS|BO)$', ticker.upper().strip())[0]
 
 
 def format_volume(vol: int) -> str:
-    """Format volume in Indian number system."""
+    """Format a share volume using the Indian numbering system.
+
+    Indian markets quote large volumes in lakhs and crores rather than
+    millions/billions:
+        * ``>= 10,000,000`` → e.g. ``"3.25 Cr"``  (1 crore = 10 million)
+        * ``>= 100,000``    → e.g. ``"12.50 L"``   (1 lakh  = 100 thousand)
+        * otherwise         → comma-grouped, e.g. ``"45,678"``
+    """
     if vol >= 10000000:
         return f"{vol / 10000000:.2f} Cr"
     elif vol >= 100000:
@@ -122,6 +142,12 @@ def format_volume(vol: int) -> str:
 
 
 def get_sentiment_emoji(s: str) -> str:
+    """Map a sentiment label to a display emoji.
+
+    Handles the full range of labels produced by ``analyze_news_sentiment``
+    (Positive / Negative / Neutral / Unknown / Error); unrecognised labels
+    fall back to a neutral question mark.
+    """
     mapping = {
         "positive": "📈",
         "negative": "📉",
@@ -133,6 +159,13 @@ def get_sentiment_emoji(s: str) -> str:
 
 
 def get_sentiment_color(s: str) -> str:
+    """Map a sentiment label to a Streamlit theme color name.
+
+    The returned names are used for badge / progress-bar styling via CSS
+    variables (``--green``, ``--red``, ``--orange``, ``--blue``). The
+    ``error`` state intentionally falls through to the neutral ``gray``
+    default since an error is not a directional sentiment.
+    """
     mapping = {
         "positive": "green",
         "negative": "red",
@@ -143,7 +176,21 @@ def get_sentiment_color(s: str) -> str:
 
 
 def get_tech_verdict_style(verdict: str) -> tuple:
-    """Return (color, emoji) for the 4-flag technical verdict badge."""
+    """Return the (color, emoji) pair used to render a technical verdict badge.
+
+    Maps the quantitative agent's four classification flags — STRONG BUY /
+    BUY / SELL / STRONG SELL — plus the NEUTRAL fallback to a Streamlit
+    theme color and a matching emoji. The color name feeds CSS variables
+    (``--green``, ``--red``, ``--orange``) used for badge styling.
+
+    Args:
+        verdict (str): The technical verdict flag, e.g. ``"STRONG BUY"``.
+                       Case-insensitive (normalised via ``verdict.upper()``).
+
+    Returns:
+        tuple[str, str]: ``(color, emoji)``, e.g. ``("green", "🚀")``.
+                         Unrecognised values fall back to ``("gray", "ℹ️")``.
+    """
     mapping = {
         "STRONG BUY":  ("green", "🚀"),
         "BUY":         ("green", "📈"),
@@ -171,7 +218,23 @@ CURRENCY_SYMBOLS = {
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def _fx_lookup(ticker: str):
-    """Fetch the latest close for a Yahoo Finance FX ticker (e.g. 'INR=X')."""
+    """Fetch the latest close for a Yahoo Finance FX ticker (e.g. ``"INR=X"``).
+
+    Yahoo exposes currency pairs as tickers of the form ``"USD=X"`` /
+    ``"INR=X"``, whose close is the value of one unit of the first code in
+    the second. We read the most recent daily close and return it as a float.
+
+    Cached with ``@st.cache_data`` (TTL 1 hour) so repeated currency
+    conversions don't hammer Yahoo; ``show_spinner=False`` keeps the lookup
+    silent in the UI.
+
+    Args:
+        ticker (str): A Yahoo Finance FX symbol, e.g. ``"INR=X"``.
+
+    Returns:
+        float | None: The latest close, or ``None`` on any failure (network
+                      error, unknown symbol, or empty price history).
+    """
     try:
         hist = yf.Ticker(ticker).history(period="5d")
         if not hist.empty:
@@ -182,7 +245,28 @@ def _fx_lookup(ticker: str):
 
 
 def get_fx_rate(from_currency: str, to_currency: str) -> float:
-    """Live FX rate: value of 1 unit of from_currency expressed in to_currency."""
+    """Return the live exchange rate between two ISO currency codes.
+
+    The result is the value of ONE unit of ``from_currency`` expressed in
+    ``to_currency`` — e.g. ``get_fx_rate("USD", "INR")`` ≈ ``83.5`` means
+    1 USD ≈ ₹83.5.
+
+    Resolution strategy (all via Yahoo Finance FX tickers):
+      * Identical currencies → ``1.0`` (no network lookup needed).
+      * From USD            → fetch ``"{to_currency}=X"`` directly.
+      * To USD              → fetch ``"{from_currency}=X"`` and take the
+        reciprocal.
+      * Neither is USD      → chain through USD (triangular conversion):
+        ``FROM→USD`` then ``USD→TO`` and multiply.
+
+    Args:
+        from_currency (str): ISO code of the source currency, e.g. ``"USD"``.
+        to_currency (str):   ISO code of the target currency, e.g. ``"INR"``.
+
+    Returns:
+        float: The rate. Degrades gracefully to ``1.0`` if a lookup fails so
+               the UI shows unconverted prices rather than crashing.
+    """
     if from_currency == to_currency:
         return 1.0
     try:
@@ -200,23 +284,70 @@ def get_fx_rate(from_currency: str, to_currency: str) -> float:
 
 
 def convert_price(value: float, from_currency: str, to_currency: str) -> float:
-    """Convert a price from its native currency to the display currency."""
+    """Convert a monetary value from one currency to another.
+
+    Multiplies the value by the live rate from ``get_fx_rate`` (the value of
+    one unit of ``from_currency`` in ``to_currency``) and rounds to 2 decimal
+    places for clean display.
+
+    Args:
+        value (float):       The amount in ``from_currency``, e.g. a price.
+        from_currency (str): ISO code of the source currency.
+        to_currency (str):   ISO code of the target currency.
+
+    Returns:
+        float: The converted amount, rounded to 2 dp.
+    """
     return round(value * get_fx_rate(from_currency, to_currency), 2)
 
 
 def format_price(value: float, native_currency: str, display_currency: str) -> str:
-    """Format a price with the selected display currency symbol."""
+    """Format a price in the user's chosen display currency for rendering.
+
+    Converts ``value`` from its native currency into ``display_currency`` and
+    returns a human-friendly string — the currency symbol followed by the
+    comma-grouped, two-decimal amount, e.g. ``"₹1,450.50"``.
+
+    Args:
+        value (float):           The price in its native currency.
+        native_currency (str):   ISO code the raw price is denominated in.
+        display_currency (str):  ISO code to convert to for display.
+
+    Returns:
+        str: The formatted price string, e.g. ``"$182.31"``.
+    """
     symbol = CURRENCY_SYMBOLS.get(display_currency, display_currency)
     converted = convert_price(value, native_currency, display_currency)
     return f"{symbol}{converted:,.2f}"
 
 def current_selected_currency() -> str:
-    """Get the currently selected display currency from session state."""
+    """Return the display currency currently selected in the sidebar.
+
+    Reads the ``"display_currency"`` key that Streamlit stores in
+    ``session_state`` for the currency ``st.selectbox``; falls back to
+    ``"INR"`` (the default) if the widget has not been touched yet.
+
+    Returns:
+        str: An ISO currency code, e.g. ``"INR"``, ``"USD"``, ``"EUR"``.
+    """
     return st.session_state.get("display_currency", "INR")
 
 
 def currency_display_string(currency: str = "") -> str:
-    """Return the currency display string (symbol + space) used by the DCF module."""
+    """Return the currency symbol + trailing space for the DCF module.
+
+    The DCF valuation module (``ALL_DCF_MODELS``) expects a currency prefix
+    string such as ``"₹ "`` to label its outputs, rather than an ISO code.
+    This helper resolves the active display currency (from ``currency`` or the
+    sidebar selection) into that symbol form.
+
+    Args:
+        currency (str): Optional ISO code override. When empty, the sidebar's
+                        selected currency is used.
+
+    Returns:
+        str: The symbol followed by a space, e.g. ``"₹ "`` or ``"$ "``.
+    """
     currency = currency or current_selected_currency()
     symbol = CURRENCY_SYMBOLS.get(currency, currency)
     return f"{symbol} "
@@ -224,7 +355,24 @@ def currency_display_string(currency: str = "") -> str:
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def resolve_exchange_ticker(ticker: str) -> str:
-    """Return the first Yahoo-resolvable ticker: NSE → BSE → plain."""
+    """Return the first Yahoo-resolvable ticker for an Indian/global symbol.
+
+    Indian stocks are dual-listed on NSE and BSE, so a bare ticker like
+    ``"INFY"`` needs an exchange suffix before Yahoo can fetch it. This helper
+    probes candidates in order of liquidity — ``"INFY.NS"`` (NSE) →
+    ``"INFY.BO"`` (BSE) → ``"INFY"`` (global fallback) — and returns the first
+    whose 5-day price history is non-empty.
+
+    Cached for 1 hour (``@st.cache_data``) because the probe may issue up to
+    three network requests.
+
+    Args:
+        ticker (str): A ticker symbol, with or without an exchange suffix.
+
+    Returns:
+        str: The resolved symbol, e.g. ``"INFY.NS"``. If no candidate resolves,
+             the plain uppercased ticker is returned as a best-effort value.
+    """
     ticker = ticker.upper().strip()
     for candidate in (f"{ticker}.NS", f"{ticker}.BO", ticker):
         try:
@@ -242,8 +390,20 @@ def resolve_exchange_ticker(ticker: str) -> str:
 def get_dcf_valuation(ticker: str) -> dict:
     """Fetch multi-model DCF valuation data for a given ticker symbol.
 
-    Returns a dict with keys: ticker, currency, base_val, bull_val, bear_val,
-    average_all, all_values_per_share, scenario_results and RMSE metrics.
+    **LangChain Tool** — callable by the LLM when it needs intrinsic-value
+    estimates. Delegates to ``ALL_DCF_MODELS.run_valuation_analysis``, which
+    computes fair value per share across multiple DCF model variations (base /
+    bull / bear scenarios) and returns RMSE-style accuracy metrics.
+
+    Args:
+        ticker (str): The ticker to value. An exchange suffix is optional —
+                      it is resolved automatically via ``resolve_exchange_ticker``.
+
+    Returns:
+        dict: On success, a dict with keys ``ticker``, ``currency``,
+              ``base_val``, ``bull_val``, ``bear_val``, ``average_all``,
+              ``all_values_per_share``, ``scenario_results`` and RMSE metrics.
+              On failure, ``{"error": <message>}``.
     """
     try:
         resolved = resolve_exchange_ticker(ticker)
@@ -260,13 +420,30 @@ def get_dcf_valuation(ticker: str) -> dict:
 
 @tool
 def get_stock_price(ticker: str) -> dict:
-    """Fetch the latest stock market data (OHLCV) for a given ticker symbol."""
+    """Fetch the latest OHLCV stock market data for a given ticker symbol.
+
+    **LangChain Tool** — callable by the LLM when it needs the current price
+    snapshot. Tries the Indian NSE suffix (``.NS``), then BSE (``.BO``), then
+    the bare ticker for global exchanges; the first symbol with non-empty
+    price history wins.
+
+    Args:
+        ticker (str): The ticker symbol, e.g. ``"INFY"`` or ``"AAPL"``.
+                      Case-insensitive; surrounding whitespace is stripped.
+
+    Returns:
+        dict: On success, keys ``ticker``, ``exchange`` (``"NSE India"`` /
+              ``"BSE India"`` / ``"Global"``), ``currency`` (``"INR"`` or
+              ``"USD"``), ``current_price``, ``open``, ``high``, ``low`` and
+              ``volume`` (OHLCV values rounded for display).
+              On failure, ``{"error": <message>}``.
+    """
     try:
         ticker = ticker.upper().strip()
         possible_tickers = [
-            f"{ticker}.NS",
-            f"{ticker}.BO",
-            ticker
+            f"{ticker}.NS",   # National Stock Exchange of India (most liquid)
+            f"{ticker}.BO",   # Bombay Stock Exchange
+            ticker             # Global fallback — NYSE / NASDAQ / etc.
         ]
         stock_data = None
         for symbol in possible_tickers:
@@ -299,7 +476,23 @@ def get_stock_price(ticker: str) -> dict:
 
 @tool
 def get_stock_news(company_name: str) -> list:
-    """Fetch the latest financial news headlines for a given company."""
+    """Fetch the latest financial news headlines for a given company.
+
+    **LangChain Tool** — provides the LLM with current headlines. Queries the
+    NewsAPI ``/v2/everything`` endpoint with ``"{company_name} stock"`` as the
+    search term, sorted newest-first, capped at 5 articles to keep the report
+    focused and the LLM context small.
+
+    Args:
+        company_name (str): The FULL company name (not the ticker), e.g.
+                            ``"Infosys"`` or ``"Reliance Industries"``.
+
+    Returns:
+        list[dict]: Up to 5 articles, each with ``title``, ``description``,
+                    ``url``, ``source`` and ``publishedAt``. Empty list if no
+                    articles are found; on error, a single-element list with a
+                    structured ``{"title": "Error", ...}`` entry.
+    """
     try:
         response = newsapi.get_everything(
             q=f"{company_name} stock",
@@ -326,7 +519,25 @@ def get_stock_news(company_name: str) -> list:
 
 @tool
 def analyze_news_sentiment(company_name: str) -> dict:
-    """Analyze the aggregate market sentiment for a company based on recent news."""
+    """Compute the aggregate market sentiment for a company from recent news.
+
+    **LangChain Tool** — provides a quantitative sentiment signal that
+    complements the raw headlines. Fetches up to 20 recent English articles,
+    scores each article's title + description with TextBlob polarity (−1.0 to
+    +1.0), and averages the scores into a label using conservative ±0.15
+    thresholds:
+        * ``avg_score > +0.15``  → ``"Positive"``
+        * ``avg_score < −0.15``  → ``"Negative"``
+        * otherwise              → ``"Neutral"``
+
+    Args:
+        company_name (str): Full company name for the NewsAPI search.
+
+    Returns:
+        dict: On success, ``{"sentiment", "score", "articles_analyzed"}``.
+              No articles → ``{"sentiment": "Unknown", "score": 0, "reason"}``.
+              On error  → ``{"sentiment": "Error", "score": 0, "error"}``.
+    """
     try:
         response = newsapi.get_everything(
             q=f"{company_name} stock",
@@ -372,11 +583,33 @@ def analyze_news_sentiment(company_name: str) -> dict:
 # =========================================================
 
 def generate_analysis(ticker: str, stock_data: dict, sentiment_data: dict, news: list, dcf_data: dict, display_currency: str = "INR", rag_context: str = "") -> str:
-    """Generate a structured AI investment analysis using DeepSeek.
+    """Generate a structured AI investment analysis using the DeepSeek LLM.
 
-    When ``rag_context`` (produced by the vectorless-RAG pipeline) is non-empty,
-    it is injected into the prompt so the analysis is grounded on the uploaded
-    regulatory filing documents.
+    Builds a prompt that role-plays the model as a senior Wall Street analyst
+    and requires EXACTLY four markdown sections (Financial Outlook, Key Risks,
+    Growth Potential, Investment Recommendation). Every collected dataset —
+    live price, sentiment, news, DCF valuation and (optionally) vectorless-RAG
+    filing context — is injected so the analysis is data-grounded rather than
+    generic.
+
+    When ``rag_context`` is non-empty it is embedded with explicit instructions
+    telling the model to treat it as authoritative company-disclosed evidence
+    (revenue, profit, debt, guidance, risk factors) and to cite sources inline
+    as ``[File: <filename>, Page <n>]``.
+
+    Args:
+        ticker (str):            The ticker symbol being analysed.
+        stock_data (dict):       Output of ``get_stock_price()`` (OHLCV).
+        sentiment_data (dict):   Output of ``analyze_news_sentiment()``.
+        news (list[dict]):       Output of ``get_stock_news()``.
+        dcf_data (dict):         Output of ``get_dcf_valuation()``.
+        display_currency (str):  ISO code used to label prices in the prompt.
+        rag_context (str):       Serialized vectorless-RAG excerpts ('' = none).
+
+    Returns:
+        str: The raw markdown analysis (parsed later by ``parse_analysis``),
+             with the four ``##``-delimited sections and ``<mark>`` highlights
+             confined to the recommendation section.
     """
     rag_section = ""
     if rag_context.strip():
@@ -445,7 +678,25 @@ Do NOT use <mark> tags in any other section.
 # =========================================================
 
 def parse_analysis(analysis: str) -> list:
-    """Parse the LLM markdown analysis into structured sections."""
+    """Parse the LLM's raw markdown analysis into structured sections.
+
+    Splits the markdown on ``##`` headers, matches each header against the
+    four known sections, extracts paragraphs, and (for the recommendation
+    section only) detects a BUY / HOLD / SELL verdict.
+
+    Verdict detection is two-stage: an explicit leading marker (e.g.
+    ``**BUY.**`` or ``BUY:``) wins immediately; otherwise the body is scanned
+    for BUY/SELL keywords using word-boundary regexes, defaulting to HOLD when
+    nothing matches.
+
+    Args:
+        analysis (str): Raw markdown output of ``generate_analysis()``.
+
+    Returns:
+        list[dict]: One dict per section with keys ``title``, ``emoji``,
+                    ``paragraphs``, ``is_recommendation`` and ``verdict``
+                    (``verdict`` is ``None`` for non-recommendation sections).
+    """
     section_map = {
         "Financial Outlook":          {"emoji": "📊", "is_recommendation": False},
         "Key Risks":                  {"emoji": "⚠️",  "is_recommendation": False},
@@ -456,6 +707,20 @@ def parse_analysis(analysis: str) -> list:
     SELL_WORDS = ["sell", "strong sell", "underperform", "underweight", "avoid"]
 
     def detect_verdict(text: str) -> str:
+        """Infer a BUY / HOLD / SELL verdict from the recommendation body.
+
+        First looks for an explicit verdict marker at the very start of the
+        text (``**HOLD.**``, ``BUY:``, ``SELL —`` …). If found, it is returned
+        directly, preventing false positives from words like "avoid" or "sell"
+        appearing later in the commentary. Otherwise the body is scanned for
+        BUY keywords, then SELL keywords, defaulting to HOLD.
+
+        Args:
+            text (str): The body text of the Investment Recommendation section.
+
+        Returns:
+            str: ``"BUY"``, ``"SELL"``, or ``"HOLD"``.
+        """
         t = text.strip()
         m = re.match(r'^(?:\*\*)?\s*(BUY|HOLD|SELL)\s*(?:\*\*)?\s*[\.\:\,\-]', t, re.IGNORECASE)
         if m:
@@ -753,7 +1018,17 @@ def _store_uploaded_files(uploaded_files):
 
 
 def _render_uploaded_docs_summary():
-    """Show uploaded filings and their extraction status in the sidebar."""
+    """Show uploaded filings and their extraction status in the sidebar.
+
+    Two states are displayed:
+      * Documents already processed → a per-file summary with page/char counts
+        and a ✓/⚠️ status, plus a total line (files · pages · chunks).
+      * Documents only queued (bytes snapshot, not yet extracted) → a list of
+        filenames with byte sizes and an "extracted on Analyze" note.
+
+    Also renders a "🗑️ Clear documents" button that wipes every RAG-related
+    ``session_state`` key and reruns so the UI reflects the cleared state.
+    """
     raw = st.session_state.get("uploaded_files_raw", [])
     sources = st.session_state.get("rag_sources", [])
     if not raw and not sources:
@@ -791,7 +1066,12 @@ def _render_uploaded_docs_summary():
 # =========================================================
 
 def render_header():
-    """Render the app header."""
+    """Render the page header: app title + a live date/time stamp.
+
+    The header is a two-column layout — the app title and tagline on the left,
+    and the current date/time on the right (refreshed on every rerun). Purely
+    presentational; the actual user inputs live in the sidebar.
+    """
     col1, col2 = st.columns([3, 1])
     with col1:
         st.title("📈 Stock Research AI Agent")
@@ -809,7 +1089,22 @@ def render_header():
 
 
 def render_sidebar():
-    """Render the sidebar with inputs and controls."""
+    """Render the sidebar with all user inputs and controls.
+
+    Layout, top to bottom:
+      1. Stock lookup — ticker + company name text inputs and the primary
+         "🚀 Analyze Stock" button (disabled until both fields are filled).
+      2. Regulatory filings — PDF uploader (vectorless RAG) with a summary of
+         queued/processed documents and a clear button.
+      3. Configuration — display currency selector and API-key status flags.
+      4. Disclaimer footer.
+      5. Export Report — a download button that serialises the current analysis
+         into a self-contained HTML file (enabled only after an analysis).
+
+    Returns:
+        tuple: ``(ticker, company_name, currency, analyze_btn)`` — the
+               normalised inputs and the analyze button's clicked state.
+    """
     with st.sidebar:
         st.markdown("## 🔍 Stock Lookup")
         ticker = st.text_input(
@@ -877,11 +1172,55 @@ def render_sidebar():
             unsafe_allow_html=True
         )
 
+        # ── Export Report (very bottom of the sidebar) ──
+        # Once an analysis is complete, this converts the current report into
+        # a self-contained HTML file and lets the user download it. The HTML is
+        # generated once and cached in session_state so it is not rebuilt on
+        # every rerun; the cache is cleared when a new analysis starts.
+        st.markdown("---")
+        st.markdown("#### 📤 Export Report")
+        if st.session_state.get("analysis_complete"):
+            if "export_html" not in st.session_state:
+                (st.session_state.export_html,
+                 st.session_state.export_filename) = build_export_html()
+            st.download_button(
+                "📥 Export Report (HTML)",
+                data=st.session_state.export_html,
+                file_name=st.session_state.export_filename,
+                mime="text/html",
+                use_container_width=True,
+                help=(
+                    "Convert the current analysis report into a self-contained "
+                    "HTML file and download it."
+                ),
+            )
+            st.caption(st.session_state.export_filename)
+        else:
+            st.download_button(
+                "📥 Export Report (HTML)",
+                data="",
+                file_name="report.html",
+                mime="text/html",
+                use_container_width=True,
+                disabled=True,
+                help="Run an analysis first to enable the export.",
+            )
+
     return ticker, company_name, currency, analyze_btn
 
 
 def render_metrics(stock_data: dict, display_currency: str = "INR"):
-    """Render the key metrics strip."""
+    """Render the key metrics strip (5 metric cards in one row).
+
+    Shows Current Price, Open, High, Low and Volume. Prices are converted from
+    the stock's native currency into ``display_currency`` via ``format_price``;
+    the volume uses the Indian numbering system (``format_volume``) and the
+    high/low spread percentage is shown as a subtitle on the volume card.
+
+    Args:
+        stock_data (dict):       Output of ``get_stock_price()``.
+        display_currency (str):  ISO code for price display (default ``"INR"``).
+    """
     native_currency = stock_data.get("currency", "USD")
     spread_pct = round((stock_data["high"] - stock_data["low"]) / stock_data["low"] * 100, 1)
     cols = st.columns(5)
@@ -898,7 +1237,19 @@ def render_metrics(stock_data: dict, display_currency: str = "INR"):
 
 
 def render_dcf_valuation(dcf_data: dict, stock_data: dict, display_currency: str = "INR"):
-    """Render separate fair-value cards for each DCF scenario."""
+    """Render separate fair-value cards for each DCF scenario.
+
+    Displays four color-coded cards (Base / Bull / Bear / Average) each with
+    the DCF value per share and a delta vs. the current market price, followed
+    by a caption summarising the scenario/model counts. Degrades gracefully to
+    an info message when DCF data is missing or errored.
+
+    Args:
+        dcf_data (dict):         Output of ``get_dcf_valuation()``.
+        stock_data (dict):       Output of ``get_stock_price()`` (for the
+                                 market price and native currency).
+        display_currency (str):  ISO code for price display.
+    """
     if not dcf_data or "error" in dcf_data:
         st.info("💹 DCF valuation data not available.")
         return
@@ -911,11 +1262,36 @@ def render_dcf_valuation(dcf_data: dict, stock_data: dict, display_currency: str
     st.caption("Fair value per share from multi-model DCF analysis across scenarios")
 
     def _fmt(value) -> str:
+        """Format a DCF value in the display currency for a metric card.
+
+        Coerces the value to float and delegates to ``format_price`` so the
+        display currency + symbol are applied consistently. A ``None`` value
+        renders as an em dash (—) instead of crashing.
+
+        Args:
+            value: The raw DCF value (float or None).
+
+        Returns:
+            str: The formatted price string, or ``"—"`` for ``None``.
+        """
         if value is None:
             return "—"
         return format_price(float(value), native, display_currency)
 
     def _delta_pct(value):
+        """Return the percentage difference between a DCF value and the market price.
+
+        Used as the ``delta`` argument of ``st.metric`` to show whether each
+        scenario is trading above or below the current market price, e.g.
+        ``+12.4%``. Returns ``None`` when either input is missing so the metric
+        renders without a delta.
+
+        Args:
+            value: The DCF fair value per share (float or None).
+
+        Returns:
+            float | None: The percentage difference, or ``None`` if incalculable.
+        """
         if value is None or not market_price:
             return None
         return (float(value) - market_price) / market_price * 100
@@ -954,7 +1330,16 @@ def render_dcf_valuation(dcf_data: dict, stock_data: dict, display_currency: str
 
 
 def render_sentiment(sentiment_data: dict):
-    """Render sentiment analysis card."""
+    """Render the market-sentiment card.
+
+    Shows a color-coded badge with the sentiment label (and matching emoji), a
+    progress bar whose width maps the polarity score (−1..+1) to a percentage,
+    and the score + article count. "Unknown"/"Error" states skip the bar and
+    surface their reason/error via ``st.info`` / ``st.error`` instead.
+
+    Args:
+        sentiment_data (dict): Output of ``analyze_news_sentiment()``.
+    """
     s = sentiment_data.get("sentiment", "Unknown")
     score = sentiment_data.get("score", 0)
     emoji = get_sentiment_emoji(s)
@@ -994,7 +1379,15 @@ def render_sentiment(sentiment_data: dict):
 
 
 def render_news(news: list):
-    """Render news articles."""
+    """Render the latest news articles as bordered cards.
+
+    Each article shows its title, description (if any), a metadata line with
+    source and published-at timestamp (parsed from ISO 8601, tolerant of
+    errors), and a "Read more →" link. Shows a caption when there is no news.
+
+    Args:
+        news (list[dict]): Output of ``get_stock_news()``.
+    """
     st.markdown("### 📰 Latest News")
     if not news:
         st.caption("No recent news found.")
@@ -1027,7 +1420,17 @@ def render_news(news: list):
 
 
 def render_document_context(rag_chunks: list[dict]):
-    """Render the vectorless-RAG document evidence used in the analysis."""
+    """Render the vectorless-RAG document evidence used in the analysis.
+
+    Displays a "Regulatory Filing Context" section listing every retrieved
+    chunk inside an expander, each labeled with its source file and page. The
+    section is only rendered when at least one document was processed; an info
+    note appears when no chunks matched the query.
+
+    Args:
+        rag_chunks (list[dict]): Retrieved chunks (from ``lexical_search``),
+                                 each with ``file``, ``page`` and ``text``.
+    """
     sources = st.session_state.get("rag_sources", [])
     if not sources:
         return
@@ -1047,7 +1450,16 @@ def render_document_context(rag_chunks: list[dict]):
 
 
 def render_analysis(parsed_sections: list):
-    """Render the AI analysis sections."""
+    """Render the AI-powered fundamental analysis sections.
+
+    Lays the standard sections out in a two-column grid (alternating left /
+    right) and hands the Investment Recommendation off to
+    ``_render_recommendation`` for full-width, emphasized rendering. Warns if
+    no sections were parsed.
+
+    Args:
+        parsed_sections (list[dict]): Output of ``parse_analysis()``.
+    """
     st.markdown("---")
     st.markdown("## 🤖 AI-Powered Investment Analysis")
     st.caption(f"Generated by Senior Wall Street AI · {datetime.now().strftime('%Y-%m-%d %H:%M')}")
@@ -1056,6 +1468,10 @@ def render_analysis(parsed_sections: list):
         st.warning("No analysis sections were parsed.")
         return
 
+    # Two-column grid: the three standard sections (Financial Outlook, Key
+    # Risks, Growth Potential) alternate between the left and right column,
+    # while the Investment Recommendation is pulled out below to span the full
+    # width with special emphasis (accent border + verdict badge).
     cols = st.columns(2)
     for idx, section in enumerate(parsed_sections):
         is_rec = section["is_recommendation"]
@@ -1074,7 +1490,16 @@ def render_analysis(parsed_sections: list):
 
 
 def _render_recommendation(section: dict):
-    """Render the recommendation section with special styling."""
+    """Render the Investment Recommendation with emphasis styling.
+
+    The recommendation is displayed in a full-width bordered container with a
+    color-coded verdict badge (BUY ✅ / HOLD ⏸️ / SELL ❌) beside the section
+    title. Paragraph body text is rendered with ``<mark>`` tags converted to
+    bold (**) since raw HTML is not allowed in Streamlit markdown.
+
+    Args:
+        section (dict): The recommendation section dict from ``parse_analysis()``.
+    """
     verdict = section.get("verdict", "HOLD")
     verdict_color = {"BUY": "green", "HOLD": "orange", "SELL": "red"}.get(verdict, "gray")
     verdict_emoji = {"BUY": "✅", "HOLD": "⏸️", "SELL": "❌"}.get(verdict, "ℹ️")
@@ -1100,7 +1525,20 @@ def _render_recommendation(section: dict):
 
 
 def render_technical_analysis(tech_parsed: dict):
-    """Render the quantitative technical analysis (RAG-grounded)."""
+    """Render the quantitative technical analysis (RAG-grounded).
+
+    Displays the technical verdict badge (STRONG BUY / BUY / SELL / STRONG
+    SELL / NEUTRAL), then each indicator group (price & volume moving
+    averages, momentum, volatility, volume flow) as bordered cards with the
+    indicator's live value and the LLM's interpretation, finishing with the
+    overall technical summary. Falls back to a warning when no analysis is
+    available.
+
+    Args:
+        tech_parsed (dict): Output of ``sra.parse_technical_analysis()`` —
+                            keys ``groups``, ``verdict``, ``verdict_css``,
+                            ``summary`` and ``error``.
+    """
     st.markdown("---")
     st.markdown("## 🧮 Technical Analysis")
     st.caption(
@@ -1159,7 +1597,16 @@ def render_technical_analysis(tech_parsed: dict):
 
 
 def render_overall_summary(overall: dict):
-    """Render the merged fundamental + technical Overall Summary."""
+    """Render the merged fundamental + technical Overall Summary.
+
+    Shows three side-by-side badges — Fundamental, Technical and Overall —
+    each color-coded by verdict, followed by the explanatory text produced by
+    ``sra.build_overall_summary()``. No-op (returns early) when ``overall`` is
+    empty/falsy.
+
+    Args:
+        overall (dict): Output of ``sra.build_overall_summary()``.
+    """
     if not overall:
         return
 
@@ -1176,6 +1623,17 @@ def render_overall_summary(overall: dict):
     }
 
     def _badge(label: str, value: str, kind: str) -> str:
+        """Build an HTML badge (label + colored pill) for a verdict.
+
+        Args:
+            label (str): The badge caption, e.g. "Fundamental".
+            value (str): The verdict, e.g. "BUY".
+            kind (str):  ``"tech"`` uses the 4-flag technical style, anything
+                         else uses the fundamental BUY/HOLD/SELL style.
+
+        Returns:
+            str: A self-contained HTML snippet for the badge.
+        """
         if kind == "tech":
             color, emoji = get_tech_verdict_style(value)
         else:
@@ -1203,8 +1661,91 @@ def render_overall_summary(overall: dict):
     st.markdown(overall.get("text", ""))
 
 
+def build_export_html() -> tuple[str, str]:
+    """Convert the current analysis report into a self-contained HTML file.
+
+    Reuses the CLI agent's ``sra.generate_html_report`` (the same engine that
+    produces ``{TICKER}_REPORT_{YYYY_MM_DD}.html``) to render the fundamental,
+    technical and overall-summary report, then returns its content and filename
+    so the sidebar's export button can offer it as a download.
+
+    The CLI template hardcodes the ``₹`` symbol for every price, so the stock's
+    native currency symbol is substituted afterwards (USD ``$``, EUR ``€``, …)
+    to keep global-stock exports correct.
+
+    Returns:
+        tuple[str, str]: ``(html_string, suggested_filename)``.
+    """
+    stock_data = st.session_state.stock_data
+    sentiment_data = st.session_state.sentiment_data
+    news = st.session_state.news
+    analysis = st.session_state.analysis or ""
+    tech_analysis = st.session_state.get("tech_analysis")
+    tech_df = st.session_state.get("tech_df")
+    ticker = st.session_state.get("ticker", "")
+
+    try:
+        # Render the self-contained report (this also writes it to disk and
+        # returns the filename, exactly like the CLI agent), then read the
+        # bytes back so the download button can serve them directly.
+        report_file = sra.generate_html_report(
+            ticker,
+            stock_data,
+            sentiment_data,
+            news,
+            analysis,
+            tech_analysis=tech_analysis,
+            tech_df=tech_df,
+        )
+        with open(report_file, "r", encoding="utf-8") as f:
+            html = f.read()
+    except Exception as e:
+        # Never let a rendering failure crash the sidebar — surface it and
+        # fall back to a minimal page so the download is still valid.
+        st.warning(f"⚠️ Could not generate the export: {e}")
+        return (
+            f"<html><body><h1>Export failed</h1><p>{e}</p></body></html>",
+            "report_export_failed.html",
+        )
+
+    # Swap the hardcoded ₹ for the stock's native currency symbol so exports
+    # of global (USD/EUR/…) stocks display the correct currency.
+    native = stock_data.get("currency", "INR")
+    symbol = CURRENCY_SYMBOLS.get(native, native)
+    if symbol != "₹":
+        html = html.replace("₹", symbol)
+
+    return html, report_file
+
+
 def run_analysis(ticker: str, company_name: str):
-    """Execute the full analysis pipeline."""
+    """Execute the full multi-stage analysis pipeline.
+
+    Runs synchronously with a progress bar + status text, storing every result
+    into ``session_state`` as it goes and finishing with a ``st.rerun()`` so
+    the results branch of ``main()`` renders. The pipeline:
+
+      1. Stock price (``get_stock_price``)          — OHLCV snapshot.
+      2. News (``get_stock_news``)                  — latest headlines.
+      3. Sentiment (``analyze_news_sentiment``)     — TextBlob polarity.
+      4. DCF valuation (``get_dcf_valuation``)      — intrinsic-value models.
+      4.5 Vectorless RAG corpus build               — PDF extraction + chunking
+          (only when the uploaded file set changed).
+      4.6 Lexical retrieval + prompt context        — top-k chunks.
+      4.7 Technical indicators (``TECH_ANALYSIS``)  — 5-year DataFrame.
+      5. AI analysis                                — fundamental + technical
+          agents run IN PARALLEL in two threads.
+      5b Parse + merge verdicts                     — Overall Summary.
+
+    Failures are isolated: a stock-data error aborts early with a message,
+    technical-indicator failure degrades to ``tech_df = None`` (skipping the
+    technical agent), and either agent's LLM call may fail without crashing
+    the whole run.
+
+    Args:
+        ticker (str):        The Yahoo Finance ticker to analyse.
+        company_name (str):  Full company name for news/sentiment search.
+    """
     progress_bar = st.progress(0, text="Initializing...")
     status_text = st.empty()
 
@@ -1351,15 +1892,44 @@ def run_analysis(ticker: str, company_name: str):
 # =========================================================
 
 def main():
+    """Entry point of the Streamlit dashboard.
+
+    This function is the top-level render pass. Because Streamlit re-executes
+    the whole script on every widget interaction / rerun, ``main()`` simply
+    rebuilds the layout from data cached in ``session_state``:
+
+      1. Render the header and the sidebar (collecting inputs).
+      2. If the "🚀 Analyze Stock" button was clicked with valid inputs, reset
+         ``analysis_complete`` (and the cached export), then run the pipeline.
+      3. If an analysis is complete, render every cached result section (hero,
+         metrics, DCF, sentiment, news, RAG evidence, AI analysis, technical
+         analysis, overall summary) and the footer.
+      4. Otherwise, render the welcome / idle screen.
+
+    No data is re-fetched on reruns — all results live in ``session_state``.
+    """
+    # Top-level render pass. Streamlit re-executes this whole script on every
+    # widget interaction / rerun, so the layout is rebuilt each time from the
+    # data cached in st.session_state rather than re-fetching anything.
     render_header()
     ticker, company_name, display_currency, analyze_btn = render_sidebar()
 
     # ── Trigger analysis ──
+    # Only when the user clicks "🚀 Analyze Stock" (with valid inputs) do we
+    # run the heavy pipeline. It runs synchronously with a progress bar; when
+    # it finishes it stores every result in session_state and calls st.rerun()
+    # so this script re-executes and hits the results branch below.
     if analyze_btn and ticker and company_name:
         st.session_state.analysis_complete = False
+        # Drop the cached export so the new analysis regenerates its own HTML.
+        st.session_state.pop("export_html", None)
+        st.session_state.pop("export_filename", None)
         run_analysis(ticker, company_name)
 
     # ── Results display ──
+    # After a successful analysis, render the cached results (hero, metrics,
+    # DCF, sentiment, news, RAG evidence, AI analysis, technical analysis,
+    # overall summary). Before any analysis has run, show the welcome screen.
     if st.session_state.analysis_complete:
         stock_data = st.session_state.stock_data
         sentiment_data = st.session_state.sentiment_data

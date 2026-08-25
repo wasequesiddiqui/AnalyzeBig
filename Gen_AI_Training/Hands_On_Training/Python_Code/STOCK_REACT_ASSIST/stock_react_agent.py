@@ -2345,7 +2345,10 @@ def main():
         ``get_stock_news``, and ``analyze_news_sentiment`` via their
         ``.invoke()`` methods (required by ``@tool``-decorated functions),
         then compute the technical-indicator DataFrame with
-        ``TECH_ANALYSIS.compute_technical_indicators()``.
+        ``TECH_ANALYSIS.compute_technical_indicators()``. This DataFrame is
+        the raw material for the quantitative agent: inside
+        ``generate_technical_analysis()`` it is converted into a retrievable
+        RAG corpus so the LLM analyses only the most relevant indicators.
     4.  **Generate AI analysis (in parallel)** — Run the fundamental analyst
         (``generate_analysis``) and the quantitative technical analyst
         (``generate_technical_analysis``) concurrently in two threads.
@@ -2353,6 +2356,10 @@ def main():
         (fundamental analysis + technical analysis + merged Overall Summary).
     6.  **Open in browser** — Launch the default web browser to display
         the report immediately.
+
+    Every stage is defensive: a failure in one data source or one agent
+    degrades gracefully (missing news, "Unknown" sentiment, or a skipped
+    technical section) rather than aborting the whole report.
 
     Terminal Output Example
     -----------------------
@@ -2404,7 +2411,15 @@ def main():
     # ── Technical Indicators ──
     # Download 5 years of daily OHLCV data and compute the full technical
     # indicator DataFrame (moving averages, RSI, MACD, Bollinger, Stochastic,
-    # OBV). This DataFrame feeds the quantitative analyst agent.
+    # OBV). This DataFrame feeds the quantitative analyst agent — inside
+    # generate_technical_analysis() it is turned into a retrievable RAG corpus
+    # (see _build_technical_corpus) so the LLM only sees the most relevant
+    # indicator context for each part of the analysis.
+    #
+    # The computation is wrapped in try/except so a data failure here cannot
+    # block the rest of the report: on error we set tech_df = None, which
+    # (a) prevents the technical agent from being launched and (b) makes the
+    # HTML report render a graceful "Technical Analysis Unavailable" card.
     print("Computing technical indicators...")
     try:
         tech_df = TECH_ANALYSIS.compute_technical_indicators(ticker)
@@ -2419,25 +2434,40 @@ def main():
     #   2. generate_technical_analysis() — quantitative technical analyst
     # Each llm.invoke() call is blocking (an HTTP request), so running them
     # in two threads gives true concurrency and roughly halves the wait time.
+    #
+    # Thread safety: the two futures never share mutable state. Each agent
+    # receives its own prompt built from read-only inputs (stock_data,
+    # sentiment_data, news / tech_df), so there are no locks or shared-write
+    # hazards between the worker threads.
     print("Running AI agents in parallel (fundamental + technical)...")
     with ThreadPoolExecutor(max_workers=2) as executor:
         future_fund = executor.submit(
             generate_analysis, ticker, stock_data, sentiment_data, news
         )
-        # Only launch the technical agent if we have indicator data.
+
+        # Only launch the technical agent if we have indicator data. When
+        # tech_df is None (the indicator computation failed above) we submit
+        # nothing and keep future_tech = None — the collection block below
+        # then skips it and the report renders without the technical section.
         future_tech = (
             executor.submit(generate_technical_analysis, ticker, tech_df)
             if tech_df is not None else None
         )
 
-        # Collect the fundamental analysis, with a graceful fallback.
+        # Collect the fundamental analysis. future_fund.result() blocks the
+        # main thread until the agent finishes, then returns the raw markdown.
+        # If the LLM call raised (quota, network, malformed response), fall
+        # back to an empty string so the report still renders.
         try:
             analysis = future_fund.result()
         except Exception as e:
             print(f"  [!] Fundamental analysis failed: {e}")
             analysis = ""
 
-        # Collect the technical analysis, with a graceful fallback.
+        # Collect the technical analysis with the same graceful fallback.
+        # Note the `if future_tech else None` guard: when the technical agent
+        # was never launched (tech_df was None) we return None directly
+        # instead of calling .result() on an un-submitted future.
         try:
             tech_analysis = future_tech.result() if future_tech else None
         except Exception as e:
@@ -2447,7 +2477,9 @@ def main():
     # ── HTML Report Generation ──
     # Parses both analyses into structured sections, merges them into an
     # Overall Summary, renders the Jinja2 template, and writes the result
-    # to a date-stamped .html file.
+    # to a date-stamped .html file (e.g. TCS_REPORT_2026_08_25.html). The
+    # filename comes from the ticker with its exchange suffix stripped, and
+    # the report is fully self-contained (inline CSS and JavaScript).
     print("Generating HTML report...")
     report_file = generate_html_report(
         ticker, stock_data, sentiment_data, news, analysis,
@@ -2457,6 +2489,8 @@ def main():
     # ── Launch Browser ──
     # `webbrowser.open()` opens the HTML file in the user's default browser.
     # On Windows, this typically launches Edge/Chrome; on macOS, Safari/Chrome.
+    # The call is non-blocking, so the script exits immediately afterwards
+    # while the report stays open in the browser.
     print(f"\nHTML report generated: {report_file}")
     webbrowser.open(report_file)
 
