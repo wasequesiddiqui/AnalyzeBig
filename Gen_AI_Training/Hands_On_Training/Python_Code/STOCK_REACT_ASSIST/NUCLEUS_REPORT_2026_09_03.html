@@ -1,0 +1,1140 @@
+<html lang="en">
+    <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NUCLEUS.NS — Stock Analysis</title>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&display=swap" rel="stylesheet">
+    <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+        --bg: #f0ede8;
+        --surface: #faf8f5;
+        --surface-2: #f5f2ed;
+        --border: rgba(60,40,20,0.12);
+        --border-strong: rgba(60,40,20,0.22);
+        --ink: #1a1208;
+        --ink-2: #4a3f2f;
+        --ink-3: #8a7d6a;
+        --accent: #c94f1a;
+        --accent-light: #fceee8;
+        --accent-mid: #f0a882;
+        --green: #1a6b3a;
+        --green-light: #e8f5ee;
+        --red: #b01a1a;
+        --red-light: #fce8e8;
+        --amber: #92600a;
+        --amber-light: #fdf4e3;
+        --blue: #1a3a6b;
+        --blue-light: #e8eef8;
+        --gold: #c8901a;
+        --serif: 'DM Serif Display', Georgia, serif;
+        --sans: 'DM Sans', system-ui, sans-serif;
+        --radius: 16px;
+        --radius-sm: 10px;
+        --shadow: 0 2px 16px rgba(60,40,10,0.09), 0 1px 3px rgba(60,40,10,0.06);
+        --shadow-lg: 0 8px 40px rgba(60,40,10,0.12), 0 2px 8px rgba(60,40,10,0.08);
+    }
+
+    body {
+        font-family: var(--sans);
+        background: var(--bg);
+        color: var(--ink);
+        min-height: 100vh;
+        padding: 0;
+    }
+
+    /* ─── HERO ─── */
+    .hero {
+        background: var(--ink);
+        color: #faf8f5;
+        padding: 56px 48px 52px;
+        position: relative;
+        overflow: hidden;
+    }
+    .hero::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background:
+        radial-gradient(ellipse 60% 80% at 80% 50%, rgba(201,79,26,0.18) 0%, transparent 70%),
+        radial-gradient(ellipse 40% 60% at 10% 80%, rgba(200,144,26,0.12) 0%, transparent 60%);
+        pointer-events: none;
+    }
+    .hero-grid {
+        max-width: 1100px;
+        margin: auto;
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 32px;
+        align-items: flex-end;
+        position: relative;
+    }
+    .hero-label {
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--accent-mid);
+        margin-bottom: 10px;
+    }
+    .hero-ticker {
+        font-family: var(--serif);
+        font-size: clamp(42px, 6vw, 68px);
+        line-height: 1;
+        letter-spacing: -0.02em;
+        color: #faf8f5;
+    }
+    .hero-exchange {
+        font-size: 13px;
+        color: rgba(250,248,245,0.55);
+        margin-top: 8px;
+        font-weight: 300;
+    }
+    .hero-price-block {
+        text-align: right;
+    }
+    .hero-price-label {
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: rgba(250,248,245,0.45);
+        margin-bottom: 6px;
+    }
+    .hero-price {
+        font-family: var(--serif);
+        font-size: clamp(32px, 4vw, 52px);
+        line-height: 1;
+        color: #faf8f5;
+    }
+    .hero-ts {
+        font-size: 12px;
+        color: rgba(250,248,245,0.35);
+        margin-top: 10px;
+        font-weight: 300;
+    }
+
+    /* ─── MAIN LAYOUT ─── */
+    .page {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 40px 24px 80px;
+    }
+
+    .section-title {
+        font-family: var(--serif);
+        font-size: 22px;
+        color: var(--ink);
+        margin-bottom: 20px;
+        letter-spacing: -0.01em;
+    }
+
+    /* ─── METRICS STRIP ─── */
+    .metrics-strip {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+        gap: 12px;
+        margin-bottom: 36px;
+    }
+    .metric-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        padding: 18px 16px 14px;
+        box-shadow: var(--shadow);
+        transition: transform 0.18s ease, box-shadow 0.18s ease;
+        cursor: default;
+    }
+    .metric-card:hover {
+        transform: translateY(-3px);
+        box-shadow: var(--shadow-lg);
+    }
+    .metric-label {
+        font-size: 10px;
+        font-weight: 600;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--ink-3);
+        margin-bottom: 8px;
+    }
+    .metric-value {
+        font-size: 22px;
+        font-weight: 600;
+        color: var(--ink);
+        letter-spacing: -0.02em;
+    }
+    .metric-value.up { color: var(--green); }
+    .metric-value.down { color: var(--red); }
+    .metric-sub {
+        font-size: 11px;
+        color: var(--ink-3);
+        margin-top: 4px;
+        font-weight: 300;
+    }
+
+    /* ─── TWO-COL ─── */
+    .two-col {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+        margin-bottom: 36px;
+    }
+    @media (max-width: 700px) {
+        .two-col { grid-template-columns: 1fr; }
+        .hero { padding: 36px 24px; }
+        .hero-grid { grid-template-columns: 1fr; }
+        .hero-price-block { text-align: left; }
+    }
+
+    /* ─── SENTIMENT CARD ─── */
+    .card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 28px;
+        box-shadow: var(--shadow);
+    }
+    .sentiment-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 18px;
+        border-radius: 999px;
+        font-size: 15px;
+        font-weight: 600;
+        margin-bottom: 14px;
+    }
+    .sentiment-badge.positive { background: var(--green-light); color: var(--green); }
+    .sentiment-badge.negative { background: var(--red-light); color: var(--red); }
+    .sentiment-badge.neutral  { background: var(--amber-light); color: var(--amber); }
+    .sentiment-badge.unknown  { background: var(--blue-light); color: var(--blue); }
+
+    .sentiment-bar-wrap {
+        height: 8px;
+        background: var(--surface-2);
+        border-radius: 99px;
+        margin: 14px 0 10px;
+        overflow: hidden;
+    }
+    .sentiment-bar {
+        height: 100%;
+        border-radius: 99px;
+        transition: width 1s cubic-bezier(.22,.68,0,1.2);
+    }
+    .sentiment-bar.positive { background: linear-gradient(90deg, #4caf88, #1a6b3a); }
+    .sentiment-bar.negative { background: linear-gradient(90deg, #e87070, #b01a1a); }
+    .sentiment-bar.neutral  { background: linear-gradient(90deg, #f0c84a, #92600a); }
+    .sentiment-bar.unknown  { background: linear(90deg, #8aabdf, #1a3a6b); }
+    .sentiment-note {
+        font-size: 12px;
+        color: var(--ink-3);
+        font-weight: 300;
+        line-height: 1.6;
+    }
+    .sentiment-reason {
+        margin-top: 10px;
+        padding: 12px 14px;
+        background: var(--blue-light);
+        border-radius: var(--radius-sm);
+        border-left: 3px solid var(--blue);
+        font-size: 12px;
+        color: var(--blue);
+        line-height: 1.6;
+    }
+
+    /* ─── NEWS ─── */
+    .news-list {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+    .news-item {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        padding: 16px 20px;
+        box-shadow: var(--shadow);
+        transition: border-color 0.15s, transform 0.15s;
+        cursor: pointer;
+    }
+    .news-item:hover {
+        border-color: var(--accent);
+        transform: translateX(4px);
+    }
+    .news-item-title {
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--ink);
+        margin-bottom: 6px;
+        line-height: 1.45;
+    }
+    .news-item-desc {
+        font-size: 12px;
+        color: var(--ink-3);
+        line-height: 1.55;
+        font-weight: 300;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+    .news-item-link {
+        display: inline-block;
+        margin-top: 8px;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--accent);
+        text-decoration: none;
+    }
+    .news-item-link:hover { text-decoration: underline; }
+
+    /* ─── AI ANALYSIS ─── */
+    .analysis-hero {
+        background: var(--ink);
+        border-radius: var(--radius);
+        padding: 36px 40px;
+        margin-bottom: 20px;
+        position: relative;
+        overflow: hidden;
+        box-shadow: var(--shadow-lg);
+    }
+    .analysis-hero::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background:
+        radial-gradient(ellipse 50% 70% at 90% 20%, rgba(201,79,26,0.22) 0%, transparent 65%),
+        radial-gradient(ellipse 40% 50% at 5% 90%, rgba(200,144,26,0.15) 0%, transparent 60%);
+        pointer-events: none;
+    }
+    .analysis-hero-label {
+        font-size: 10px;
+        font-weight: 600;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: var(--accent-mid);
+        margin-bottom: 8px;
+    }
+    .analysis-hero-title {
+        font-family: var(--serif);
+        font-size: 28px;
+        color: #faf8f5;
+        line-height: 1.15;
+        position: relative;
+    }
+    .analysis-hero-sub {
+        font-size: 13px;
+        color: rgba(250,248,245,0.45);
+        margin-top: 8px;
+        font-weight: 300;
+        position: relative;
+    }
+
+    .analysis-sections {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+        margin-bottom: 20px;
+    }
+    @media (max-width: 700px) { .analysis-sections { grid-template-columns: 1fr; } }
+
+    .analysis-section {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 24px;
+        box-shadow: var(--shadow);
+        transition: transform 0.18s ease, box-shadow 0.18s ease;
+        cursor: default;
+    }
+    .analysis-section:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-lg);
+    }
+
+    .section-icon {
+        font-size: 24px;
+        margin-bottom: 10px;
+        display: block;
+    }
+    .analysis-section-title {
+        font-family: var(--serif);
+        font-size: 17px;
+        color: var(--ink);
+        margin-bottom: 14px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid var(--border);
+        letter-spacing: -0.01em;
+    }
+    .analysis-section-body {
+        font-size: 14px;
+        line-height: 1.72;
+        color: var(--ink-2);
+        font-weight: 300;
+    }
+    .analysis-section-body p + p {
+        margin-top: 10px;
+    }
+
+    /* Recommendation card gets special treatment */
+    .analysis-section.recommendation {
+        grid-column: 1 / -1;
+        background: var(--surface);
+        border: 2px solid var(--accent);
+        position: relative;
+        overflow: hidden;
+    }
+    .analysis-section.recommendation::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(135deg, rgba(201,79,26,0.05) 0%, transparent 50%);
+        pointer-events: none;
+    }
+    .rec-verdict {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 5px 14px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        margin-bottom: 14px;
+    }
+    .rec-verdict.buy  { background: var(--green-light); color: var(--green); }
+    .rec-verdict.hold { background: var(--amber-light); color: var(--amber); }
+    .rec-verdict.sell { background: var(--red-light); color: var(--red); }
+    .rec-verdict.strongbuy  { background: #0f5c33; color: #eafff2; }
+    .rec-verdict.strongsell { background: #6e1010; color: #ffe9e9; }
+
+    /* Highlighted sentences in recommendation */
+    .analysis-section-body mark {
+        background: linear-gradient(120deg, rgba(201,79,26,0.18) 0%, rgba(200,144,26,0.22) 100%);
+        color: var(--ink);
+        padding: 1px 4px;
+        border-radius: 3px;
+        font-weight: 500;
+        -webkit-box-decoration-break: clone;
+        box-decoration-break: clone;
+    }
+
+    /* ─── TECHNICAL ANALYSIS ─── */
+    .tech-verdict-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 20px;
+    }
+    .tech-verdict {
+        display: inline-flex;
+        align-items: center;
+        padding: 8px 20px;
+        border-radius: 999px;
+        font-size: 15px;
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+    .tech-verdict.strongbuy  { background: #0f5c33; color: #eafff2; }
+    .tech-verdict.buy        { background: var(--green-light); color: var(--green); }
+    .tech-verdict.sell       { background: var(--red-light); color: var(--red); }
+    .tech-verdict.strongsell { background: #6e1010; color: #ffe9e9; }
+    .tech-verdict.neutral    { background: var(--amber-light); color: var(--amber); }
+    .tech-verdict-label {
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--ink-3);
+    }
+
+    .tech-group {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 24px;
+        margin-bottom: 16px;
+        box-shadow: var(--shadow);
+    }
+    .tech-group-title {
+        font-family: var(--serif);
+        font-size: 18px;
+        color: var(--ink);
+        margin-bottom: 16px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .tech-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 12px;
+    }
+    .tech-indicator {
+        background: var(--surface-2);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        padding: 14px 16px;
+    }
+    .tech-indicator-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 8px;
+        margin-bottom: 6px;
+    }
+    .tech-indicator-name {
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--ink-2);
+    }
+    .tech-indicator-value {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--ink);
+    }
+    .tech-indicator-analysis {
+        font-size: 13px;
+        line-height: 1.6;
+        color: var(--ink-2);
+        font-weight: 300;
+    }
+    .tech-summary {
+        background: var(--ink);
+        color: #faf8f5;
+        border-radius: var(--radius);
+        padding: 26px 28px;
+        margin-top: 8px;
+        box-shadow: var(--shadow-lg);
+    }
+    .tech-summary-title {
+        font-family: var(--serif);
+        font-size: 18px;
+        margin-bottom: 10px;
+        color: #faf8f5;
+    }
+    .tech-summary-body {
+        font-size: 14px;
+        line-height: 1.72;
+        color: rgba(250,248,245,0.82);
+        font-weight: 300;
+    }
+
+    /* ─── OVERALL SUMMARY ─── */
+    .overall-card {
+        background: var(--surface);
+        border: 2px solid var(--accent);
+        border-radius: var(--radius);
+        padding: 28px;
+        margin-top: 20px;
+        box-shadow: var(--shadow-lg);
+    }
+    .overall-card-title {
+        font-family: var(--serif);
+        font-size: 22px;
+        color: var(--ink);
+        margin-bottom: 18px;
+    }
+    .overall-verdicts {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 12px;
+        margin-bottom: 16px;
+    }
+    .overall-item {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 6px;
+    }
+    .overall-item-label {
+        font-size: 10px;
+        font-weight: 600;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--ink-3);
+    }
+    .overall-text {
+        font-size: 14px;
+        line-height: 1.72;
+        color: var(--ink-2);
+        font-weight: 300;
+        padding-top: 14px;
+        border-top: 1px solid var(--border);
+    }
+
+    /* ─── FOOTER ─── */
+    .footer {
+        text-align: center;
+        font-size: 11px;
+        color: var(--ink-3);
+        font-weight: 300;
+        margin-top: 60px;
+        padding-top: 20px;
+        border-top: 1px solid var(--border);
+    }
+
+    /* ─── FADE IN ─── */
+    @keyframes fadeUp {
+        from { opacity: 0; transform: translateY(18px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+    .fade-up {
+        animation: fadeUp 0.5s ease both;
+    }
+    .fade-up-1 { animation-delay: 0.05s; }
+    .fade-up-2 { animation-delay: 0.12s; }
+    .fade-up-3 { animation-delay: 0.20s; }
+    .fade-up-4 { animation-delay: 0.28s; }
+    .fade-up-5 { animation-delay: 0.36s; }
+    </style>
+    </head>
+    <body>
+
+    <!-- HERO -->
+    <div class="hero fade-up">
+    <div class="hero-grid">
+        <div>
+        <div class="hero-label">Stock Analysis Report</div>
+        <div class="hero-ticker">NUCLEUS.NS</div>
+        <div class="hero-exchange">NSE India</div>
+        </div>
+        <div class="hero-price-block">
+        <div class="hero-price-label">Current Price</div>
+        <div class="hero-price">₹740.0</div>
+        <div class="hero-ts">2026-09-03 19:36:07</div>
+        </div>
+    </div>
+    </div>
+
+    <div class="page">
+
+    <!-- METRICS STRIP -->
+    <div class="metrics-strip fade-up fade-up-1">
+        <div class="metric-card">
+        <div class="metric-label">Open</div>
+        <div class="metric-value">₹738.75</div>
+        <div class="metric-sub">Today's open</div>
+        </div>
+        <div class="metric-card">
+        <div class="metric-label">High</div>
+        <div class="metric-value up">₹744.9</div>
+        <div class="metric-sub">Day high</div>
+        </div>
+        <div class="metric-card">
+        <div class="metric-label">Low</div>
+        <div class="metric-value down">₹735.0</div>
+        <div class="metric-sub">Day low</div>
+        </div>
+        <div class="metric-card">
+        <div class="metric-label">Volume</div>
+        <div class="metric-value" id="volume-val">8528</div>
+        <div class="metric-sub">Shares traded</div>
+        </div>
+        <div class="metric-card">
+        <div class="metric-label">Range</div>
+        <div class="metric-value">1.3%</div>
+        <div class="metric-sub">High / low spread</div>
+        </div>
+    </div>
+
+    <!-- SENTIMENT + NEWS -->
+    <div class="two-col fade-up fade-up-2">
+
+        <!-- SENTIMENT -->
+        <div class="card">
+        <h2 class="section-title" style="margin-bottom:16px;">Market Sentiment</h2>
+
+        
+        <div class="sentiment-badge neutral">
+            ➡️ Neutral
+            
+        </div>
+
+        
+        <div class="sentiment-bar-wrap">
+            <div class="sentiment-bar neutral" id="sent-bar" style="width: 0%"></div>
+        </div>
+        <p class="sentiment-note">
+            Score: <strong>-0.04</strong>
+            
+            &nbsp;·&nbsp; Based on 2 articles
+            
+        </p>
+        
+
+        
+        
+        </div>
+
+        <!-- NEWS -->
+        <div class="card">
+        <h2 class="section-title" style="margin-bottom:16px;">Latest News</h2>
+        <div class="news-list">
+            
+            <div class="news-item" onclick="window.open('https://www.thehindubusinessline.com/markets/sensex-nifty50-today-stock-market-highlights-12th-august-2026/article71332253.ece', '_blank')">
+            <div class="news-item-title">Sensex today | Stock Market Highlights: Sensex slips 187 pts to close at 77,966, Nifty ends at 24,435; TCS, M&M top losers</div>
+            
+            <div class="news-item-desc">Sensex Today, Nifty 50 | Stock Market Highlights: Find here all the live updates related to Sensex, Nifty, BSE, NSE, share prices and Indian stock markets for 12th August 2026.</div>
+            
+            <a class="news-item-link" href="https://www.thehindubusinessline.com/markets/sensex-nifty50-today-stock-market-highlights-12th-august-2026/article71332253.ece" target="_blank" onclick="event.stopPropagation()">Read more →</a>
+            </div>
+            
+            <div class="news-item" onclick="window.open('https://www.thehindubusinessline.com/markets/sensex-nifty50-today-stock-market-highlights-6-august-2026/article71309748.ece', '_blank')">
+            <div class="news-item-title">Sensex today | Stock Market Highlights: Sensex climbs 374 pts; Nifty ends above 24,600 on RBI, crude oil cues</div>
+            
+            <div class="news-item-desc">Sensex Today, Nifty 50 | Stock Market Highlights August 6: Indian benchmark indices ended higher on Thursday after a volatile, range-bound session, supported by easing crude oil prices, the Reserve Bank of India's steady policy stance and selective buying in …</div>
+            
+            <a class="news-item-link" href="https://www.thehindubusinessline.com/markets/sensex-nifty50-today-stock-market-highlights-6-august-2026/article71309748.ece" target="_blank" onclick="event.stopPropagation()">Read more →</a>
+            </div>
+            
+            
+        </div>
+        </div>
+
+    </div>
+
+    <!-- AI ANALYSIS -->
+    <div class="fade-up fade-up-3">
+        <div class="analysis-hero">
+        <div class="analysis-hero-label">AI-Powered Intelligence</div>
+        <div class="analysis-hero-title">Investment Analysis</div>
+        <div class="analysis-hero-sub">Generated by Senior Wall Street AI · 2026-09-03 19:36:07</div>
+        </div>
+
+        <div class="analysis-sections">
+        
+        <div class="analysis-section  fade-up fade-up-4">
+            <span class="section-icon" aria-hidden="true">📊</span>
+            
+            <div class="analysis-section-title">Financial Outlook</div>
+            <div class="analysis-section-body">
+            
+            
+            <p>Nucleus Software Exports Limited (NUCLEUS.NS) is currently trading at ₹740.00, with today's session showing a narrow range between ₹735.00 and ₹744.90 on modest volume of 8,528 shares. The stock's most recent quarterly performance for Q1 FY2026 (quarter ended June 30, 2026) shows consolidated profit attributable to shareholders of ₹2,387 lakhs, with basic EPS of ₹9.07 (not annualized) [File: outcome-q1-2026.pdf, Page 7]. This represents a sequential decline from the March 2026 quarter's ₹3,520 lakhs profit and a year-over-year decline from ₹3,455 lakhs in Q1 FY2025, indicating meaningful earnings pressure in the most recent quarter. For the full fiscal year ended March 31, 2026, the company reported consolidated profit of ₹11,674 lakhs on revenue from operations of ₹87,603 lakhs, with India being the dominant revenue contributor at ₹51,081 lakhs [File: NUCLEUS_FINANCIAL_RESULT.pdf, Page 48].</p>
+            
+            
+            
+            <p>The company maintains a fortress-like balance sheet with substantial liquid investments. As of March 31, 2026, the company held ₹45,496 lakhs in mutual funds, ₹14,240 lakhs in target maturity funds, and ₹3,333 lakhs in tax-free bonds, alongside significant other financial assets [File: NUCLEUS_FINANCIAL_RESULT.pdf, Page 42]. This substantial cash and investment position provides significant downside protection and financial flexibility. However, the operational trajectory is concerning—operating profit before tax declined from ₹15,279 lakhs in FY2025 to ₹8,572 lakhs in FY2026, even as other income remained relatively stable at ₹6,416 lakhs versus ₹6,626 lakhs previously [File: NUCLEUS_FINANCIAL_RESULT.pdf, Page 48]. The sharp deterioration in core operating profitability, coupled with the weak Q1 FY2026 results, suggests the company is navigating a challenging demand environment in its core banking and financial services software vertical.</p>
+            
+            
+            </div>
+        </div>
+        
+        <div class="analysis-section  fade-up fade-up-5">
+            <span class="section-icon" aria-hidden="true">⚠️</span>
+            
+            <div class="analysis-section-title">Key Risks</div>
+            <div class="analysis-section-body">
+            
+            
+            <p>The most immediate risk is the deteriorating earnings trajectory. The Q1 FY2026 standalone results show profit of ₹2,387 lakhs versus ₹3,455 lakhs in the year-ago quarter—a 31% decline [File: outcome-q1-2026.pdf, Page 7]. This is not a one-off blip; the full-year FY2026 operating profit before tax of ₹8,572 lakhs represents a 44% collapse from FY2025's ₹15,279 lakhs [File: NUCLEUS_FINANCIAL_RESULT.pdf, Page 48]. The company's geographic segment data reveals particular weakness in South East Asia, where segment results deteriorated from a loss of ₹1,440 lakhs to a loss of ₹2,626 lakhs year-over-year, while Europe and Middle East segments also showed declining profitability [File: NUCLEUS_FINANCIAL_RESULT.pdf, Page 48]. This suggests broad-based demand softness rather than isolated client issues.</p>
+            
+            
+            
+            <p>The DCF analysis presents a highly unusual and concerning picture. The base case average value per share is ₹12,427, the bull case ₹21,587, and the bear case ₹11,751—all substantially above the current price of ₹740. However, the extreme dispersion in scenario values, including outlier values of ₹93,853 per share appearing repeatedly across all scenarios, indicates significant model instability and questionable terminal value assumptions. The base RMSE of ₹11,687 and bear RMSE of ₹11,011 are extraordinarily high relative to the current stock price, suggesting the DCF outputs should be treated with extreme caution. Additionally, the company's revenue recognition policies for software licenses and the significant estimates involved in deferred tax assets, useful lives of assets, and impairment assessments [File: NUCLEUS_FINANCIAL_RESULT.pdf, Page 16] introduce accounting judgment risks that could lead to future write-downs or earnings volatility.</p>
+            
+            
+            </div>
+        </div>
+        
+        <div class="analysis-section  fade-up fade-up-6">
+            <span class="section-icon" aria-hidden="true">🚀</span>
+            
+            <div class="analysis-section-title">Growth Potential</div>
+            <div class="analysis-section-body">
+            
+            
+            <p>Nucleus Software's core strength lies in its specialized focus on the banking and financial services sector, particularly its product development and support services for corporate banking entities [File: NUCLEUS_FINANCIAL_RESULT.pdf, Page 17]. The company's India segment remains robust, with revenue growing from ₹48,000 lakhs in FY2025 to ₹51,081 lakhs in FY2026, and segment results holding relatively steady at ₹27,650 lakhs versus ₹29,234 lakhs [File: NUCLEUS_FINANCIAL_RESULT.pdf, Page 48]. This domestic resilience, combined with the company's deep domain expertise in banking software, positions it to benefit from the ongoing digital transformation of India's financial services sector and the increasing technology spending by banks and NBFCs.</p>
+            
+            
+            
+            <p>The company's substantial investment portfolio—₹45,496 lakhs in mutual funds plus additional fixed-income instruments [File: NUCLEUS_FINANCIAL_RESULT.pdf, Page 42]—provides both a defensive buffer and potential catalyst. Management could deploy this capital toward strategic acquisitions, enhanced dividends, or buybacks, any of which could unlock shareholder value. The company also generates rental income from investment property, though this remains minimal at ₹69 lakhs for FY2026 [File: NUCLEUS_FINANCIAL_RESULT.pdf, Page 27]. The DCF analysis suggests significant theoretical upside, with even the bear case average of ₹11,751 per share implying substantial appreciation potential from current levels. However, given the model's instability and the company's operational challenges, this upside appears more reflective of the company's large cash position and asset base rather than near-term earnings power. The recent market sentiment is neutral with a slightly negative score of -0.04 based on limited news coverage, and the broader market context shows Nifty trading around 24,435-24,600 levels with mixed sessions, providing no clear sector tailwind.</p>
+            
+            
+            </div>
+        </div>
+        
+        <div class="analysis-section recommendation fade-up fade-up-7">
+            <span class="section-icon" aria-hidden="true">🎯</span>
+            
+            
+            
+            <div class="rec-verdict hold">HOLD</div>
+            
+            
+            <div class="analysis-section-title">Investment Recommendation</div>
+            <div class="analysis-section-body">
+            
+            
+            <p>**HOLD.** Nucleus Software presents a classic value trap scenario—the stock trades at ₹740 against a book value bolstered by massive liquid investments, yet the operating business is demonstrably deteriorating. The Q1 FY2026 results showing a 31% year-over-year profit decline, combined with the full-year FY2026 operating profit collapse from ₹15,279 lakhs to ₹8,572 lakhs [File: NUCLEUS_FINANCIAL_RESULT.pdf, Page 48], indicate fundamental business challenges that the current valuation may not fully reflect despite the apparent discount to DCF values. <mark>The DCF outputs, with base case values of ₹12,427 and even bear case values of ₹11,751, are so far above the current price that they suggest either the market knows something the model doesn't or the model's assumptions—particularly the recurring ₹93,853 outlier values—are fundamentally flawed.</mark></p>
+            
+            
+            
+            <p>For investors already holding the stock, the substantial cash and investment cushion provides a floor, but the deteriorating earnings trajectory and unstable DCF signals argue against adding to positions. <mark>Given the 31% year-over-year decline in Q1 FY2026 profits and the 44% collapse in FY2026 operating profit before tax, we would need to see evidence of operational stabilization—particularly in the troubled South East Asia and Europe segments—before recommending accumulation.</mark> The company's strong India franchise and deep banking software expertise offer genuine long-term value, but with neutral sentiment, declining profitability, and no clear near-term catalyst, patience is warranted. We would revisit this rating if the stock approaches ₹600-650 (providing a larger margin of safety against the asset base) or if the next two quarters demonstrate a meaningful reversal in the earnings decline.</p>
+            
+            
+            </div>
+        </div>
+        
+        </div>
+    </div>
+
+    <!-- TECHNICAL ANALYSIS -->
+    <div class="fade-up fade-up-4">
+        <div class="analysis-hero">
+        <div class="analysis-hero-label">Quantitative Intelligence</div>
+        <div class="analysis-hero-title">Technical Analysis</div>
+        <div class="analysis-hero-sub">Generated by Quantitative Analyst AI · 2026-09-03 19:36:07</div>
+        </div>
+
+        
+        <div class="tech-verdict-row">
+            <span class="tech-verdict sell">SELL</span>
+            <span class="tech-verdict-label">Technical Signal</span>
+        </div>
+
+        
+        <div class="tech-group">
+            <div class="tech-group-title">
+            <span class="section-icon" aria-hidden="true">📊</span>
+            Price Moving Averages
+            </div>
+            <div class="tech-grid">
+            
+            <div class="tech-indicator">
+                <div class="tech-indicator-head">
+                <span class="tech-indicator-name">SMA_5</span>
+                <span class="tech-indicator-value">742.19</span>
+                </div>
+                <div class="tech-indicator-analysis">Price at 740.00 is -0.30% below SMA_5 (742.19), indicating very short-term weakness as the latest close has slipped just under the 5-day average.</div>
+            </div>
+            
+            <div class="tech-indicator">
+                <div class="tech-indicator-head">
+                <span class="tech-indicator-name">SMA_13</span>
+                <span class="tech-indicator-value">737.56</span>
+                </div>
+                <div class="tech-indicator-analysis">Price is +0.33% above SMA_13 (737.56), showing mild positive momentum over the 13-day window.</div>
+            </div>
+            
+            <div class="tech-indicator">
+                <div class="tech-indicator-head">
+                <span class="tech-indicator-name">SMA_23</span>
+                <span class="tech-indicator-value">721.40</span>
+                </div>
+                <div class="tech-indicator-analysis">Price is +2.58% above SMA_23 (721.40), confirming a solid short-to-medium-term uptrend as price holds well above this average.</div>
+            </div>
+            
+            <div class="tech-indicator">
+                <div class="tech-indicator-head">
+                <span class="tech-indicator-name">SMA_90</span>
+                <span class="tech-indicator-value">745.06</span>
+                </div>
+                <div class="tech-indicator-analysis">Price is -0.68% below SMA_90 (745.06), indicating that the medium-term trend is still slightly negative with price trading just under the 90-day average.</div>
+            </div>
+            
+            <div class="tech-indicator">
+                <div class="tech-indicator-head">
+                <span class="tech-indicator-name">SMA_200</span>
+                <span class="tech-indicator-value">800.96</span>
+                </div>
+                <div class="tech-indicator-analysis">Price is -7.61% below SMA_200 (800.96), revealing a significant long-term downtrend as price remains well under the 200-day average.</div>
+            </div>
+            
+            <div class="tech-indicator">
+                <div class="tech-indicator-head">
+                <span class="tech-indicator-name">EMA_5</span>
+                <span class="tech-indicator-value">740.70</span>
+                </div>
+                <div class="tech-indicator-analysis">EMA_5 (740.70) is above price (740.00) by -0.09%, and the EMA is below the SMA (bearish), suggesting very short-term momentum is slightly negative.</div>
+            </div>
+            
+            <div class="tech-indicator">
+                <div class="tech-indicator-head">
+                <span class="tech-indicator-name">EMA_13</span>
+                <span class="tech-indicator-value">735.63</span>
+                </div>
+                <div class="tech-indicator-analysis">EMA_13 (735.63) is below price by +0.59%, but the EMA is below the SMA (bearish), indicating that recent momentum has not yet confirmed the price recovery.</div>
+            </div>
+            
+            <div class="tech-indicator">
+                <div class="tech-indicator-head">
+                <span class="tech-indicator-name">EMA_23</span>
+                <span class="tech-indicator-value">731.62</span>
+                </div>
+                <div class="tech-indicator-analysis">EMA_23 (731.62) is below price by +1.15%, and the EMA is above the SMA (bullish), confirming positive momentum in the short-to-medium term.</div>
+            </div>
+            
+            <div class="tech-indicator">
+                <div class="tech-indicator-head">
+                <span class="tech-indicator-name">EMA_90</span>
+                <span class="tech-indicator-value">749.13</span>
+                </div>
+                <div class="tech-indicator-analysis">EMA_90 (749.13) is above price by -1.22%, and the EMA is above the SMA (bullish), suggesting the medium-term trend is still under pressure despite the EMA structure being bullish.</div>
+            </div>
+            
+            <div class="tech-indicator">
+                <div class="tech-indicator-head">
+                <span class="tech-indicator-name">EMA_200</span>
+                <span class="tech-indicator-value">803.80</span>
+                </div>
+                <div class="tech-indicator-analysis">EMA_200 (803.80) is well above price by -7.94%, and the EMA is above the SMA (bullish), indicating the long-term trend remains bearish with price far below this key level.</div>
+            </div>
+            
+            </div>
+        </div>
+        
+        <div class="tech-group">
+            <div class="tech-group-title">
+            <span class="section-icon" aria-hidden="true">📈</span>
+            Volume Moving Averages
+            </div>
+            <div class="tech-grid">
+            
+            <div class="tech-indicator">
+                <div class="tech-indicator-head">
+                <span class="tech-indicator-name">VOL_SMA_5</span>
+                <span class="tech-indicator-value">20,727</span>
+                </div>
+                <div class="tech-indicator-analysis">Latest volume of 8,528 is -58.86% below VOL_SMA_5 (20,727), showing a dramatic drop in trading activity over the last 5 days.</div>
+            </div>
+            
+            <div class="tech-indicator">
+                <div class="tech-indicator-head">
+                <span class="tech-indicator-name">VOL_SMA_13</span>
+                <span class="tech-indicator-value">25,015</span>
+                </div>
+                <div class="tech-indicator-analysis">Volume is -65.91% below VOL_SMA_13 (25,015), confirming that recent trading activity is significantly below the 13-day average.</div>
+            </div>
+            
+            <div class="tech-indicator">
+                <div class="tech-indicator-head">
+                <span class="tech-indicator-name">VOL_SMA_23</span>
+                <span class="tech-indicator-value">31,397</span>
+                </div>
+                <div class="tech-indicator-analysis">Volume is -72.84% below VOL_SMA_23 (31,397), indicating that the latest session's volume is far below the 23-day norm.</div>
+            </div>
+            
+            <div class="tech-indicator">
+                <div class="tech-indicator-head">
+                <span class="tech-indicator-name">VOL_SMA_90</span>
+                <span class="tech-indicator-value">70,313</span>
+                </div>
+                <div class="tech-indicator-analysis">Volume is -87.87% below VOL_SMA_90 (70,313), showing that current volume is a fraction of the 90-day average, reflecting extremely low participation.</div>
+            </div>
+            
+            <div class="tech-indicator">
+                <div class="tech-indicator-head">
+                <span class="tech-indicator-name">VOL_SMA_200</span>
+                <span class="tech-indicator-value">48,861</span>
+                </div>
+                <div class="tech-indicator-analysis">Volume is -82.55% below VOL_SMA_200 (48,861), confirming that the latest volume is drastically below the long-term average.</div>
+            </div>
+            
+            <div class="tech-indicator">
+                <div class="tech-indicator-head">
+                <span class="tech-indicator-name">VOL_EMA_5</span>
+                <span class="tech-indicator-value">18,052</span>
+                </div>
+                <div class="tech-indicator-analysis">Volume is -52.76% below VOL_EMA_5 (18,052), indicating a sharp contraction in volume relative to the recent exponential average.</div>
+            </div>
+            
+            <div class="tech-indicator">
+                <div class="tech-indicator-head">
+                <span class="tech-indicator-name">VOL_EMA_13</span>
+                <span class="tech-indicator-value">25,792</span>
+                </div>
+                <div class="tech-indicator-analysis">Volume is -66.94% below VOL_EMA_13 (25,792), showing that trading activity has fallen well below the 13-day exponential norm.</div>
+            </div>
+            
+            <div class="tech-indicator">
+                <div class="tech-indicator-head">
+                <span class="tech-indicator-name">VOL_EMA_23</span>
+                <span class="tech-indicator-value">31,920</span>
+                </div>
+                <div class="tech-indicator-analysis">Volume is -73.28% below VOL_EMA_23 (31,920), confirming a significant decline in participation versus the 23-day exponential average.</div>
+            </div>
+            
+            <div class="tech-indicator">
+                <div class="tech-indicator-head">
+                <span class="tech-indicator-name">VOL_EMA_90</span>
+                <span class="tech-indicator-value">53,076</span>
+                </div>
+                <div class="tech-indicator-analysis">Volume is -83.93% below VOL_EMA_90 (53,076), indicating that volume is drastically below the medium-term exponential average.</div>
+            </div>
+            
+            <div class="tech-indicator">
+                <div class="tech-indicator-head">
+                <span class="tech-indicator-name">VOL_EMA_200</span>
+                <span class="tech-indicator-value">52,771</span>
+                </div>
+                <div class="tech-indicator-analysis">Volume is -83.84% below VOL_EMA_200 (52,771), showing that the latest volume is far below the long-term exponential average, reflecting very thin trading.</div>
+            </div>
+            
+            </div>
+        </div>
+        
+        <div class="tech-group">
+            <div class="tech-group-title">
+            <span class="section-icon" aria-hidden="true">⚡</span>
+            Momentum Indicators
+            </div>
+            <div class="tech-grid">
+            
+            <div class="tech-indicator">
+                <div class="tech-indicator-head">
+                <span class="tech-indicator-name">RSI</span>
+                <span class="tech-indicator-value">55.49</span>
+                </div>
+                <div class="tech-indicator-analysis">RSI at 55.49 is neutral, sitting in the middle of the range after recovering from oversold levels near 31.77 in late July, indicating balanced momentum without overbought or oversold conditions.</div>
+            </div>
+            
+            <div class="tech-indicator">
+                <div class="tech-indicator-head">
+                <span class="tech-indicator-name">MACD</span>
+                <span class="tech-indicator-value">5.05</span>
+                </div>
+                <div class="tech-indicator-analysis">MACD at 5.05 is above the signal line at 2.55 with a positive histogram of 2.50, confirming bullish momentum; however, the MACD has slightly declined from 5.08 two days ago, suggesting momentum may be plateauing.</div>
+            </div>
+            
+            <div class="tech-indicator">
+                <div class="tech-indicator-head">
+                <span class="tech-indicator-name">STOCH_K</span>
+                <span class="tech-indicator-value">74.95</span>
+                </div>
+                <div class="tech-indicator-analysis">%K at 74.95 is neutral and has been declining from a peak of 89.61 on August 21, indicating that buying pressure is fading from overbought territory.</div>
+            </div>
+            
+            <div class="tech-indicator">
+                <div class="tech-indicator-head">
+                <span class="tech-indicator-name">STOCH_D</span>
+                <span class="tech-indicator-value">75.55</span>
+                </div>
+                <div class="tech-indicator-analysis">%D at 75.55 is neutral and slightly above %K, suggesting a potential bearish crossover may be forming as the stochastic oscillator cools off from overbought levels.</div>
+            </div>
+            
+            </div>
+        </div>
+        
+        <div class="tech-group">
+            <div class="tech-group-title">
+            <span class="section-icon" aria-hidden="true">📏</span>
+            Volatility — Bollinger Bands
+            </div>
+            <div class="tech-grid">
+            
+            <div class="tech-indicator">
+                <div class="tech-indicator-head">
+                <span class="tech-indicator-name">BB_UPPER</span>
+                <span class="tech-indicator-value">763.04</span>
+                </div>
+                <div class="tech-indicator-analysis">Upper band at 763.04 is well above the current price of 740.00, with %B at 0.69, indicating price is trading in the upper half of the bands but not yet overbought.</div>
+            </div>
+            
+            <div class="tech-indicator">
+                <div class="tech-indicator-head">
+                <span class="tech-indicator-name">BB_MIDDLE</span>
+                <span class="tech-indicator-value">725.27</span>
+                </div>
+                <div class="tech-indicator-analysis">Middle band at 725.27 is below the current price, confirming that price is trading above the 20-day mean and in the upper portion of the Bollinger Band range.</div>
+            </div>
+            
+            <div class="tech-indicator">
+                <div class="tech-indicator-head">
+                <span class="tech-indicator-name">BB_LOWER</span>
+                <span class="tech-indicator-value">687.51</span>
+                </div>
+                <div class="tech-indicator-analysis">Lower band at 687.51 is significantly below price, and with BandWidth at 10.41%, volatility is moderate; price is comfortably inside the bands with no sign of a volatility squeeze or breakout.</div>
+            </div>
+            
+            </div>
+        </div>
+        
+        <div class="tech-group">
+            <div class="tech-group-title">
+            <span class="section-icon" aria-hidden="true">🔄</span>
+            Volume Flow
+            </div>
+            <div class="tech-grid">
+            
+            <div class="tech-indicator">
+                <div class="tech-indicator-head">
+                <span class="tech-indicator-name">OBV</span>
+                <span class="tech-indicator-value">26,068,187</span>
+                </div>
+                <div class="tech-indicator-analysis">OBV at 26,068,187 shows a 5-day decline of -63,224 but a 20-day increase of +195,032 and a 60-day increase of +45,955, indicating that while very recent sessions saw distribution, the medium-term trend still shows accumulation.</div>
+            </div>
+            
+            </div>
+        </div>
+        
+
+        
+        <div class="tech-summary">
+            <div class="tech-summary-title">🧮 Overall Technical Summary</div>
+            <div class="tech-summary-body">The stock is trading below its 90-day and 200-day moving averages, confirming a persistent long-term downtrend, while the latest session shows extremely weak volume at just 8,528 shares—far below all volume averages. Although short-term momentum indicators (MACD, RSI) have turned positive after the August recovery, the price remains trapped below key medium-term resistance at SMA_90 (745.06) and far below the long-term SMA_200 (800.96). The combination of a long-term bearish structure, collapsing volume, and price stalling near 740 suggests the recent bounce is losing steam, warranting a SELL stance.</div>
+        </div>
+        
+        
+    </div>
+
+    <!-- OVERALL SUMMARY -->
+    <div class="fade-up fade-up-5">
+        <div class="overall-card">
+        <div class="overall-card-title">🧭 Overall Summary</div>
+        <div class="overall-verdicts">
+            <div class="overall-item">
+            <span class="overall-item-label">Fundamental</span>
+            <span class="rec-verdict hold">HOLD</span>
+            </div>
+            <div class="overall-item">
+            <span class="overall-item-label">Technical</span>
+            <span class="tech-verdict sell">SELL</span>
+            </div>
+            <div class="overall-item">
+            <span class="overall-item-label">Overall</span>
+            <span class="rec-verdict sell">SELL</span>
+            </div>
+        </div>
+        <div class="overall-text">Fundamentals are neutral with negative technicals — lean bearish.</div>
+        </div>
+    </div>
+
+    <div class="footer">
+        This report is for informational purposes only and does not constitute financial advice. &nbsp;·&nbsp;
+        Generated 2026-09-03 19:36:07
+    </div>
+
+    </div>
+
+    <script>
+    // Animate sentiment bar
+    (function() {
+        const bar = document.getElementById('sent-bar');
+        if (!bar) return;
+        const score = -0.04;
+        const pct = Math.min(Math.max((score + 1) / 2 * 100, 3), 97);
+        setTimeout(() => { bar.style.width = pct + '%'; }, 200);
+    })();
+
+    // Format volume with commas
+    (function() {
+        const el = document.getElementById('volume-val');
+        if (!el) return;
+        const n = parseInt(el.textContent.replace(/,/g, ''));
+        if (!isNaN(n)) el.textContent = n.toLocaleString('en-IN');
+    })();
+    </script>
+
+    </body>
+    </html>

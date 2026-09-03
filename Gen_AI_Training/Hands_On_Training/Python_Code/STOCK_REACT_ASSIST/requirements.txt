@@ -38,3 +38,8 @@ streamlit>=1.40.0
 
 # pypdf — extracts text from uploaded PDF regulatory filings (vectorless RAG)
 pypdf>=4.0.0
+
+# crewAI — role-based multi-agent orchestration for the Multi-Persona Valuation
+# feature (sidebar). Standalone framework (no LangChain dependency); DeepSeek is
+# reached through its LiteLLM provider using DEEPSEEK_API_KEY.
+crewai[litellm]==1.15.18

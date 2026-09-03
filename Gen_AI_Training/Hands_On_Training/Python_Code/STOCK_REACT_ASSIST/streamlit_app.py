@@ -87,6 +87,10 @@ if "analysis_complete" not in st.session_state:
     st.session_state.rag_sources = []
     st.session_state.rag_keys = []
     st.session_state.retrieved_chunks = []
+    # crewAI multi-persona agentic valuation state (independent of the standard
+    # pipeline): persona_result holds the serialised PersonaCrewResult dict.
+    st.session_state.persona_result = None
+    st.session_state.persona_running = False
 
 # =========================================================
 # LLM SETUP
@@ -1130,7 +1134,24 @@ def render_sidebar():
         )
 
         st.markdown("---")
-        st.markdown("#### 📄 Regulatory Filings (Vectorless RAG)")
+        st.markdown("#### 🧠 Multi-Persona Valuation (crewAI)")
+        st.caption(
+            "Runs four investor-persona agents (Buffett, Munger, Jhunjhunwala, "
+            "Damodaran) that each research & value the stock autonomously, then "
+            "a lead analyst reconciles them."
+        )
+        persona_btn = st.button(
+            "🧠 Run Persona Agents",
+            use_container_width=True,
+            disabled=not ticker,
+            help=(
+                "Requires a ticker (company name optional). Makes live DeepSeek "
+                "calls via crewAI and may take 1–3 minutes."
+            ),
+        )
+
+        st.markdown("---")
+        st.markdown("#### �📄 Regulatory Filings (Vectorless RAG)")
         uploaded_files = st.file_uploader(
             "Upload the regulatory filing report here",
             type=["pdf"],
@@ -1206,7 +1227,7 @@ def render_sidebar():
                 help="Run an analysis first to enable the export.",
             )
 
-    return ticker, company_name, currency, analyze_btn
+    return ticker, company_name, currency, analyze_btn, persona_btn
 
 
 def render_metrics(stock_data: dict, display_currency: str = "INR"):
@@ -1888,6 +1909,204 @@ def run_analysis(ticker: str, company_name: str):
 
 
 # =========================================================
+# MULTI-PERSONA AGENTIC VALUATION (crewAI PILOT)
+# =========================================================
+
+
+def run_persona_valuation(ticker: str, company_name: str):
+    """Run the crewAI multi-persona valuation for a ticker (sidebar trigger).
+
+    Lazily imports ``PERSONA_AGENTS_CREW`` so the standard app flow is never
+    slowed by crewAI and degrades gracefully when it is not installed. Runs the
+    four persona agents + lead analyst synchronously (live DeepSeek calls), then
+    stores the serialised result in ``session_state.persona_result`` and reruns.
+
+    Args:
+        ticker (str):        Yahoo Finance ticker (e.g. ``"INFY.NS"``).
+        company_name (str):  Full company name for the news tool (may be empty).
+    """
+    try:
+        import PERSONA_AGENTS_CREW as pac
+    except Exception as e:  # noqa: BLE001
+        st.session_state.persona_running = False
+        st.error(
+            "❌ crewAI is not available. Install it in the project venv with "
+            "`pip install \"crewai[litellm]\"` "
+            f"({e})"
+        )
+        return
+
+    with st.spinner(
+        "🧠 Running 4 persona agents + lead analyst (live DeepSeek calls, "
+        "may take 1–3 min)..."
+    ):
+        try:
+            res = pac.run_persona_crew(ticker, company_name or ticker)
+        except Exception as e:  # noqa: BLE001
+            st.session_state.persona_running = False
+            st.error(f"❌ Multi-persona valuation failed: {e}")
+            return
+
+    st.session_state.persona_result = res.model_dump()
+    st.session_state.persona_running = False
+    st.rerun()
+
+
+def _stance_badge(stance: str) -> tuple:
+    """Return (label, colour) for a persona / consensus stance badge."""
+    return {
+        "Undervalued":   ("Undervalued",  "#1a7f37"),
+        "Fairly valued": ("Fairly valued", "#9a6700"),
+        "Overvalued":    ("Overvalued",   "#cf222e"),
+        "No opinion":    ("No opinion",   "#59636e"),
+    }.get(stance or "", (stance or "No opinion", "#59636e"))
+
+
+def render_persona_valuation(result: dict, display_currency: str = "INR"):
+    """Render the crewAI multi-persona valuation result section.
+
+    Displays: a market-price header, one card per persona (fair value, delta vs
+    market, stance, conviction), a lead-analyst consensus range, and a
+    side-by-side comparison against the deterministic ``PERSONA_BASED_VALUATION``
+    range. All prices are converted from the stock's native currency into
+    ``display_currency`` via ``format_price``.
+
+    Args:
+        result (dict):        Serialised ``PersonaCrewResult`` (model_dump).
+        display_currency (str): ISO code to convert prices into for display.
+    """
+    native = result.get("currency", "USD")
+    market_price = result.get("market_price")
+    personas = result.get("personas") or []
+    aggregate = result.get("aggregate") or {}
+    deterministic = result.get("deterministic_range") or {}
+
+    def _fmt(value) -> str:
+        """Format a native-currency value in the display currency (— when None)."""
+        if value is None:
+            return "—"
+        return format_price(float(value), native, display_currency)
+
+    def _delta_pct(value):
+        """Percentage of a fair value vs the market price (None when unusable)."""
+        if value is None or not market_price:
+            return None
+        return (float(value) - market_price) / market_price * 100
+
+    st.markdown("---")
+    clean = strip_exchange_suffix(result.get("ticker", ""))
+    st.markdown(
+        f"<h2 style='margin-bottom:0;'>👤 Multi-Persona Agentic Valuation (crewAI)</h2>"
+        f"<p style='color: var(--text-color-secondary); font-size: 0.9rem;'>"
+        f"{clean} · {result.get('exchange', '')} · Market {_fmt(market_price)} "
+        f"(native {native}) · Generated {result.get('generated_at', '')}</p>",
+        unsafe_allow_html=True,
+    )
+    st.caption(
+        "Four investor-persona agents independently research & value the stock via "
+        "tools (price / fundamentals / news) on DeepSeek; a lead analyst then "
+        "reconciles their fair values."
+    )
+
+    # ── Persona cards ──
+    if not personas:
+        st.info("No persona results to show.")
+    else:
+        cols = st.columns(len(personas))
+        for col, p in zip(cols, personas):
+            with col:
+                with st.container(border=True):
+                    fv = p.get("fair_value_per_share")
+                    stance, color = _stance_badge(p.get("stance"))
+                    st.markdown(
+                        f"<p style='margin:0; font-size:1rem; font-weight:700;'>"
+                        f"{p.get('emoji', '🧑')} {p.get('persona', '')}</p>",
+                        unsafe_allow_html=True,
+                    )
+                    pct = _delta_pct(fv)
+                    if pct is not None:
+                        st.metric(
+                            "Fair value / share",
+                            _fmt(fv),
+                            delta=f"{pct:+.1f}% vs market",
+                            delta_color="normal",
+                        )
+                    else:
+                        st.metric("Fair value / share", _fmt(fv))
+                    st.markdown(
+                        f"<span style='background:{color}; color:#fff; "
+                        f"padding:2px 8px; border-radius:10px; font-size:0.75rem;'>"
+                        f"{stance}</span>",
+                        unsafe_allow_html=True,
+                    )
+
+        # ── Per-persona detail expanders ──
+        for p in personas:
+            fv = p.get("fair_value_per_share")
+            stance, _c = _stance_badge(p.get("stance"))
+            conviction = float(p.get("conviction") or 0.0)
+            with st.expander(
+                f"{p.get('emoji', '🧑')} {p.get('persona', '')} — {stance}"
+            ):
+                st.progress(
+                    min(1.0, max(0.0, conviction)),
+                    text=f"Conviction {conviction:.0%}",
+                )
+                pct = _delta_pct(fv)
+                src_cur = p.get("currency") or native
+                delta_txt = f" ({pct:+.1f}% vs market)" if pct is not None else ""
+                st.markdown(
+                    f"**Fair value:** {_fmt(fv)} (in {src_cur}{delta_txt})"
+                )
+                st.markdown(f"**Thesis:** {p.get('one_line_thesis') or '—'}")
+                st.markdown(f"**Rationale:** {p.get('rationale') or '—'}")
+                sources = p.get("sources") or []
+                if sources:
+                    st.caption("**Sources:** " + "; ".join(str(s) for s in sources))
+
+    # ── Lead-analyst consensus ──
+    st.markdown("### ⚖️ Lead-Analyst Consensus")
+    a1, a2, a3 = st.columns(3)
+    a1.metric("Min fair value", _fmt(aggregate.get("min_fair_value")))
+    a2.metric("Avg fair value", _fmt(aggregate.get("avg_fair_value")))
+    a3.metric("Max fair value", _fmt(aggregate.get("max_fair_value")))
+    stance, color = _stance_badge(aggregate.get("blended_stance"))
+    st.markdown(
+        f"<span style='background:{color}; color:#fff; padding:2px 10px; "
+        f"border-radius:10px; font-size:0.85rem;'>Blended stance: {stance}</span> "
+        f"<span style='color:var(--text-color-secondary);'>"
+        f"({aggregate.get('participating', 0)} of {len(personas)} personas priced)</span>",
+        unsafe_allow_html=True,
+    )
+    if aggregate.get("note"):
+        st.markdown(aggregate["note"])
+
+    # ── Compare with the deterministic model ──
+    # if deterministic and "error" not in deterministic and deterministic.get("min") is not None:
+    #     st.markdown("### 📊 vs Deterministic Model")
+    #     d1, d2, d3 = st.columns(3)
+    #     d1.metric("Det. min", _fmt(deterministic.get("min")))
+    #     d2.metric("Det. midpoint", _fmt(deterministic.get("mid")))
+    #     d3.metric("Det. max", _fmt(deterministic.get("max")))
+    #     st.caption(
+    #         "Rule-based 4-persona DCF range from PERSONA_BASED_VALUATION.py "
+    #         "(converted to native currency) for comparison with the agentic crew."
+    #     )
+
+    # ── Usage + errors ──
+    usage = result.get("usage") or {}
+    if usage.get("total_tokens"):
+        st.caption(
+            f"Token usage: ~{usage.get('total_tokens', 0):,} total "
+            f"({usage.get('prompt_tokens', 0):,} prompt / "
+            f"{usage.get('completion_tokens', 0):,} completion)."
+        )
+    errors = result.get("errors") or []
+    if errors:
+        st.warning("Some parts of the persona run had issues:\n\n" + "\n".join(f"- {e}" for e in errors))
+
+
+# =========================================================
 # MAIN APP
 # =========================================================
 
@@ -1912,7 +2131,7 @@ def main():
     # widget interaction / rerun, so the layout is rebuilt each time from the
     # data cached in st.session_state rather than re-fetching anything.
     render_header()
-    ticker, company_name, display_currency, analyze_btn = render_sidebar()
+    ticker, company_name, display_currency, analyze_btn, persona_btn = render_sidebar()
 
     # ── Trigger analysis ──
     # Only when the user clicks "🚀 Analyze Stock" (with valid inputs) do we
@@ -1924,7 +2143,16 @@ def main():
         # Drop the cached export so the new analysis regenerates its own HTML.
         st.session_state.pop("export_html", None)
         st.session_state.pop("export_filename", None)
+        # A stale persona result belongs to a different ticker — clear it so the
+        # persona section can't masquerade as part of the new analysis.
+        _pr = st.session_state.get("persona_result")
+        if _pr and _pr.get("ticker", "") != ticker:
+            st.session_state.persona_result = None
         run_analysis(ticker, company_name)
+
+    # ── Trigger multi-persona agentic valuation (independent sidebar option) ──
+    if persona_btn and ticker and not st.session_state.get("persona_running"):
+        run_persona_valuation(ticker, company_name)
 
     # ── Results display ──
     # After a successful analysis, render the cached results (hero, metrics,
@@ -2000,7 +2228,14 @@ def main():
             f"financial advice. · Generated {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
         )
 
-    else:
+    # ── Multi-Persona Agentic Valuation (independent of the standard pipeline) ──
+    # Rendered whenever a persona run has completed — even if the user only ran
+    # personas and never clicked the full "Analyze Stock" pipeline.
+    persona_result = st.session_state.get("persona_result")
+    if persona_result:
+        render_persona_valuation(persona_result, display_currency)
+
+    if not st.session_state.analysis_complete and not persona_result:
         # ── Welcome / idle state ──
         st.markdown("## 👋 Welcome to Stock Research AI Agent")
         st.markdown(
