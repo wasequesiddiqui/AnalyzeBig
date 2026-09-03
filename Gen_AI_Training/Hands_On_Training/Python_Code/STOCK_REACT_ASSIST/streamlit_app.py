@@ -1098,16 +1098,21 @@ def render_sidebar():
     Layout, top to bottom:
       1. Stock lookup — ticker + company name text inputs and the primary
          "🚀 Analyze Stock" button (disabled until both fields are filled).
-      2. Regulatory filings — PDF uploader (vectorless RAG) with a summary of
+      2. Multi-Persona Valuation — "🧠 Run Persona Agents" button.
+      3. Regulatory filings — PDF uploader (vectorless RAG) with a summary of
          queued/processed documents and a clear button.
-      3. Configuration — display currency selector and API-key status flags.
-      4. Disclaimer footer.
-      5. Export Report — a download button that serialises the current analysis
+      4. Configuration — display currency selector and API-key status flags.
+      5. Disclaimer footer.
+      6. Save Analysis — "💾 Save Analysis" button that persists the current
+         snapshot to the Chroma knowledge base (enabled after an analysis
+         and/or a persona run).
+      7. Export Report — a download button that serialises the current analysis
          into a self-contained HTML file (enabled only after an analysis).
 
     Returns:
-        tuple: ``(ticker, company_name, currency, analyze_btn)`` — the
-               normalised inputs and the analyze button's clicked state.
+        tuple: ``(ticker, company_name, currency, analyze_btn, persona_btn,
+        save_btn)`` — the normalised inputs plus the clicked states of the
+        analyze / persona / save buttons.
     """
     with st.sidebar:
         st.markdown("## 🔍 Stock Lookup")
@@ -1193,6 +1198,29 @@ def render_sidebar():
             unsafe_allow_html=True
         )
 
+        # ── Save Analysis (Chroma Cloud knowledge base) ──
+        # Persists the current snapshot — the four fundamental commentary
+        # sections, the Overall Technical Summary, and (when run) the persona
+        # lead-analyst consensus — into Chroma. Happens only on click; enabled
+        # whenever there is a completed analysis and/or a persona result.
+        st.markdown("---")
+        st.markdown("#### 💾 Save Analysis")
+        st.caption("Store this report in the Chroma knowledge base.")
+        can_save = bool(
+            st.session_state.get("analysis_complete")
+            or st.session_state.get("persona_result")
+        )
+        save_btn = st.button(
+            "💾 Save Analysis",
+            use_container_width=True,
+            disabled=not can_save,
+            help=(
+                "Persist the current analysis snapshot (fundamental commentary, "
+                "technical summary, persona consensus) to the Chroma knowledge "
+                "base. Enabled after an analysis and/or a persona run."
+            ),
+        )
+
         # ── Export Report (very bottom of the sidebar) ──
         # Once an analysis is complete, this converts the current report into
         # a self-contained HTML file and lets the user download it. The HTML is
@@ -1227,7 +1255,7 @@ def render_sidebar():
                 help="Run an analysis first to enable the export.",
             )
 
-    return ticker, company_name, currency, analyze_btn, persona_btn
+    return ticker, company_name, currency, analyze_btn, persona_btn, save_btn
 
 
 def render_metrics(stock_data: dict, display_currency: str = "INR"):
@@ -1909,6 +1937,141 @@ def run_analysis(ticker: str, company_name: str):
 
 
 # =========================================================
+# SAVE-TO-CHROMA HELPERS
+# =========================================================
+
+# Canonical fundamental-report sections whose commentary is persisted.
+FUNDAMENTAL_TITLES = (
+    "Financial Outlook",
+    "Key Risks",
+    "Growth Potential",
+    "Investment Recommendation",
+)
+
+
+def _fundamental_commentary(parsed_sections: list) -> dict:
+    """Extract {canonical title: joined commentary} from the parsed sections.
+
+    Mirrors ``parse_analysis``'s substring title matching so all four known
+    fundamental sections (Financial Outlook, Key Risks, Growth Potential,
+    Investment Recommendation) are captured under their canonical names.
+    """
+    commentary: dict[str, str] = {}
+    for sec in parsed_sections or []:
+        title = sec.get("title", "")
+        for key in FUNDAMENTAL_TITLES:
+            if key.lower() in title.lower():
+                paragraphs = sec.get("paragraphs") or []
+                commentary[key] = "\n".join(str(p) for p in paragraphs).strip()
+                break
+    return commentary
+
+
+def _build_save_record():
+    """Assemble the Chroma snapshot dict from the current ``session_state``.
+
+    Returns:
+        tuple[dict | None, list[str]]: ``(record, notes)``. ``record`` is
+        ``None`` when there is nothing to save; ``notes`` holds non-fatal
+        warnings (e.g. missing sections, mismatched persona ticker).
+    """
+    notes: list[str] = []
+    analysis_complete = bool(st.session_state.get("analysis_complete"))
+    persona_result = st.session_state.get("persona_result") or {}
+
+    # Subject of the snapshot: prefer the completed analysis; otherwise fall
+    # back to the persona result (a persona-only run).
+    if analysis_complete:
+        ticker = st.session_state.get("ticker") or ""
+        company_name = st.session_state.get("company_name") or ""
+    else:
+        ticker = persona_result.get("ticker") or ""
+        company_name = persona_result.get("company_name") or ""
+
+    if not (ticker or company_name):
+        return None, ["No analysis or persona result is available to save."]
+
+    record: dict = {
+        "ticker": ticker,
+        "company_name": company_name,
+        "generated_at": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+        "has_analysis": analysis_complete,
+    }
+
+    # 1) Fundamental commentary + BUY/HOLD/SELL recommendation verdict.
+    sections: dict[str, str] = {}
+    rec_verdict = None
+    parsed_sections = st.session_state.get("parsed_sections")
+    if analysis_complete and parsed_sections:
+        sections = _fundamental_commentary(parsed_sections)
+        for sec in parsed_sections:
+            if sec.get("is_recommendation") and sec.get("verdict"):
+                rec_verdict = sec["verdict"]
+                break
+        if not rec_verdict:
+            rec_verdict = (st.session_state.get("overall_summary") or {}).get(
+                "fundamental_verdict"
+            )
+        missing = [t for t in FUNDAMENTAL_TITLES if not sections.get(t)]
+        if missing:
+            notes.append("Missing fundamental section(s): " + ", ".join(missing))
+    record["fundamental_sections"] = sections
+    record["recommendation_verdict"] = rec_verdict
+
+    # 2) Overall Technical Summary (quant analyst verdict + summary text).
+    tech = st.session_state.get("tech_parsed") or {}
+    record["technical_verdict"] = tech.get("verdict")
+    record["technical_summary"] = (tech.get("summary") or "").strip() or None
+
+    # 3) Persona lead-analyst consensus (only when it belongs to this ticker).
+    persona_block = None
+    if persona_result:
+        if analysis_complete and persona_result.get("ticker") != ticker:
+            notes.append(
+                "Persona result ticker differs from the analysed ticker — "
+                "persona data was skipped."
+            )
+        else:
+            agg = persona_result.get("aggregate") or {}
+            persona_block = {
+                "market_price": persona_result.get("market_price"),
+                "currency": persona_result.get("currency"),
+                "exchange": persona_result.get("exchange"),
+                "generated_at": persona_result.get("generated_at"),
+                "min_fair_value": agg.get("min_fair_value"),
+                "avg_fair_value": agg.get("avg_fair_value"),
+                "max_fair_value": agg.get("max_fair_value"),
+                "blended_stance": agg.get("blended_stance"),
+                "participating": agg.get("participating"),
+                "commentary": agg.get("note"),
+            }
+    record["persona"] = persona_block
+    record["has_persona"] = bool(persona_block)
+    return record, notes
+
+
+def _save_current_analysis():
+    """Persist the current snapshot to Chroma Cloud (lazy import)."""
+    record, notes = _build_save_record()
+    if record is None:
+        st.error("Nothing to save yet. Run an analysis or the persona agents first.")
+        return
+    try:
+        import CHROMA_STORE as cs  # lazy so app boot is unaffected
+    except Exception as e:  # noqa: BLE001
+        st.error(f"❌ Could not load CHROMA_STORE: {e}")
+        return
+    try:
+        doc_id = cs.save_analysis_record(record)
+    except Exception as e:  # noqa: BLE001
+        st.error(f"❌ Failed to save the analysis to Chroma: {e}")
+        return
+    st.success(f"✅ Analysis saved to Chroma knowledge base (id: `{doc_id}`)")
+    if notes:
+        st.warning("⚠️ " + " ".join(notes))
+
+
+# =========================================================
 # MULTI-PERSONA AGENTIC VALUATION (crewAI PILOT)
 # =========================================================
 
@@ -2131,7 +2294,9 @@ def main():
     # widget interaction / rerun, so the layout is rebuilt each time from the
     # data cached in st.session_state rather than re-fetching anything.
     render_header()
-    ticker, company_name, display_currency, analyze_btn, persona_btn = render_sidebar()
+    ticker, company_name, display_currency, analyze_btn, persona_btn, save_btn = (
+        render_sidebar()
+    )
 
     # ── Trigger analysis ──
     # Only when the user clicks "🚀 Analyze Stock" (with valid inputs) do we
@@ -2153,6 +2318,11 @@ def main():
     # ── Trigger multi-persona agentic valuation (independent sidebar option) ──
     if persona_btn and ticker and not st.session_state.get("persona_running"):
         run_persona_valuation(ticker, company_name)
+
+    # ── Save the current analysis snapshot to Chroma (sidebar button) ──
+    # Only fires on the exact rerun where the user clicked "💾 Save Analysis".
+    if save_btn:
+        _save_current_analysis()
 
     # ── Results display ──
     # After a successful analysis, render the cached results (hero, metrics,

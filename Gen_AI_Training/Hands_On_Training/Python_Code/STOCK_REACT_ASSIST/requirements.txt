@@ -43,3 +43,9 @@ pypdf>=4.0.0
 # feature (sidebar). Standalone framework (no LangChain dependency); DeepSeek is
 # reached through its LiteLLM provider using DEEPSEEK_API_KEY.
 crewai[litellm]==1.15.18
+
+# Chroma Cloud — persists "Save Analysis" snapshots (fundamental commentary,
+# technical summary, persona consensus) into the StockAnalytics database using
+# OpenAI text-embedding-3-small. The openai package is already present
+# transitively via langchain-openai.
+chromadb==1.1.1
