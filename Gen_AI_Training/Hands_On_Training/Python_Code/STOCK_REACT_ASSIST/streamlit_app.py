@@ -357,39 +357,6 @@ def currency_display_string(currency: str = "") -> str:
     return f"{symbol} "
 
 
-@st.cache_data(ttl=3600, show_spinner=False)
-def resolve_exchange_ticker(ticker: str) -> str:
-    """Return the first Yahoo-resolvable ticker for an Indian/global symbol.
-
-    Indian stocks are dual-listed on NSE and BSE, so a bare ticker like
-    ``"INFY"`` needs an exchange suffix before Yahoo can fetch it. This helper
-    probes candidates in order of liquidity — ``"INFY.NS"`` (NSE) →
-    ``"INFY.BO"`` (BSE) → ``"INFY"`` (global fallback) — and returns the first
-    whose 5-day price history is non-empty.
-
-    Cached for 1 hour (``@st.cache_data``) because the probe may issue up to
-    three network requests.
-
-    Args:
-        ticker (str): A ticker symbol, with or without an exchange suffix.
-
-    Returns:
-        str: The resolved symbol, e.g. ``"INFY.NS"``. If no candidate resolves,
-             the plain uppercased ticker is returned as a best-effort value.
-    """
-    ticker = ticker.upper().strip()
-    for candidate in (f"{ticker}.NS", f"{ticker}.BO", ticker):
-        try:
-            if not yf.Ticker(candidate).history(period="5d").empty:
-                return candidate
-        except Exception:
-            continue
-    return ticker
-
-# =========================================================
-# TOOLS  (same logic as original)
-# =========================================================
-
 @tool
 def get_dcf_valuation(ticker: str) -> dict:
     """Fetch multi-model DCF valuation data for a given ticker symbol.
@@ -400,8 +367,9 @@ def get_dcf_valuation(ticker: str) -> dict:
     bull / bear scenarios) and returns RMSE-style accuracy metrics.
 
     Args:
-        ticker (str): The ticker to value. An exchange suffix is optional —
-                      it is resolved automatically via ``resolve_exchange_ticker``.
+        ticker (str): The complete Yahoo Finance symbol to value, e.g.
+                      ``"INFY.NS"`` or ``"AAPL"``. Used exactly as given —
+                      no exchange suffix is appended.
 
     Returns:
         dict: On success, a dict with keys ``ticker``, ``currency``,
@@ -410,7 +378,8 @@ def get_dcf_valuation(ticker: str) -> dict:
               On failure, ``{"error": <message>}``.
     """
     try:
-        resolved = resolve_exchange_ticker(ticker)
+        # The complete Yahoo Finance symbol is used exactly as entered.
+        resolved = ticker.strip().upper()
         dcf_data = adm.run_valuation_analysis(
             ticker=resolved,
             currency=currency_display_string(),
@@ -427,13 +396,14 @@ def get_stock_price(ticker: str) -> dict:
     """Fetch the latest OHLCV stock market data for a given ticker symbol.
 
     **LangChain Tool** — callable by the LLM when it needs the current price
-    snapshot. Tries the Indian NSE suffix (``.NS``), then BSE (``.BO``), then
-    the bare ticker for global exchanges; the first symbol with non-empty
-    price history wins.
+    snapshot. The symbol must be the COMPLETE Yahoo Finance ticker (e.g.
+    ``"INFY.NS"`` for NSE, ``"INFY.BO"`` for BSE, ``"AAPL"`` for US markets):
+    it is fetched exactly as given, with no exchange suffix ever appended.
 
     Args:
-        ticker (str): The ticker symbol, e.g. ``"INFY"`` or ``"AAPL"``.
-                      Case-insensitive; surrounding whitespace is stripped.
+        ticker (str): The complete ticker symbol, e.g. ``"INFY.NS"`` or
+                      ``"AAPL"``. Case-insensitive; surrounding whitespace is
+                      stripped.
 
     Returns:
         dict: On success, keys ``ticker``, ``exchange`` (``"NSE India"`` /
@@ -443,37 +413,29 @@ def get_stock_price(ticker: str) -> dict:
               On failure, ``{"error": <message>}``.
     """
     try:
-        ticker = ticker.upper().strip()
-        possible_tickers = [
-            f"{ticker}.NS",   # National Stock Exchange of India (most liquid)
-            f"{ticker}.BO",   # Bombay Stock Exchange
-            ticker             # Global fallback — NYSE / NASDAQ / etc.
-        ]
-        stock_data = None
-        for symbol in possible_tickers:
-            stock = yf.Ticker(symbol)
-            hist = stock.history(period="5d")
-            if not hist.empty:
-                latest = hist.iloc[-1]
-                exchange = "Global"
-                if symbol.endswith(".NS"):
-                    exchange = "NSE India"
-                elif symbol.endswith(".BO"):
-                    exchange = "BSE India"
-                stock_data = {
-                    "ticker": symbol,
-                    "exchange": exchange,
-                    "currency": "INR" if exchange in ("NSE India", "BSE India") else "USD",
-                    "current_price": round(latest["Close"], 2),
-                    "open": round(latest["Open"], 2),
-                    "high": round(latest["High"], 2),
-                    "low": round(latest["Low"], 2),
-                    "volume": int(latest["Volume"])
-                }
-                break
-        if stock_data is None:
-            return {"error": "No stock data found."}
-        return stock_data
+        # Consume the value exactly as entered — the user supplies the full
+        # Yahoo Finance symbol, so no ".NS" / ".BO" suffix is appended here.
+        symbol = ticker.upper().strip()
+        stock = yf.Ticker(symbol)
+        hist = stock.history(period="5d")
+        if hist.empty:
+            return {"error": f"No stock data found for '{symbol}'."}
+        latest = hist.iloc[-1]
+        exchange = "Global"
+        if symbol.endswith(".NS"):
+            exchange = "NSE India"
+        elif symbol.endswith(".BO"):
+            exchange = "BSE India"
+        return {
+            "ticker": symbol,
+            "exchange": exchange,
+            "currency": "INR" if exchange in ("NSE India", "BSE India") else "USD",
+            "current_price": round(latest["Close"], 2),
+            "open": round(latest["Open"], 2),
+            "high": round(latest["High"], 2),
+            "low": round(latest["Low"], 2),
+            "volume": int(latest["Volume"])
+        }
     except Exception as e:
         return {"error": str(e)}
 
@@ -667,7 +629,11 @@ Use the exact section headers below (with the emoji), and format each as flowing
 [2-3 paragraphs on upside opportunities and catalysts]
 
 ## 🎯 Investment Recommendation
-[1-2 paragraphs with a clear BUY / HOLD / SELL stance and reasoning.
+[Begin with the verdict word in bold, immediately followed by a period — exactly
+one of **BUY.** / **HOLD.** / **SELL.** — then continue the reasoning on the same
+line, e.g. "**HOLD.** The stock trades ...". The verdict word MUST be the very
+first characters of this section, before any other text or markup.
+Then 1-2 paragraphs with the stance and reasoning.
 In THIS section ONLY, wrap the single most critical sentence in each paragraph with <mark>...</mark> tags so it stands out visually.]
 
 Keep it concise, data-driven, and professional. Do not add any preamble before the first section header.
@@ -690,8 +656,9 @@ def parse_analysis(analysis: str) -> list:
 
     Verdict detection is two-stage: an explicit leading marker (e.g.
     ``**BUY.**`` or ``BUY:``) wins immediately; otherwise the body is scanned
-    for BUY/SELL keywords using word-boundary regexes, defaulting to HOLD when
-    nothing matches.
+    for BUY/SELL keywords using word-boundary regexes, ignoring keywords that
+    are negated nearby ("a SELL rating is not warranted") and defaulting to
+    HOLD when nothing matches.
 
     Args:
         analysis (str): Raw markdown output of ``generate_analysis()``.
@@ -710,6 +677,56 @@ def parse_analysis(analysis: str) -> list:
     BUY_WORDS  = ["buy", "strong buy", "accumulate", "outperform", "overweight"]
     SELL_WORDS = ["sell", "strong sell", "underperform", "underweight", "avoid"]
 
+    # A clause containing one of these negators cannot be read as a directional
+    # call: "a SELL rating is not warranted" must not classify as SELL, and
+    # "a BUY would be premature" must not classify as BUY.
+    NEGATION_RE = re.compile(
+        r"\b(?:not|no|never|without|isn't|aren't|wasn't|weren't|doesn't|don't|"
+        r"didn't|can't|cannot|unwarranted|premature)\b",
+        re.IGNORECASE,
+    )
+
+    # A negator only flips a keyword when it sits within this many characters
+    # of it AND no clause break lies between the two. The distance limit keeps
+    # an unrelated "no" elsewhere in the sentence from suppressing the call,
+    # and the clause break stops "the company has no debt and we recommend BUY"
+    # (the "no" belongs to the previous clause) from reading as negated.
+    NEGATION_WINDOW = 45
+    CLAUSE_BREAK_RE = re.compile(
+        r"[,;:]|\b(?:and|but|however|yet|although|though|while|whereas|so)\b",
+        re.IGNORECASE,
+    )
+
+    def keyword_is_directional(low: str, word: str) -> bool:
+        """Return True when `word` occurs at least once without a nearby negator.
+
+        Each occurrence is examined separately: it is ignored only if a
+        negator lies within ``NEGATION_WINDOW`` characters of it with no
+        clause break in between.
+
+        Args:
+            low (str):  The lower-cased recommendation body.
+            word (str): A keyword from BUY_WORDS / SELL_WORDS.
+
+        Returns:
+            bool: True when the keyword should count as a directional signal.
+        """
+        for match in re.finditer(r'\b' + re.escape(word) + r'\b', low):
+            window_start = max(0, match.start() - NEGATION_WINDOW)
+            window_end = min(len(low), match.end() + NEGATION_WINDOW)
+            negated = False
+            for negator in NEGATION_RE.finditer(low, window_start, window_end):
+                if negator.end() <= match.start():
+                    between = low[negator.end():match.start()]
+                else:
+                    between = low[match.end():negator.start()]
+                if not CLAUSE_BREAK_RE.search(between):
+                    negated = True
+                    break
+            if not negated:
+                return True
+        return False
+
     def detect_verdict(text: str) -> str:
         """Infer a BUY / HOLD / SELL verdict from the recommendation body.
 
@@ -717,7 +734,10 @@ def parse_analysis(analysis: str) -> list:
         text (``**HOLD.**``, ``BUY:``, ``SELL —`` …). If found, it is returned
         directly, preventing false positives from words like "avoid" or "sell"
         appearing later in the commentary. Otherwise the body is scanned for
-        BUY keywords, then SELL keywords, defaulting to HOLD.
+        BUY keywords, then SELL keywords — a keyword is ignored when a negator
+        sits within ``NEGATION_WINDOW`` characters of it with no clause break
+        in between, so "a SELL rating is not warranted" does not read as SELL —
+        and defaults to HOLD when nothing matches.
 
         Args:
             text (str): The body text of the Investment Recommendation section.
@@ -726,15 +746,23 @@ def parse_analysis(analysis: str) -> list:
             str: ``"BUY"``, ``"SELL"``, or ``"HOLD"``.
         """
         t = text.strip()
-        m = re.match(r'^(?:\*\*)?\s*(BUY|HOLD|SELL)\s*(?:\*\*)?\s*[\.\:\,\-]', t, re.IGNORECASE)
+        m = re.match(
+            r'^(?:<mark>)?\s*(?:\*\*)?\s*(BUY|HOLD|SELL)\s*(?:\*\*)?\s*(?:</mark>)?\s*[\.\:\,\-]',
+            t, re.IGNORECASE
+        )
         if m:
             return m.group(1).upper()
+
+        # ── 2. Fallback for output with no leading marker ──
+        # A keyword counts only when it is not negated nearby (see
+        # keyword_is_directional), so commentary that argues AGAINST a verdict
+        # is never counted as that verdict.
         t_lower = t.lower()
         for w in BUY_WORDS:
-            if re.search(r'\b' + re.escape(w) + r'\b', t_lower):
+            if keyword_is_directional(t_lower, w):
                 return "BUY"
         for w in SELL_WORDS:
-            if re.search(r'\b' + re.escape(w) + r'\b', t_lower):
+            if keyword_is_directional(t_lower, w):
                 return "SELL"
         return "HOLD"
 
@@ -1535,7 +1563,11 @@ def render_analysis(parsed_sections: list):
                 with st.container(border=True):
                     st.markdown(f"### {section['emoji']} {section['title']}")
                     for para in section.get("paragraphs", []):
-                        st.markdown(para)
+                        # Escape the text, then bold-colour its bull/bear wording.
+                        st.markdown(
+                            sra.highlight_bull_bear_escaped(para),
+                            unsafe_allow_html=True,
+                        )
 
 
 def _render_recommendation(section: dict):
@@ -1568,9 +1600,10 @@ def _render_recommendation(section: dict):
             st.markdown(f"### {section['emoji']} {section['title']}")
 
         for para in section.get("paragraphs", []):
-            # Replace <mark> tags with Streamlit markdown highlights
+            # Replace <mark> tags with Streamlit markdown highlights, then
+            # bold-colour the bull/bear wording.
             cleaned = re.sub(r'</?mark>', '**', para)
-            st.markdown(cleaned)
+            st.markdown(sra.highlight_bull_bear(cleaned), unsafe_allow_html=True)
 
 
 def render_technical_analysis(tech_parsed: dict):
@@ -1635,14 +1668,18 @@ def render_technical_analysis(tech_parsed: dict):
                             )
                         st.markdown(
                             f"<p style='font-size: 0.85rem; color: var(--text-color-secondary); "
-                            f"line-height: 1.5;'>{ind.get('analysis', '')}</p>",
+                            f"line-height: 1.5;'>"
+                            f"{sra.highlight_bull_bear_escaped(ind.get('analysis', ''))}</p>",
                             unsafe_allow_html=True
                         )
 
     if tech_parsed.get("summary"):
         with st.container(border=True):
             st.markdown("#### 🧮 Overall Technical Summary")
-            st.markdown(tech_parsed["summary"])
+            st.markdown(
+                sra.highlight_bull_bear_escaped(tech_parsed["summary"]),
+                unsafe_allow_html=True,
+            )
 
 
 def render_overall_summary(overall: dict):
@@ -1707,7 +1744,10 @@ def render_overall_summary(overall: dict):
         unsafe_allow_html=True
     )
 
-    st.markdown(overall.get("text", ""))
+    st.markdown(
+        sra.highlight_bull_bear_escaped(overall.get("text", "")),
+        unsafe_allow_html=True,
+    )
 
 
 def build_export_html() -> tuple[str, str]:
@@ -2181,9 +2221,17 @@ def render_persona_valuation(result: dict, display_currency: str = "INR"):
                 with st.container(border=True):
                     fv = p.get("fair_value_per_share")
                     stance, color = _stance_badge(p.get("stance"))
+                    # Persona portrait (falls back to the emoji when the image
+                    # file is unavailable, e.g. for results saved before the
+                    # portraits were wired in).
+                    if p.get("image"):
+                        st.image(p["image"], width=72)
+                        heading = p.get("persona", "")
+                    else:
+                        heading = f"{p.get('emoji', '🧑')} {p.get('persona', '')}"
                     st.markdown(
                         f"<p style='margin:0; font-size:1rem; font-weight:700;'>"
-                        f"{p.get('emoji', '🧑')} {p.get('persona', '')}</p>",
+                        f"{heading}</p>",
                         unsafe_allow_html=True,
                     )
                     pct = _delta_pct(fv)
@@ -2204,13 +2252,13 @@ def render_persona_valuation(result: dict, display_currency: str = "INR"):
                     )
 
         # ── Per-persona detail expanders ──
+        # Label is plain text (no emoji/icon) — Streamlit expander headers
+        # cannot render the persona portraits.
         for p in personas:
             fv = p.get("fair_value_per_share")
             stance, _c = _stance_badge(p.get("stance"))
             conviction = float(p.get("conviction") or 0.0)
-            with st.expander(
-                f"{p.get('emoji', '🧑')} {p.get('persona', '')} — {stance}"
-            ):
+            with st.expander(f"{p.get('persona', '')} — {stance}"):
                 st.progress(
                     min(1.0, max(0.0, conviction)),
                     text=f"Conviction {conviction:.0%}",

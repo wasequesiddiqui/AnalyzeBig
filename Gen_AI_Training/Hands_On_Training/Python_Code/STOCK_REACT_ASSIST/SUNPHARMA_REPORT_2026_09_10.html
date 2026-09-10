@@ -1,0 +1,1176 @@
+<html lang="en">
+    <head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SUNPHARMA.NS — Stock Analysis</title>
+    <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&display=swap" rel="stylesheet">
+    <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+        --bg: #f0ede8;
+        --surface: #faf8f5;
+        --surface-2: #f5f2ed;
+        --border: rgba(60,40,20,0.12);
+        --border-strong: rgba(60,40,20,0.22);
+        --ink: #1a1208;
+        --ink-2: #4a3f2f;
+        --ink-3: #8a7d6a;
+        --accent: #c94f1a;
+        --accent-light: #fceee8;
+        --accent-mid: #f0a882;
+        --green: #1a6b3a;
+        --green-light: #e8f5ee;
+        --red: #b01a1a;
+        --red-light: #fce8e8;
+        --amber: #92600a;
+        --amber-light: #fdf4e3;
+        --blue: #1a3a6b;
+        --blue-light: #e8eef8;
+        --gold: #c8901a;
+        --serif: 'DM Serif Display', Georgia, serif;
+        --sans: 'DM Sans', system-ui, sans-serif;
+        --radius: 16px;
+        --radius-sm: 10px;
+        --shadow: 0 2px 16px rgba(60,40,10,0.09), 0 1px 3px rgba(60,40,10,0.06);
+        --shadow-lg: 0 8px 40px rgba(60,40,10,0.12), 0 2px 8px rgba(60,40,10,0.08);
+    }
+
+    body {
+        font-family: var(--sans);
+        background: var(--bg);
+        color: var(--ink);
+        min-height: 100vh;
+        padding: 0;
+    }
+
+    /* ─── HERO ─── */
+    .hero {
+        background: var(--ink);
+        color: #faf8f5;
+        padding: 56px 48px 52px;
+        position: relative;
+        overflow: hidden;
+    }
+    .hero::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background:
+        radial-gradient(ellipse 60% 80% at 80% 50%, rgba(201,79,26,0.18) 0%, transparent 70%),
+        radial-gradient(ellipse 40% 60% at 10% 80%, rgba(200,144,26,0.12) 0%, transparent 60%);
+        pointer-events: none;
+    }
+    .hero-grid {
+        max-width: 1100px;
+        margin: auto;
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 32px;
+        align-items: flex-end;
+        position: relative;
+    }
+    .hero-label {
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--accent-mid);
+        margin-bottom: 10px;
+    }
+    .hero-ticker {
+        font-family: var(--serif);
+        font-size: clamp(42px, 6vw, 68px);
+        line-height: 1;
+        letter-spacing: -0.02em;
+        color: #faf8f5;
+    }
+    .hero-exchange {
+        font-size: 13px;
+        color: rgba(250,248,245,0.55);
+        margin-top: 8px;
+        font-weight: 300;
+    }
+    .hero-price-block {
+        text-align: right;
+    }
+    .hero-price-label {
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: rgba(250,248,245,0.45);
+        margin-bottom: 6px;
+    }
+    .hero-price {
+        font-family: var(--serif);
+        font-size: clamp(32px, 4vw, 52px);
+        line-height: 1;
+        color: #faf8f5;
+    }
+    .hero-ts {
+        font-size: 12px;
+        color: rgba(250,248,245,0.35);
+        margin-top: 10px;
+        font-weight: 300;
+    }
+
+    /* ─── MAIN LAYOUT ─── */
+    .page {
+        max-width: 1100px;
+        margin: 0 auto;
+        padding: 40px 24px 80px;
+    }
+
+    .section-title {
+        font-family: var(--serif);
+        font-size: 22px;
+        color: var(--ink);
+        margin-bottom: 20px;
+        letter-spacing: -0.01em;
+    }
+
+    /* ─── METRICS STRIP ─── */
+    .metrics-strip {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+        gap: 12px;
+        margin-bottom: 36px;
+    }
+    .metric-card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        padding: 18px 16px 14px;
+        box-shadow: var(--shadow);
+        transition: transform 0.18s ease, box-shadow 0.18s ease;
+        cursor: default;
+    }
+    .metric-card:hover {
+        transform: translateY(-3px);
+        box-shadow: var(--shadow-lg);
+    }
+    .metric-label {
+        font-size: 10px;
+        font-weight: 600;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--ink-3);
+        margin-bottom: 8px;
+    }
+    .metric-value {
+        font-size: 22px;
+        font-weight: 600;
+        color: var(--ink);
+        letter-spacing: -0.02em;
+    }
+    .metric-value.up { color: var(--green); }
+    .metric-value.down { color: var(--red); }
+    .metric-sub {
+        font-size: 11px;
+        color: var(--ink-3);
+        margin-top: 4px;
+        font-weight: 300;
+    }
+
+    /* ─── TWO-COL ─── */
+    .two-col {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 20px;
+        margin-bottom: 36px;
+    }
+    @media (max-width: 700px) {
+        .two-col { grid-template-columns: 1fr; }
+        .hero { padding: 36px 24px; }
+        .hero-grid { grid-template-columns: 1fr; }
+        .hero-price-block { text-align: left; }
+    }
+
+    /* ─── SENTIMENT CARD ─── */
+    .card {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 28px;
+        box-shadow: var(--shadow);
+    }
+    .sentiment-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 18px;
+        border-radius: 999px;
+        font-size: 15px;
+        font-weight: 600;
+        margin-bottom: 14px;
+    }
+    .sentiment-badge.positive { background: var(--green-light); color: var(--green); }
+    .sentiment-badge.negative { background: var(--red-light); color: var(--red); }
+    .sentiment-badge.neutral  { background: var(--amber-light); color: var(--amber); }
+    .sentiment-badge.unknown  { background: var(--blue-light); color: var(--blue); }
+
+    .sentiment-bar-wrap {
+        height: 8px;
+        background: var(--surface-2);
+        border-radius: 99px;
+        margin: 14px 0 10px;
+        overflow: hidden;
+    }
+    .sentiment-bar {
+        height: 100%;
+        border-radius: 99px;
+        transition: width 1s cubic-bezier(.22,.68,0,1.2);
+    }
+    .sentiment-bar.positive { background: linear-gradient(90deg, #4caf88, #1a6b3a); }
+    .sentiment-bar.negative { background: linear-gradient(90deg, #e87070, #b01a1a); }
+    .sentiment-bar.neutral  { background: linear-gradient(90deg, #f0c84a, #92600a); }
+    .sentiment-bar.unknown  { background: linear(90deg, #8aabdf, #1a3a6b); }
+    .sentiment-note {
+        font-size: 12px;
+        color: var(--ink-3);
+        font-weight: 300;
+        line-height: 1.6;
+    }
+    .sentiment-reason {
+        margin-top: 10px;
+        padding: 12px 14px;
+        background: var(--blue-light);
+        border-radius: var(--radius-sm);
+        border-left: 3px solid var(--blue);
+        font-size: 12px;
+        color: var(--blue);
+        line-height: 1.6;
+    }
+
+    /* ─── NEWS ─── */
+    .news-list {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+    .news-item {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        padding: 16px 20px;
+        box-shadow: var(--shadow);
+        transition: border-color 0.15s, transform 0.15s;
+        cursor: pointer;
+    }
+    .news-item:hover {
+        border-color: var(--accent);
+        transform: translateX(4px);
+    }
+    .news-item-title {
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--ink);
+        margin-bottom: 6px;
+        line-height: 1.45;
+    }
+    .news-item-desc {
+        font-size: 12px;
+        color: var(--ink-3);
+        line-height: 1.55;
+        font-weight: 300;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+    .news-item-link {
+        display: inline-block;
+        margin-top: 8px;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--accent);
+        text-decoration: none;
+    }
+    .news-item-link:hover { text-decoration: underline; }
+
+    /* ─── AI ANALYSIS ─── */
+    .analysis-hero {
+        background: var(--ink);
+        border-radius: var(--radius);
+        padding: 36px 40px;
+        margin-bottom: 20px;
+        position: relative;
+        overflow: hidden;
+        box-shadow: var(--shadow-lg);
+    }
+    .analysis-hero::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background:
+        radial-gradient(ellipse 50% 70% at 90% 20%, rgba(201,79,26,0.22) 0%, transparent 65%),
+        radial-gradient(ellipse 40% 50% at 5% 90%, rgba(200,144,26,0.15) 0%, transparent 60%);
+        pointer-events: none;
+    }
+    .analysis-hero-label {
+        font-size: 10px;
+        font-weight: 600;
+        letter-spacing: 0.16em;
+        text-transform: uppercase;
+        color: var(--accent-mid);
+        margin-bottom: 8px;
+    }
+    .analysis-hero-title {
+        font-family: var(--serif);
+        font-size: 28px;
+        color: #faf8f5;
+        line-height: 1.15;
+        position: relative;
+    }
+    .analysis-hero-sub {
+        font-size: 13px;
+        color: rgba(250,248,245,0.45);
+        margin-top: 8px;
+        font-weight: 300;
+        position: relative;
+    }
+
+    .analysis-sections {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 16px;
+        margin-bottom: 20px;
+    }
+    @media (max-width: 700px) { .analysis-sections { grid-template-columns: 1fr; } }
+
+    .analysis-section {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 24px;
+        box-shadow: var(--shadow);
+        transition: transform 0.18s ease, box-shadow 0.18s ease;
+        cursor: default;
+    }
+    .analysis-section:hover {
+        transform: translateY(-2px);
+        box-shadow: var(--shadow-lg);
+    }
+
+    .section-icon {
+        font-size: 24px;
+        margin-bottom: 10px;
+        display: block;
+    }
+    .analysis-section-title {
+        font-family: var(--serif);
+        font-size: 17px;
+        color: var(--ink);
+        margin-bottom: 14px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid var(--border);
+        letter-spacing: -0.01em;
+    }
+    .analysis-section-body {
+        font-size: 14px;
+        line-height: 1.72;
+        color: var(--ink-2);
+        font-weight: 300;
+    }
+    .analysis-section-body p + p {
+        margin-top: 10px;
+    }
+
+    /* Recommendation card gets special treatment */
+    .analysis-section.recommendation {
+        grid-column: 1 / -1;
+        background: var(--surface);
+        border: 2px solid var(--accent);
+        position: relative;
+        overflow: hidden;
+    }
+    .analysis-section.recommendation::before {
+        content: '';
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(135deg, rgba(201,79,26,0.05) 0%, transparent 50%);
+        pointer-events: none;
+    }
+    .rec-verdict {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 5px 14px;
+        border-radius: 999px;
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        margin-bottom: 14px;
+    }
+    .rec-verdict.buy  { background: var(--green-light); color: var(--green); }
+    .rec-verdict.hold { background: var(--amber-light); color: var(--amber); }
+    .rec-verdict.sell { background: var(--red-light); color: var(--red); }
+    .rec-verdict.strongbuy  { background: #0f5c33; color: #eafff2; }
+    .rec-verdict.strongsell { background: #6e1010; color: #ffe9e9; }
+
+    /* Highlighted sentences in recommendation */
+    .analysis-section-body mark {
+        background: linear-gradient(120deg, rgba(201,79,26,0.18) 0%, rgba(200,144,26,0.22) 100%);
+        color: var(--ink);
+        padding: 1px 4px;
+        border-radius: 3px;
+        font-weight: 500;
+        -webkit-box-decoration-break: clone;
+        box-decoration-break: clone;
+    }
+
+    /* ─── TECHNICAL ANALYSIS ─── */
+    .tech-verdict-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 20px;
+    }
+    .tech-verdict {
+        display: inline-flex;
+        align-items: center;
+        padding: 8px 20px;
+        border-radius: 999px;
+        font-size: 15px;
+        font-weight: 600;
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+    }
+    .tech-verdict.strongbuy  { background: #0f5c33; color: #eafff2; }
+    .tech-verdict.buy        { background: var(--green-light); color: var(--green); }
+    .tech-verdict.sell       { background: var(--red-light); color: var(--red); }
+    .tech-verdict.strongsell { background: #6e1010; color: #ffe9e9; }
+    .tech-verdict.neutral    { background: var(--amber-light); color: var(--amber); }
+    .tech-verdict-label {
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: var(--ink-3);
+    }
+
+    .tech-group {
+        background: var(--surface);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 24px;
+        margin-bottom: 16px;
+        box-shadow: var(--shadow);
+    }
+    .tech-group-title {
+        font-family: var(--serif);
+        font-size: 18px;
+        color: var(--ink);
+        margin-bottom: 16px;
+        padding-bottom: 10px;
+        border-bottom: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .tech-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 12px;
+    }
+    .tech-indicator {
+        background: var(--surface-2);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        padding: 14px 16px;
+    }
+    .tech-indicator-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: baseline;
+        gap: 8px;
+        margin-bottom: 6px;
+    }
+    .tech-indicator-name {
+        font-size: 12px;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: var(--ink-2);
+    }
+    .tech-indicator-value {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--ink);
+    }
+    .tech-indicator-analysis {
+        font-size: 13px;
+        line-height: 1.6;
+        color: var(--ink-2);
+        font-weight: 300;
+    }
+    .tech-summary {
+        background: var(--ink);
+        color: #faf8f5;
+        border-radius: var(--radius);
+        padding: 26px 28px;
+        margin-top: 8px;
+        box-shadow: var(--shadow-lg);
+    }
+    .tech-summary-title {
+        font-family: var(--serif);
+        font-size: 18px;
+        margin-bottom: 10px;
+        color: #faf8f5;
+    }
+    .tech-summary-body {
+        font-size: 14px;
+        line-height: 1.72;
+        color: rgba(250,248,245,0.82);
+        font-weight: 300;
+    }
+
+    /* ─── OVERALL SUMMARY ─── */
+    .overall-card {
+        background: var(--surface);
+        border: 2px solid var(--accent);
+        border-radius: var(--radius);
+        padding: 28px;
+        margin-top: 20px;
+        box-shadow: var(--shadow-lg);
+    }
+    .overall-card-title {
+        font-family: var(--serif);
+        font-size: 22px;
+        color: var(--ink);
+        margin-bottom: 18px;
+    }
+    .overall-verdicts {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+        gap: 12px;
+        margin-bottom: 16px;
+    }
+    .overall-item {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 6px;
+    }
+    .overall-item-label {
+        font-size: 10px;
+        font-weight: 600;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--ink-3);
+    }
+    .overall-text {
+        font-size: 14px;
+        line-height: 1.72;
+        color: var(--ink-2);
+        font-weight: 300;
+        padding-top: 14px;
+        border-top: 1px solid var(--border);
+    }
+
+    /* ─── FOOTER ─── */
+    .footer {
+        text-align: center;
+        font-size: 11px;
+        color: var(--ink-3);
+        font-weight: 300;
+        margin-top: 60px;
+        padding-top: 20px;
+        border-top: 1px solid var(--border);
+    }
+
+    /* ─── FADE IN ─── */
+    @keyframes fadeUp {
+        from { opacity: 0; transform: translateY(18px); }
+        to   { opacity: 1; transform: translateY(0); }
+    }
+    .fade-up {
+        animation: fadeUp 0.5s ease both;
+    }
+    .fade-up-1 { animation-delay: 0.05s; }
+    .fade-up-2 { animation-delay: 0.12s; }
+    .fade-up-3 { animation-delay: 0.20s; }
+    .fade-up-4 { animation-delay: 0.28s; }
+    .fade-up-5 { animation-delay: 0.36s; }
+    </style>
+    </head>
+    <body>
+
+    <!-- HERO -->
+    <div class="hero fade-up">
+    <div class="hero-grid">
+        <div>
+        <div class="hero-label">Stock Analysis Report</div>
+        <div class="hero-ticker">SUNPHARMA.NS</div>
+        <div class="hero-exchange">NSE India</div>
+        </div>
+        <div class="hero-price-block">
+        <div class="hero-price-label">Current Price</div>
+        <div class="hero-price">₹1861.0</div>
+        <div class="hero-ts">2026-09-10 16:06:05</div>
+        </div>
+    </div>
+    </div>
+
+    <div class="page">
+
+    <!-- METRICS STRIP -->
+    <div class="metrics-strip fade-up fade-up-1">
+        <div class="metric-card">
+        <div class="metric-label">Open</div>
+        <div class="metric-value">₹1865.9</div>
+        <div class="metric-sub">Today's open</div>
+        </div>
+        <div class="metric-card">
+        <div class="metric-label">High</div>
+        <div class="metric-value up">₹1875.3</div>
+        <div class="metric-sub">Day high</div>
+        </div>
+        <div class="metric-card">
+        <div class="metric-label">Low</div>
+        <div class="metric-value down">₹1840.5</div>
+        <div class="metric-sub">Day low</div>
+        </div>
+        <div class="metric-card">
+        <div class="metric-label">Volume</div>
+        <div class="metric-value" id="volume-val">1178437</div>
+        <div class="metric-sub">Shares traded</div>
+        </div>
+        <div class="metric-card">
+        <div class="metric-label">Range</div>
+        <div class="metric-value">1.9%</div>
+        <div class="metric-sub">High / low spread</div>
+        </div>
+    </div>
+
+    <!-- SENTIMENT + NEWS -->
+    <div class="two-col fade-up fade-up-2">
+
+        <!-- SENTIMENT -->
+        <div class="card">
+        <h2 class="section-title" style="margin-bottom:16px;">Market Sentiment</h2>
+
+        
+        <div class="sentiment-badge neutral">
+            ➡️ Neutral
+            
+        </div>
+
+        
+        <div class="sentiment-bar-wrap">
+            <div class="sentiment-bar neutral" id="sent-bar" style="width: 0%"></div>
+        </div>
+        <p class="sentiment-note">
+            Score: <strong>0.01</strong>
+            
+            &nbsp;·&nbsp; Based on 9 articles
+            
+        </p>
+        
+
+        
+        
+        </div>
+
+        <!-- NEWS -->
+        <div class="card">
+        <h2 class="section-title" style="margin-bottom:16px;">Latest News</h2>
+        <div class="news-list">
+            
+            <div class="news-item" onclick="window.open('https://www.business-standard.com/markets/capital-market-news/sun-pharmaceutical-industries-ltd-drops-for-fifth-straight-session-126090900779_1.html', '_blank')">
+            <div class="news-item-title">Sun Pharmaceutical Industries Ltd drops for fifth straight session</div>
+            
+            <div class="news-item-desc">Sun Pharmaceutical Industries Ltd is quoting at Rs 1873.4, down 0.66% on the day as on 13:19 IST on the NSE. The stock jumped 17.57% in last one year as compared to a 5.73% slide in NIFTY and a 20.8% spurt in the Nifty Pharma index.</div>
+            
+            <a class="news-item-link" href="https://www.business-standard.com/markets/capital-market-news/sun-pharmaceutical-industries-ltd-drops-for-fifth-straight-session-126090900779_1.html" target="_blank" onclick="event.stopPropagation()">Read more →</a>
+            </div>
+            
+            <div class="news-item" onclick="window.open('https://timesofindia.indiatimes.com/business/india-business/sensex-stock-market-today-7-september-2026-live-updates-nse-bse-gift-nifty-50-top-gainers-losers-mcx-stocks-in-focus-market-news/liveblog/133861730.cms', '_blank')">
+            <div class="news-item-title">Stock Market Live Today: Sensex falls over 200 points, Nifty slips below 23,855 in early trade</div>
+            
+            <div class="news-item-desc">The Indian stock market started the week on a weak note on Monday, with benchmark indices trading lower as renewed tensions in the US-Iran conflict u</div>
+            
+            <a class="news-item-link" href="https://timesofindia.indiatimes.com/business/india-business/sensex-stock-market-today-7-september-2026-live-updates-nse-bse-gift-nifty-50-top-gainers-losers-mcx-stocks-in-focus-market-news/liveblog/133861730.cms" target="_blank" onclick="event.stopPropagation()">Read more →</a>
+            </div>
+            
+            <div class="news-item" onclick="window.open('https://www.thehindubusinessline.com/markets/sensex-nifty50-today-stock-market-highlights-2nd-september-2026/article71416736.ece', '_blank')">
+            <div class="news-item-title">Sensex today | Stock Market Highlights: Sensex ends 373 pts lower at 76,570, Nifty below 24,000; Asian Paints, HDFC Bank fall most</div>
+            
+            <div class="news-item-desc">Sensex, Nifty, Share Prices Highlights: BSE Sensex dropped 373.93 points, or 0.49 per cent, to settle at 76,570.35, while NSE Nifty slumped 141.35 points, or 0.59 per cent, to end at 23,914.45</div>
+            
+            <a class="news-item-link" href="https://www.thehindubusinessline.com/markets/sensex-nifty50-today-stock-market-highlights-2nd-september-2026/article71416736.ece" target="_blank" onclick="event.stopPropagation()">Read more →</a>
+            </div>
+            
+            <div class="news-item" onclick="window.open('https://www.medicaldaily.com/carbamazepine-tablet-recall-black-spots-seizure-medication-478055', '_blank')">
+            <div class="news-item-title">Black Spots on Seizure Pills Trigger a Nationwide Recall and the Wrong Reaction Could Be Dangerous</div>
+            
+            <div class="news-item-desc">A nationwide recall covers 1,968 bottles of carbamazepine tablets with black spots. Stopping a seizure drug abruptly carries its own risks.</div>
+            
+            <a class="news-item-link" href="https://www.medicaldaily.com/carbamazepine-tablet-recall-black-spots-seizure-medication-478055" target="_blank" onclick="event.stopPropagation()">Read more →</a>
+            </div>
+            
+            <div class="news-item" onclick="window.open('https://www.livemint.com/companies/news/sun-pharma-signs-deal-with-us-government-to-reduce-drug-prices-medicine-pharma-11788257469784.html', '_blank')">
+            <div class="news-item-title">Sun Pharma signs deal with US government to reduce drug prices</div>
+            
+            <div class="news-item-desc">Sun Pharma has committed to applying MFN pricing to future innovative medicine launches and will also avoid tariffs on innovative pharmaceutical products for more than two years.</div>
+            
+            <a class="news-item-link" href="https://www.livemint.com/companies/news/sun-pharma-signs-deal-with-us-government-to-reduce-drug-prices-medicine-pharma-11788257469784.html" target="_blank" onclick="event.stopPropagation()">Read more →</a>
+            </div>
+            
+            
+        </div>
+        </div>
+
+    </div>
+
+    <!-- AI ANALYSIS -->
+    <div class="fade-up fade-up-3">
+        <div class="analysis-hero">
+        <div class="analysis-hero-label">AI-Powered Intelligence</div>
+        <div class="analysis-hero-title">Investment Analysis</div>
+        <div class="analysis-hero-sub">Generated by Senior Wall Street AI · 2026-09-10 16:06:05</div>
+        </div>
+
+        <div class="analysis-sections">
+        
+        <div class="analysis-section  fade-up fade-up-4">
+            <span class="section-icon" aria-hidden="true">📊</span>
+            
+            <div class="analysis-section-title">Financial Outlook</div>
+            <div class="analysis-section-body">
+            
+            
+            <p>Sun Pharma enters FY27 with strong operational momentum. Consolidated Q1FY27 net profit after tax (before non-controlling interests) came in at ₹28,947.9 million, up from ₹27,140.3 million in Q4FY26 and ₹22,786.3 million in Q1FY26, while total comprehensive income attributable to owners reached ₹44,083.2 million [File: Q1FY27-SPIL-Financial-Results.pdf, Page 1]. For the full year FY26, the company delivered net profit of ₹114,794.2 million on the consolidated basis, with EPS of ₹47.8 [File: SPIL-Q4FY26-Financial-Results.pdf, Page 1]. R&amp;D spend remains a priority at ₹8,076.6 million in Q1FY27 and ₹34,741.0 million for FY26, underscoring the innovation-led strategy [File: Q1FY27-SPIL-Financial-Results.pdf, Page 1].</p>
+            
+            
+            
+            <p>The balance sheet is robust, with total equity and liabilities of ₹1,087,852.2 million and other equity of ₹833,301.6 million as of March 31, 2026 [File: SPIL-Q4FY26-Financial-Results.pdf, Page 2]. Operating cash flow was healthy at ₹124,191.8 million for FY26, though investing activities consumed ₹113,440.5 million, largely due to acquisitions and investment purchases [File: SPIL-Q4FY26-Financial-Results.pdf, Page 3]. A notable positive is the company&#39;s decision to opt for the concessional tax regime under Section 115BAA, reducing the effective tax rate to 25.168% from 34.944%, which resulted in a net tax credit of ₹1,030.0 million in Q4FY26 [File: Q1FY27-SPIL-Financial-Results.pdf, Page 2]. This should provide a sustained earnings tailwind.</p>
+            
+            
+            
+            <p>The stock currently trades at ₹1,861, with a neutral sentiment score of 0.01 across nine articles. Despite a five-session losing streak, the stock has gained 17.57% over the past year, outperforming the NIFTY&#39;s 5.73% decline but lagging the Nifty Pharma index&#39;s 20.8% gain. The DCF base case average value per share is ₹1,584.6, suggesting the stock is trading at a premium to intrinsic value under base assumptions, though the <b style="color:#1a6b3a">bull</b> case average of ₹10,802.0 highlights significant upside if growth accelerates.</p>
+            
+            
+            </div>
+        </div>
+        
+        <div class="analysis-section  fade-up fade-up-5">
+            <span class="section-icon" aria-hidden="true">⚠️</span>
+            
+            <div class="analysis-section-title">Key Risks</div>
+            <div class="analysis-section-body">
+            
+            
+            <p>The most immediate risk is the ongoing weakness in the stock price, which has declined for five consecutive sessions. Broader market weakness, as evidenced by the Sensex falling over 200 points and Nifty slipping below 23,855 amid renewed US-Iran tensions, is weighing on sentiment. Additionally, a nationwide recall of carbamazepine tablets due to black spots, while not explicitly linked to Sun Pharma in the provided context, highlights the inherent regulatory and quality risks in the pharmaceutical sector that can impact any major manufacturer.</p>
+            
+            
+            
+            <p>The company&#39;s aggressive acquisition strategy presents integration and financial risks. The definitive agreement to acquire Organon &amp; Co. for USD 11.75 billion in an all-cash transaction is a major capital allocation decision [File: Q1FY27-SPIL-Financial-Results.pdf, Page 2]. This will significantly increase leverage, as current borrowings already rose to ₹40,503.5 million from ₹18,671.1 million [File: SPIL-Q4FY26-Financial-Results.pdf, Page 2]. The acquisition is subject to approvals and closing conditions, and any delay or unfavorable outcome could pressure the stock. Furthermore, the exceptional items of ₹13,074.8 million in FY26 indicate that non-recurring charges can materially impact reported profitability [File: Q1FY27-SPIL-Financial-Results.pdf, Page 2].</p>
+            
+            
+            
+            <p>The DCF analysis reveals a wide dispersion in valuation outcomes. The <b style="color:#b01a1a">bear</b> case average value per share is ₹1,217.1, which is significantly below the current market price of ₹1,861. The base case RMSE of ₹276.4 and <b style="color:#b01a1a">bear</b> case RMSE of ₹643.9 indicate substantial uncertainty in cash flow projections. If the company fails to deliver on its growth pipeline or if generic pricing pressure intensifies in the US, the stock could re-rate downwards toward the <b style="color:#b01a1a">bear</b> case scenario.</p>
+            
+            
+            </div>
+        </div>
+        
+        <div class="analysis-section  fade-up fade-up-6">
+            <span class="section-icon" aria-hidden="true">🚀</span>
+            
+            <div class="analysis-section-title">Growth Potential</div>
+            <div class="analysis-section-body">
+            
+            
+            <p>The primary catalyst is the transformative acquisition of Organon &amp; Co., which is expected to diversify and expand Sun Pharma&#39;s innovative medicine portfolio. The deal, valued at USD 11.75 billion, signals a strategic pivot toward higher-margin, innovative products. The company has also signed a deal with the US government to reduce drug prices, committing to Most Favored Nation (MFN) pricing for future innovative medicine launches and avoiding tariffs on innovative pharmaceutical products for over two years. This agreement could provide a stable and predictable pricing environment for its US business, which is a key growth driver.</p>
+            
+            
+            
+            <p>The shift to the concessional tax regime is a significant earnings catalyst. By opting for Section 115BAA, the company reduces its effective tax rate to 25.168%, which will boost net profit margins going forward [File: Q1FY27-SPIL-Financial-Results.pdf, Page 2]. The Q1FY27 results already reflect this benefit, with net profit growing 27% year-over-year. The company&#39;s continued investment in R&amp;D, which totaled ₹34,741.0 million in FY26, is expected to fuel future product launches and drive organic growth [File: SPIL-Q4FY26-Financial-Results.pdf, Page 1].</p>
+            
+            
+            
+            <p>The DCF <b style="color:#1a6b3a">bull</b> case presents an average value per share of ₹10,802.0, implying a massive upside if the company executes flawlessly on its acquisition strategy and new product launches. The <b style="color:#1a6b3a">bull</b> case assumes a significant acceleration in cash flows, potentially driven by the successful integration of Organon and the commercialization of high-value innovative drugs. The stock&#39;s relative underperformance compared to the Nifty Pharma index over the past year suggests that if the company delivers on these growth initiatives, there is potential for a catch-up rally.</p>
+            
+            
+            </div>
+        </div>
+        
+        <div class="analysis-section recommendation fade-up fade-up-7">
+            <span class="section-icon" aria-hidden="true">🎯</span>
+            
+            
+            
+            <div class="rec-verdict hold">HOLD</div>
+            
+            
+            <div class="analysis-section-title">Investment Recommendation</div>
+            <div class="analysis-section-body">
+            
+            
+            <p>**HOLD.** The stock trades at ₹1,861, which is a premium to the DCF base case average value of ₹1,584.6 but a steep discount to the <b style="color:#1a6b3a">bull</b> case average of ₹10,802.0. <mark>The current valuation appears to fairly reflect the base case earnings trajectory, but the massive divergence between the base and <b style="color:#1a6b3a">bull</b> case scenarios indicates that the market is pricing in significant execution risk, particularly around the Organon acquisition.</mark> The neutral sentiment score of 0.01 and the recent five-session losing streak suggest that near-term momentum is weak, and investors may be waiting for more clarity on the integration and financing of the acquisition.</p>
+            
+            
+            
+            <p>The company's strong FY26 results, robust cash flows, and the tax rate reduction provide a solid foundation. <mark>However, the all-cash USD 11.75 billion acquisition of Organon introduces substantial balance sheet risk, as evidenced by the sharp increase in borrowings to ₹40,503.5 million, which could limit financial flexibility in the near term.</mark> While the long-term growth potential is compelling, the risk-reward is balanced at current levels. Investors should wait for a better entry point or clearer visibility on the acquisition's impact before committing fresh capital. The stock is a solid long-term holding for existing investors, but new investors may find better opportunities elsewhere in the pharma sector until the current uncertainties resolve.</p>
+            
+            
+            </div>
+        </div>
+        
+        </div>
+    </div>
+
+    <!-- TECHNICAL ANALYSIS -->
+    <div class="fade-up fade-up-4">
+        <div class="analysis-hero">
+        <div class="analysis-hero-label">Quantitative Intelligence</div>
+        <div class="analysis-hero-title">Technical Analysis</div>
+        <div class="analysis-hero-sub">Generated by Quantitative Analyst AI · 2026-09-10 16:06:05</div>
+        </div>
+
+        
+        <div class="tech-verdict-row">
+            <span class="tech-verdict sell">SELL</span>
+            <span class="tech-verdict-label">Technical Signal</span>
+        </div>
+
+        
+        <div class="tech-group">
+            <div class="tech-group-title">
+            <span class="section-icon" aria-hidden="true">📊</span>
+            Price Moving Averages
+            </div>
+            <div class="tech-grid">
+            
+            <div class="tech-indicator">
+                <div class="tech-indicator-head">
+                <span class="tech-indicator-name">SMA_5</span>
+                <span class="tech-indicator-value">1,881.16</span>
+                </div>
+                <div class="tech-indicator-analysis">Price is 1.07% below SMA_5 (1,881.16), showing short-term weakness as the latest close (1,861.00) sits under this fast average.</div>
+            </div>
+            
+            <div class="tech-indicator">
+                <div class="tech-indicator-head">
+                <span class="tech-indicator-name">SMA_13</span>
+                <span class="tech-indicator-value">1,909.39</span>
+                </div>
+                <div class="tech-indicator-analysis">Price is 2.53% below SMA_13 (1,909.39), confirming the very short-term trend has rolled over.</div>
+            </div>
+            
+            <div class="tech-indicator">
+                <div class="tech-indicator-head">
+                <span class="tech-indicator-name">SMA_23</span>
+                <span class="tech-indicator-value">1,910.59</span>
+                </div>
+                <div class="tech-indicator-analysis">Price is 2.60% below SMA_23 (1,910.59), the widest gap among the short windows, indicating persistent near-term selling pressure.</div>
+            </div>
+            
+            <div class="tech-indicator">
+                <div class="tech-indicator-head">
+                <span class="tech-indicator-name">SMA_90</span>
+                <span class="tech-indicator-value">1,886.82</span>
+                </div>
+                <div class="tech-indicator-analysis">Price is 1.37% below SMA_90 (1,886.82), signalling the medium-term trend has also turned negative.</div>
+            </div>
+            
+            <div class="tech-indicator">
+                <div class="tech-indicator-head">
+                <span class="tech-indicator-name">SMA_200</span>
+                <span class="tech-indicator-value">1,799.51</span>
+                </div>
+                <div class="tech-indicator-analysis">Price is 3.42% above SMA_200 (1,799.51), the sole <b style="color:#1a6b3a">bullish</b> anchor, showing the long-term uptrend remains intact.</div>
+            </div>
+            
+            <div class="tech-indicator">
+                <div class="tech-indicator-head">
+                <span class="tech-indicator-name">EMA_5</span>
+                <span class="tech-indicator-value">1,880.18</span>
+                </div>
+                <div class="tech-indicator-analysis">EMA_5 (1,880.18) is below SMA_5 and price is 1.02% under it, with the <b style="color:#b01a1a">bearish</b> EMA&lt;=SMA relationship confirming downward short-term momentum.</div>
+            </div>
+            
+            <div class="tech-indicator">
+                <div class="tech-indicator-head">
+                <span class="tech-indicator-name">EMA_13</span>
+                <span class="tech-indicator-value">1,899.86</span>
+                </div>
+                <div class="tech-indicator-analysis">EMA_13 (1,899.86) sits below SMA_13 with price 2.05% beneath it, reinforcing the <b style="color:#b01a1a">bearish</b> short-term crossover structure.</div>
+            </div>
+            
+            <div class="tech-indicator">
+                <div class="tech-indicator-head">
+                <span class="tech-indicator-name">EMA_23</span>
+                <span class="tech-indicator-value">1,909.46</span>
+                </div>
+                <div class="tech-indicator-analysis">EMA_23 (1,909.46) is below SMA_23 and price is 2.54% under it, consistent with the <b style="color:#b01a1a">bearish</b> alignment across short windows.</div>
+            </div>
+            
+            <div class="tech-indicator">
+                <div class="tech-indicator-head">
+                <span class="tech-indicator-name">EMA_90</span>
+                <span class="tech-indicator-value">1,880.60</span>
+                </div>
+                <div class="tech-indicator-analysis">EMA_90 (1,880.60) is below SMA_90 with price 1.04% beneath it, confirming medium-term <b style="color:#b01a1a">bearish</b> bias.</div>
+            </div>
+            
+            <div class="tech-indicator">
+                <div class="tech-indicator-head">
+                <span class="tech-indicator-name">EMA_200</span>
+                <span class="tech-indicator-value">1,819.24</span>
+                </div>
+                <div class="tech-indicator-analysis">EMA_200 (1,819.24) is above SMA_200 (<b style="color:#1a6b3a">bullish</b> EMA&gt;SMA) and price is 2.30% above it, the only <b style="color:#1a6b3a">bullish</b> MA signal in the set.</div>
+            </div>
+            
+            </div>
+        </div>
+        
+        <div class="tech-group">
+            <div class="tech-group-title">
+            <span class="section-icon" aria-hidden="true">📈</span>
+            Volume Moving Averages
+            </div>
+            <div class="tech-grid">
+            
+            <div class="tech-indicator">
+                <div class="tech-indicator-head">
+                <span class="tech-indicator-name">VOL_SMA_5</span>
+                <span class="tech-indicator-value">1,267,728</span>
+                </div>
+                <div class="tech-indicator-analysis">Latest volume (1,178,437) is 7.04% below VOL_SMA_5 (1,267,728), showing recent activity is lighter than the past week.</div>
+            </div>
+            
+            <div class="tech-indicator">
+                <div class="tech-indicator-head">
+                <span class="tech-indicator-name">VOL_SMA_13</span>
+                <span class="tech-indicator-value">1,455,071</span>
+                </div>
+                <div class="tech-indicator-analysis">Volume is 19.01% below VOL_SMA_13 (1,455,071), indicating a clear fade in participation versus the two-week baseline.</div>
+            </div>
+            
+            <div class="tech-indicator">
+                <div class="tech-indicator-head">
+                <span class="tech-indicator-name">VOL_SMA_23</span>
+                <span class="tech-indicator-value">1,506,878</span>
+                </div>
+                <div class="tech-indicator-analysis">Volume is 21.80% below VOL_SMA_23 (1,506,878), confirming declining turnover over the past month.</div>
+            </div>
+            
+            <div class="tech-indicator">
+                <div class="tech-indicator-head">
+                <span class="tech-indicator-name">VOL_SMA_90</span>
+                <span class="tech-indicator-value">2,176,102</span>
+                </div>
+                <div class="tech-indicator-analysis">Volume is 45.85% below VOL_SMA_90 (2,176,102), a steep drop versus the quarterly average.</div>
+            </div>
+            
+            <div class="tech-indicator">
+                <div class="tech-indicator-head">
+                <span class="tech-indicator-name">VOL_SMA_200</span>
+                <span class="tech-indicator-value">2,691,529</span>
+                </div>
+                <div class="tech-indicator-analysis">Volume is 56.22% below VOL_SMA_200 (2,691,529), the largest deficit, showing activity is barely half the long-term norm.</div>
+            </div>
+            
+            <div class="tech-indicator">
+                <div class="tech-indicator-head">
+                <span class="tech-indicator-name">VOL_EMA_5</span>
+                <span class="tech-indicator-value">1,341,752</span>
+                </div>
+                <div class="tech-indicator-analysis">Volume is 12.17% below VOL_EMA_5 (1,341,752), with the EMA above the SMA_5, reflecting heavier weighting on older, higher-volume days.</div>
+            </div>
+            
+            <div class="tech-indicator">
+                <div class="tech-indicator-head">
+                <span class="tech-indicator-name">VOL_EMA_13</span>
+                <span class="tech-indicator-value">1,475,699</span>
+                </div>
+                <div class="tech-indicator-analysis">Volume is 20.14% below VOL_EMA_13 (1,475,699), echoing the short-term volume contraction.</div>
+            </div>
+            
+            <div class="tech-indicator">
+                <div class="tech-indicator-head">
+                <span class="tech-indicator-name">VOL_EMA_23</span>
+                <span class="tech-indicator-value">1,612,769</span>
+                </div>
+                <div class="tech-indicator-analysis">Volume is 26.93% below VOL_EMA_23 (1,612,769), confirming the monthly downtrend in participation.</div>
+            </div>
+            
+            <div class="tech-indicator">
+                <div class="tech-indicator-head">
+                <span class="tech-indicator-name">VOL_EMA_90</span>
+                <span class="tech-indicator-value">2,226,834</span>
+                </div>
+                <div class="tech-indicator-analysis">Volume is 47.08% below VOL_EMA_90 (2,226,834), consistent with the sharp quarterly decline.</div>
+            </div>
+            
+            <div class="tech-indicator">
+                <div class="tech-indicator-head">
+                <span class="tech-indicator-name">VOL_EMA_200</span>
+                <span class="tech-indicator-value">2,492,297</span>
+                </div>
+                <div class="tech-indicator-analysis">Volume is 52.72% below VOL_EMA_200 (2,492,297), underscoring that current turnover is far below the long-run average.</div>
+            </div>
+            
+            </div>
+        </div>
+        
+        <div class="tech-group">
+            <div class="tech-group-title">
+            <span class="section-icon" aria-hidden="true">⚡</span>
+            Momentum Indicators
+            </div>
+            <div class="tech-grid">
+            
+            <div class="tech-indicator">
+                <div class="tech-indicator-head">
+                <span class="tech-indicator-name">RSI</span>
+                <span class="tech-indicator-value">37.53</span>
+                </div>
+                <div class="tech-indicator-analysis">RSI at 37.53 is neutral but leaning weak, having slid from 66.91 on 2026-07-31 to near the lower-neutral zone without yet reaching oversold.</div>
+            </div>
+            
+            <div class="tech-indicator">
+                <div class="tech-indicator-head">
+                <span class="tech-indicator-name">MACD</span>
+                <span class="tech-indicator-value">-12.47</span>
+                </div>
+                <div class="tech-indicator-analysis">MACD (-12.47) is below its Signal (-5.92) with a negative Histogram (-6.55) and no fresh crossover, confirming <b style="color:#b01a1a">bearish</b> momentum that has deteriorated sharply from +32.56 in late July.</div>
+            </div>
+            
+            <div class="tech-indicator">
+                <div class="tech-indicator-head">
+                <span class="tech-indicator-name">STOCH_K</span>
+                <span class="tech-indicator-value">14.21</span>
+                </div>
+                <div class="tech-indicator-analysis">%K at 14.21 is in oversold territory (&lt;20), having rebounded from 0.00 the prior session, hinting at early stabilisation.</div>
+            </div>
+            
+            <div class="tech-indicator">
+                <div class="tech-indicator-head">
+                <span class="tech-indicator-name">STOCH_D</span>
+                <span class="tech-indicator-value">7.54</span>
+                </div>
+                <div class="tech-indicator-analysis">%D at 7.54 is deeply oversold and below %K, with the K-cross-above-D flagged as a <b style="color:#1a6b3a">bullish</b> signal despite the weak absolute levels.</div>
+            </div>
+            
+            </div>
+        </div>
+        
+        <div class="tech-group">
+            <div class="tech-group-title">
+            <span class="section-icon" aria-hidden="true">📏</span>
+            Volatility — Bollinger Bands
+            </div>
+            <div class="tech-grid">
+            
+            <div class="tech-indicator">
+                <div class="tech-indicator-head">
+                <span class="tech-indicator-name">BB_UPPER</span>
+                <span class="tech-indicator-value">1,960.15</span>
+                </div>
+                <div class="tech-indicator-analysis">Upper band at 1,960.15 sits well above the close (1,861.00), leaving ample headroom and reflecting the recent price decline from that zone.</div>
+            </div>
+            
+            <div class="tech-indicator">
+                <div class="tech-indicator-head">
+                <span class="tech-indicator-name">BB_MIDDLE</span>
+                <span class="tech-indicator-value">1,906.28</span>
+                </div>
+                <div class="tech-indicator-analysis">Middle band (20-day SMA proxy) at 1,906.28 is above the close, confirming the price is trading in the lower half of the band range.</div>
+            </div>
+            
+            <div class="tech-indicator">
+                <div class="tech-indicator-head">
+                <span class="tech-indicator-name">BB_LOWER</span>
+                <span class="tech-indicator-value">1,852.41</span>
+                </div>
+                <div class="tech-indicator-analysis">Lower band at 1,852.41 is just below the close with %B at 0.08, meaning price is hugging the lower band — a sign of weakness but also proximity to potential support.</div>
+            </div>
+            
+            </div>
+        </div>
+        
+        <div class="tech-group">
+            <div class="tech-group-title">
+            <span class="section-icon" aria-hidden="true">🔄</span>
+            Volume Flow
+            </div>
+            <div class="tech-grid">
+            
+            <div class="tech-indicator">
+                <div class="tech-indicator-head">
+                <span class="tech-indicator-name">OBV</span>
+                <span class="tech-indicator-value">187,304,194</span>
+                </div>
+                <div class="tech-indicator-analysis">OBV at 187,304,194 is down 6,338,638 over 5 days and 5,967,085 over 20 days but up 6,362,669 over 60 days, showing recent distribution overwhelming the earlier accumulation.</div>
+            </div>
+            
+            </div>
+        </div>
+        
+
+        
+        <div class="tech-summary">
+            <div class="tech-summary-title">🧮 Overall Technical Summary</div>
+            <div class="tech-summary-body">The stock is in a short-to-medium-term downtrend, with price below the 5/13/23/90 SMAs and EMAs, a <b style="color:#b01a1a">bearish</b> MACD (histogram -6.55), and OBV declining over 5 and 20 days, though the long-term SMA_200/EMA_200 remain <b style="color:#1a6b3a">bullish</b> and Stochastic is oversold with a <b style="color:#1a6b3a">bullish</b> K/D cross. Momentum is negative but stretched (RSI 37.53, %K 14.21, %B 0.08), so the SELL flag reflects the dominant <b style="color:#b01a1a">bearish</b> trend rather than a high-conviction breakdown. Volume contraction (-56% vs VOL_SMA_200) suggests limited conviction behind the decline, warranting caution on aggressive short exposure.</div>
+        </div>
+        
+        
+    </div>
+
+    <!-- OVERALL SUMMARY -->
+    <div class="fade-up fade-up-5">
+        <div class="overall-card">
+        <div class="overall-card-title">🧭 Overall Summary</div>
+        <div class="overall-verdicts">
+            <div class="overall-item">
+            <span class="overall-item-label">Fundamental</span>
+            <span class="rec-verdict hold">HOLD</span>
+            </div>
+            <div class="overall-item">
+            <span class="overall-item-label">Technical</span>
+            <span class="tech-verdict sell">SELL</span>
+            </div>
+            <div class="overall-item">
+            <span class="overall-item-label">Overall</span>
+            <span class="rec-verdict sell">SELL</span>
+            </div>
+        </div>
+        <div class="overall-text">Fundamentals are neutral with negative technicals — lean <b style="color:#b01a1a">bearish</b>.</div>
+        </div>
+    </div>
+
+    <div class="footer">
+        This report is for informational purposes only and does not constitute financial advice. &nbsp;·&nbsp;
+        Generated 2026-09-10 16:06:05
+    </div>
+
+    </div>
+
+    <script>
+    // Animate sentiment bar
+    (function() {
+        const bar = document.getElementById('sent-bar');
+        if (!bar) return;
+        const score = 0.01;
+        const pct = Math.min(Math.max((score + 1) / 2 * 100, 3), 97);
+        setTimeout(() => { bar.style.width = pct + '%'; }, 200);
+    })();
+
+    // Format volume with commas
+    (function() {
+        const el = document.getElementById('volume-val');
+        if (!el) return;
+        const n = parseInt(el.textContent.replace(/,/g, ''));
+        if (!isNaN(n)) el.textContent = n.toLocaleString('en-IN');
+    })();
+    </script>
+
+    </body>
+    </html>

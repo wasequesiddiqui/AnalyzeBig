@@ -67,6 +67,7 @@ import os
 import re
 import sys
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any, Optional
 
 # Windows consoles default to cp1252, which crashes on ₹/emoji/≈ when crewAI's
@@ -103,6 +104,28 @@ load_dotenv()
 DEEPSEEK_MODEL = os.getenv("CREWAI_MODEL", "deepseek/deepseek-chat")
 MAX_ITER = int(os.getenv("CREWAI_MAX_ITER", "8"))
 
+# Persona portraits live in ./images next to this module. Paths are resolved
+# against the module directory (not the current working directory) so they
+# resolve no matter where the app was launched from.
+PERSONA_IMAGE_DIR = Path(__file__).resolve().parent / "images"
+
+
+def persona_image(filename: str) -> str:
+    """Return the absolute path of a persona portrait ('' when unavailable).
+
+    Args:
+        filename (str): Bare file name, e.g. ``"WARREN_BUFFET.png"``.
+
+    Returns:
+        str: Absolute path to the image, or an empty string when no file name
+             was given or the file is missing, so callers can fall back to the
+             persona emoji.
+    """
+    if not filename:
+        return ""
+    path = PERSONA_IMAGE_DIR / filename
+    return str(path) if path.is_file() else ""
+
 # =========================================================
 # TYPED RESULT MODELS (shared with the Streamlit UI)
 # =========================================================
@@ -113,6 +136,7 @@ class PersonaValuation(BaseModel):
 
     persona: str = Field(..., description="Display persona name")
     emoji: str = Field("🧑", description="Emoji for the persona card")
+    image: str = Field("", description="Portrait image path for the persona card")
     fair_value_per_share: Optional[float] = Field(
         None, description="Fair value per share in the stock's native currency"
     )
@@ -166,6 +190,7 @@ PERSONAS: list[dict[str, str]] = [
         "key": "warren_buffett",
         "persona": "Warren Buffett",
         "emoji": "🧸",
+        "image": "WARREN_BUFFET.png",
         "role": "Warren Buffett — Value / Owner-Earnings Persona",
         "goal": (
             "Valuing the stock as Warren Buffett would: focus on durable "
@@ -185,6 +210,7 @@ PERSONAS: list[dict[str, str]] = [
         "key": "charlie_munger",
         "persona": "Charlie Munger",
         "emoji": "🧠",
+        "image": "CHARLIE_MUNGER.png",
         "role": "Charlie Munger — Quality / Moat Persona",
         "goal": (
             "Valuing the stock as Charlie Munger would: judge the quality of "
@@ -205,6 +231,7 @@ PERSONAS: list[dict[str, str]] = [
         "key": "jhunjhunwala",
         "persona": "Rakesh Jhunjhunwala",
         "emoji": "🦁",
+        "image": "RAKESH.png",
         "role": "Rakesh Jhunjhunwala — Growth / India Persona",
         "goal": (
             "Valuing the stock as Rakesh Jhunjhunwala would: overweight "
@@ -225,6 +252,7 @@ PERSONAS: list[dict[str, str]] = [
         "key": "damodaran",
         "persona": "Aswath Damodaran",
         "emoji": "📐",
+        "image": "ASWATH.png",
         "role": "Aswath Damodaran — Valuation / DCF Persona",
         "goal": (
             "Valuing the stock as Aswath Damodaran would: lay out explicit "
@@ -353,39 +381,32 @@ def reporting_currency(ticker: str) -> str:
 
 
 def get_price_snapshot(ticker: str) -> dict[str, Any]:
-    """Resolve a ticker across NSE/BSE/global and return a small price snapshot.
+    """Return a small price snapshot for a COMPLETE Yahoo Finance symbol.
 
     Mirrors ``streamlit_app.get_stock_price`` semantics but lives here so the
-    module never has to import the Streamlit app. Returns a dict with
-    ``ticker``, ``exchange``, ``currency`` (INR for Indian exchanges else USD),
-    ``current_price`` and ``error`` on failure.
+    module never has to import the Streamlit app. The symbol is consumed
+    EXACTLY as supplied — including its exchange suffix, e.g. ``INFY.NS`` /
+    ``RELIANCE.BO`` — since no ``.NS`` / ``.BO`` suffix is ever appended.
+    Returns a dict with ``ticker``, ``exchange``, ``currency`` (INR for Indian
+    exchanges else USD), ``current_price`` and ``error`` on failure.
     """
     try:
-        t = (ticker or "").upper().strip()
-        # If the user already passed a suffixed ticker (INFY.NS / INFY.BO) don't
-        # re-append suffixes — that just triggers Yahoo 404 noise and wasted
-        # history calls (INFY.NS.NS). Otherwise probe NSE, then BSE, then global.
-        if t.endswith(".NS") or t.endswith(".BO"):
-            candidates = [t]
-        else:
-            candidates = [f"{t}.NS", f"{t}.BO", t]
-        for symbol in candidates:
-            stock = yf.Ticker(symbol)
-            hist = stock.history(period="5d")
-            if hist.empty:
-                continue
-            exchange = "Global"
-            if symbol.endswith(".NS"):
-                exchange = "NSE India"
-            elif symbol.endswith(".BO"):
-                exchange = "BSE India"
-            return {
-                "ticker": symbol,
-                "exchange": exchange,
-                "currency": "INR" if exchange in ("NSE India", "BSE India") else "USD",
-                "current_price": round(float(hist["Close"].iloc[-1]), 2),
-            }
-        return {"error": "No stock data found."}
+        symbol = (ticker or "").upper().strip()
+        stock = yf.Ticker(symbol)
+        hist = stock.history(period="5d")
+        if hist.empty:
+            return {"error": f"No stock data found for '{symbol}'."}
+        exchange = "Global"
+        if symbol.endswith(".NS"):
+            exchange = "NSE India"
+        elif symbol.endswith(".BO"):
+            exchange = "BSE India"
+        return {
+            "ticker": symbol,
+            "exchange": exchange,
+            "currency": "INR" if exchange in ("NSE India", "BSE India") else "USD",
+            "current_price": round(float(hist["Close"].iloc[-1]), 2),
+        }
     except Exception as e:  # noqa: BLE001
         return {"error": str(e)}
 
@@ -531,10 +552,12 @@ def build_news_and_sentiment_text(company_name: str) -> str:
 
 @tool("get_stock_price")
 def get_stock_price(ticker: str) -> str:
-    """Fetch the current market price for a ticker (e.g. INFY.NS, AAPL).
+    """Fetch the current market price for a COMPLETE Yahoo Finance symbol
+    (e.g. INFY.NS, RELIANCE.BO, AAPL).
 
-    Resolves NSE (.NS), BSE (.BO) or a global exchange. Returns JSON with
-    ticker, exchange, currency and current_price (or an error object)."""
+    The symbol is used exactly as supplied — no .NS / .BO suffix is appended.
+    Returns JSON with ticker, exchange, currency and current_price (or an
+    error object)."""
     return json.dumps(get_price_snapshot(ticker))
 
 
@@ -625,7 +648,11 @@ def persona_from_raw(meta: dict[str, str], raw: str, market_price: Optional[floa
     plausible 0.1x–8x band so revenue-scale values (e.g. "$20,158M") can't be
     mistaken for per-share fair values.
     """
-    fallback = PersonaValuation(persona=meta["persona"], emoji=meta["emoji"])
+    fallback = PersonaValuation(
+        persona=meta["persona"],
+        emoji=meta["emoji"],
+        image=persona_image(meta.get("image", "")),
+    )
     data = _extract_json(raw)
     if not data:
         # Regex fallback for narrative (non-JSON) responses. Collect candidate
@@ -662,6 +689,7 @@ def persona_from_raw(meta: dict[str, str], raw: str, market_price: Optional[floa
     persona = PersonaValuation(
         persona=data.get("persona") or meta["persona"],
         emoji=meta["emoji"],
+        image=persona_image(meta.get("image", "")),
         fair_value_per_share=fv,
         currency=str(data.get("currency") or "USD"),
         stance=str(data.get("stance") or ""),
@@ -922,13 +950,19 @@ def run_persona_crew(
             raw = by_name.get(key)
             if raw is None:
                 result.errors.append(f"{meta['persona']} produced no output.")
-                result.personas.append(PersonaValuation(persona=meta["persona"], emoji=meta["emoji"]))
+                result.personas.append(PersonaValuation(
+                    persona=meta["persona"], emoji=meta["emoji"],
+                    image=persona_image(meta.get("image", "")),
+                ))
                 continue
             try:
                 result.personas.append(persona_from_raw(meta, raw, market_price=price))
             except Exception as e:  # noqa: BLE001
                 result.errors.append(f"{meta['persona']} output could not be parsed: {e}")
-                result.personas.append(PersonaValuation(persona=meta["persona"], emoji=meta["emoji"]))
+                result.personas.append(PersonaValuation(
+                    persona=meta["persona"], emoji=meta["emoji"],
+                    image=persona_image(meta.get("image", "")),
+                ))
 
         # Aggregator (or fallback)
         agg_raw = by_name.get("aggregator_task")

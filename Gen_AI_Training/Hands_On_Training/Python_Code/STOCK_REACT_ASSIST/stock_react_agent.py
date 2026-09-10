@@ -72,6 +72,7 @@ from textblob import TextBlob  # Lexicon-based NLP sentiment analyzer
 from dotenv import load_dotenv  # Loads .env file into os.environ
 from newsapi import NewsApiClient  # NewsAPI.org client for financial headlines
 from jinja2 import Template  # Jinja2 HTML templating engine
+from markupsafe import escape as _html_escape  # Escape plain text before adding markup
 from langchain.tools import tool  # Decorator to register functions as LLM-callable tools
 from langchain_openai import ChatOpenAI  # OpenAI-compatible chat model (used with DeepSeek)
 
@@ -149,6 +150,58 @@ def strip_exchange_suffix(ticker: str) -> str:
     # and take the first part (the base ticker).
     return re.split(r'\.(NS|BO)$', ticker.upper().strip())[0]
 
+
+# ── Bull / bear emphasis ──────────────────────────────────────────
+# Directional wording is emphasised everywhere it is rendered: "bull" /
+# "bullish" in bold green, "bear" / "bearish" in bold red. The colours match
+# the --green / --red custom properties of the report stylesheet so the
+# highlight blends with the rest of the palette in both the HTML report and
+# the Streamlit UI.
+BULL_BEAR_RE = re.compile(r'\b(bullish|bull|bearish|bear)\b', re.IGNORECASE)
+BULL_COLOR = "#1a6b3a"   # deep green
+BEAR_COLOR = "#b01a1a"   # deep red
+
+
+def _bull_bear_span(match: "re.Match") -> str:
+    """Replacement callback: wrap one bull/bear word in a coloured bold tag."""
+    word = match.group(1)
+    color = BULL_COLOR if word.lower().startswith("bull") else BEAR_COLOR
+    return f'<b style="color:{color}">{word}</b>'
+
+
+def highlight_bull_bear(text: str) -> str:
+    """
+    Bold-colour every "bull"/"bullish" (green) and "bear"/"bearish" (red).
+
+    Use this variant for text that ALREADY contains intentional HTML (e.g. the
+    ``<mark>`` tags the LLM emits in the recommendation section); the text is
+    passed through untouched apart from the inserted tags.
+
+    Args:
+        text (str): The text to decorate.
+
+    Returns:
+        str: The text with each directional word wrapped in ``<b style=...>``.
+    """
+    return BULL_BEAR_RE.sub(_bull_bear_span, text or "")
+
+
+def highlight_bull_bear_escaped(text: str) -> str:
+    """
+    HTML-escape plain text, then bold-colour its bull/bear words.
+
+    Escaping first guarantees a stray ``<`` / ``&`` in the LLM output cannot be
+    interpreted as markup once the decorated string is emitted with ``| safe``.
+
+    Args:
+        text (str): Untrusted, plain text.
+
+    Returns:
+        str: Escaped text with each directional word wrapped in ``<b>``.
+    """
+    return BULL_BEAR_RE.sub(_bull_bear_span, str(_html_escape(text or "")))
+
+
 # =========================================================
 # TOOLS
 # =========================================================
@@ -158,19 +211,18 @@ def get_stock_price(ticker: str) -> dict:
     """
     Fetch the latest stock market data (OHLCV) for a given ticker symbol.
 
-    This tool tries multiple exchange suffixes to locate the stock across
-    different markets.  It first attempts the Indian NSE (``.NS``), then
-    the Indian BSE (``.BO``), and finally falls back to the raw ticker
-    for global exchanges (NYSE, NASDAQ, etc.).  Whichever attempt returns
-    non-empty price history first is used.
+    This tool fetches the symbol EXACTLY as supplied — the caller must pass
+    the complete Yahoo Finance ticker, including any exchange suffix
+    (``"INFY.NS"`` for NSE, ``"RELIANCE.BO"`` for BSE, ``"AAPL"`` for US
+    markets).  No ``.NS`` / ``.BO`` suffix is ever appended or probed.
 
     **LangChain Tool** — when decorated with ``@tool``, the function's
     docstring becomes the description the LLM sees when deciding whether
     to invoke this tool.  Keep it descriptive but concise.
 
     Args:
-        ticker (str): The ticker symbol to look up (e.g. ``"INFY"``,
-                      ``"TCS"``, ``"AAPL"``).  Case-insensitive; leading/
+        ticker (str): The complete ticker symbol to look up (e.g. ``"INFY.NS"``,
+                      ``"TCS.BO"``, ``"AAPL"``).  Case-insensitive; leading/
                       trailing whitespace is stripped.
 
     Returns:
@@ -186,7 +238,7 @@ def get_stock_price(ticker: str) -> dict:
             - **error** (str)       : Human-readable error message.
 
     Example:
-        >>> get_stock_price.invoke("INFY")
+        >>> get_stock_price.invoke("INFY.NS")
         {
             "ticker": "INFY.NS",
             "exchange": "NSE India",
@@ -209,61 +261,44 @@ def get_stock_price(ticker: str) -> dict:
     """
 
     try:
-        # Normalize input: uppercase, strip whitespace
-        ticker = ticker.upper().strip()
+        # Consume the value exactly as given: the caller supplies the complete
+        # Yahoo Finance symbol, so no ".NS" / ".BO" suffix is appended here.
+        symbol = ticker.upper().strip()
 
-        # Build a priority list of symbols to try.
-        # Indian stocks are dual-listed on NSE and BSE; we try .NS first
-        # (more liquid), then .BO, then the raw ticker for global stocks.
-        possible_tickers = [
-            f"{ticker}.NS",   # National Stock Exchange of India
-            f"{ticker}.BO",   # Bombay Stock Exchange
-            ticker             # Raw ticker — NYSE / NASDAQ / LSE etc.
-        ]
+        # Create a yfinance Ticker object for this symbol
+        stock = yf.Ticker(symbol)
 
-        stock_data = None  # Will hold the result dict if we find data
+        # Request 5 trading days of 1-day-interval OHLCV bars.
+        # 5 days ensures we cover a weekend gap and still get a price.
+        hist = stock.history(period="5d")
 
-        for symbol in possible_tickers:
-            # Create a yfinance Ticker object for this symbol
-            stock = yf.Ticker(symbol)
-
-            # Request 5 trading days of 1-day-interval OHLCV bars.
-            # 5 days ensures we cover a weekend gap and still get a price.
-            hist = stock.history(period="5d")
-
-            # An empty DataFrame means yfinance couldn't find this symbol
-            if not hist.empty:
-                # Get the most recent row (latest trading day's bar)
-                latest = hist.iloc[-1]
-
-                # Determine human-readable exchange label
-                exchange = "Global"
-                if symbol.endswith(".NS"):
-                    exchange = "NSE India"
-                elif symbol.endswith(".BO"):
-                    exchange = "BSE India"
-
-                # Build the result dictionary with rounded values
-                stock_data = {
-                    "ticker": symbol,
-                    "exchange": exchange,
-                    "current_price": round(latest["Close"], 2),
-                    "open": round(latest["Open"], 2),
-                    "high": round(latest["High"], 2),
-                    "low": round(latest["Low"], 2),
-                    "volume": int(latest["Volume"])
-                }
-
-                # Stop after the first successful match
-                break
-
-        # If no symbol produced data, return a clear error
-        if stock_data is None:
+        # An empty DataFrame means yfinance couldn't find this symbol
+        if hist.empty:
             return {
-                "error": "No stock data found."
+                "error": f"No stock data found for '{symbol}'."
             }
 
-        return stock_data
+        # Get the most recent row (latest trading day's bar)
+        latest = hist.iloc[-1]
+
+        # Determine human-readable exchange label
+        exchange = "Global"
+        if symbol.endswith(".NS"):
+            exchange = "NSE India"
+        elif symbol.endswith(".BO"):
+            exchange = "BSE India"
+
+        # Build the result dictionary with rounded values
+        return {
+            "ticker": symbol,
+            "exchange": exchange,
+            "currency": "INR" if exchange in ("NSE India", "BSE India") else "USD",
+            "current_price": round(latest["Close"], 2),
+            "open": round(latest["Open"], 2),
+            "high": round(latest["High"], 2),
+            "low": round(latest["Low"], 2),
+            "volume": int(latest["Volume"])
+        }
 
     except Exception as e:
         # Catch-all: network errors, API changes, unexpected data shapes, etc.
@@ -579,7 +614,11 @@ Use the exact section headers below (with the emoji), and format each as flowing
 [2-3 paragraphs on upside opportunities and catalysts]
 
 ## 🎯 Investment Recommendation
-[1-2 paragraphs with a clear BUY / HOLD / SELL stance and reasoning.
+[Begin with the verdict word in bold, immediately followed by a period — exactly
+one of **BUY.** / **HOLD.** / **SELL.** — then continue the reasoning on the same
+line, e.g. "**HOLD.** The stock trades ...". The verdict word MUST be the very
+first characters of this section, before any other text or markup.
+Then 1-2 paragraphs with the stance and reasoning.
 In THIS section ONLY, wrap the single most critical sentence in each paragraph with <mark>...</mark> tags so it stands out visually.]
 
 Keep it concise, data-driven, and professional. Do not add any preamble before the first section header.
@@ -2042,7 +2081,7 @@ def generate_html_report(
             {% if section.is_recommendation %}
             <p>{{ para | safe }}</p>
             {% else %}
-            <p>{{ para }}</p>
+            <p>{{ para | safe }}</p>
             {% endif %}
             {% endfor %}
             </div>
@@ -2078,7 +2117,7 @@ def generate_html_report(
                 <span class="tech-indicator-name">{{ ind.name }}</span>
                 {% if ind.value %}<span class="tech-indicator-value">{{ ind.value }}</span>{% endif %}
                 </div>
-                <div class="tech-indicator-analysis">{{ ind.analysis }}</div>
+                <div class="tech-indicator-analysis">{{ ind.analysis | safe }}</div>
             </div>
             {% endfor %}
             </div>
@@ -2088,7 +2127,7 @@ def generate_html_report(
         {% if tech.summary %}
         <div class="tech-summary">
             <div class="tech-summary-title">🧮 Overall Technical Summary</div>
-            <div class="tech-summary-body">{{ tech.summary }}</div>
+            <div class="tech-summary-body">{{ tech.summary | safe }}</div>
         </div>
         {% endif %}
         {% else %}
@@ -2117,7 +2156,7 @@ def generate_html_report(
             <span class="rec-verdict {{ overall.overall_css }}">{{ overall.overall_verdict }}</span>
             </div>
         </div>
-        <div class="overall-text">{{ overall.text }}</div>
+        <div class="overall-text">{{ overall.text | safe }}</div>
         </div>
     </div>
 
@@ -2173,6 +2212,56 @@ def generate_html_report(
     BUY_WORDS  = ["buy", "strong buy", "accumulate", "outperform", "overweight"]
     SELL_WORDS = ["sell", "strong sell", "underperform", "underweight", "avoid"]
 
+    # A clause containing one of these negators cannot be read as a directional
+    # call: "a SELL rating is not warranted" must not classify as SELL, and
+    # "a BUY would be premature" must not classify as BUY.
+    NEGATION_RE = re.compile(
+        r"\b(?:not|no|never|without|isn't|aren't|wasn't|weren't|doesn't|don't|"
+        r"didn't|can't|cannot|unwarranted|premature)\b",
+        re.IGNORECASE,
+    )
+
+    # A negator only flips a keyword when it sits within this many characters
+    # of it AND no clause break lies between the two. The distance limit keeps
+    # an unrelated "no" elsewhere in the sentence from suppressing the call,
+    # and the clause break stops "the company has no debt and we recommend BUY"
+    # (the "no" belongs to the previous clause) from reading as negated.
+    NEGATION_WINDOW = 45
+    CLAUSE_BREAK_RE = re.compile(
+        r"[,;:]|\b(?:and|but|however|yet|although|though|while|whereas|so)\b",
+        re.IGNORECASE,
+    )
+
+    def keyword_is_directional(low: str, word: str) -> bool:
+        """Return True when `word` occurs at least once without a nearby negator.
+
+        Each occurrence is examined separately: it is ignored only if a
+        negator lies within ``NEGATION_WINDOW`` characters of it with no
+        clause break in between.
+
+        Args:
+            low (str):  The lower-cased recommendation body.
+            word (str): A keyword from BUY_WORDS / SELL_WORDS.
+
+        Returns:
+            bool: True when the keyword should count as a directional signal.
+        """
+        for match in re.finditer(r'\b' + re.escape(word) + r'\b', low):
+            window_start = max(0, match.start() - NEGATION_WINDOW)
+            window_end = min(len(low), match.end() + NEGATION_WINDOW)
+            negated = False
+            for negator in NEGATION_RE.finditer(low, window_start, window_end):
+                if negator.end() <= match.start():
+                    between = low[negator.end():match.start()]
+                else:
+                    between = low[match.end():negator.start()]
+                if not CLAUSE_BREAK_RE.search(between):
+                    negated = True
+                    break
+            if not negated:
+                return True
+        return False
+
     def detect_verdict(text: str) -> str:
         """
         Determine the investment verdict from the recommendation text.
@@ -2183,6 +2272,10 @@ def generate_html_report(
         from words like "avoid" or "sell" appearing later in the commentary.
 
         Falls back to keyword scanning only when no explicit marker is present.
+        The fallback ignores a keyword when a negator sits within
+        ``NEGATION_WINDOW`` characters of it with no clause break between them,
+        so commentary that argues against a verdict ("a SELL rating is not
+        warranted") is not counted as that verdict.
 
         Args:
             text (str): The body text of the Investment Recommendation section.
@@ -2196,19 +2289,22 @@ def generate_html_report(
         # Matches patterns like:  **HOLD.**  |  **BUY.**  |  **SELL.**
         #                         HOLD.       |  BUY:      |  SELL —
         m = re.match(
-            r'^(?:\*\*)?\s*(BUY|HOLD|SELL)\s*(?:\*\*)?\s*[\.\:\,\-]',
+            r'^(?:<mark>)?\s*(?:\*\*)?\s*(BUY|HOLD|SELL)\s*(?:\*\*)?\s*(?:</mark>)?\s*[\.\:\,\-]',
             t, re.IGNORECASE
         )
         if m:
             return m.group(1).upper()
 
         # ── 2. Fallback: keyword scan with word-boundaries ──
+        # A keyword counts only when it is not negated nearby (see
+        # keyword_is_directional), so commentary that argues AGAINST a
+        # verdict is never counted as that verdict.
         t_lower = t.lower()
         for w in BUY_WORDS:
-            if re.search(r'\b' + re.escape(w) + r'\b', t_lower):
+            if keyword_is_directional(t_lower, w):
                 return "BUY"
         for w in SELL_WORDS:
-            if re.search(r'\b' + re.escape(w) + r'\b', t_lower):
+            if keyword_is_directional(t_lower, w):
                 return "SELL"
         return "HOLD"
 
@@ -2280,6 +2376,24 @@ def generate_html_report(
 
     # Merge the two verdicts into a single overall stance.
     overall_summary = build_overall_summary(fund_verdict, tech_parsed.get("verdict", "NEUTRAL"))
+
+    # ── Emphasise the directional wording before rendering ──
+    # The template prints these four fields with `| safe`, so the <b> tags
+    # inserted here are honoured. Recommendation paragraphs already contain the
+    # LLM's own <mark> markup, so they are highlighted WITHOUT escaping; every
+    # other field is plain text and is escaped first.
+    for sec in parsed_sections:
+        if sec.get("is_recommendation"):
+            sec["paragraphs"] = [highlight_bull_bear(p) for p in sec["paragraphs"]]
+        else:
+            sec["paragraphs"] = [highlight_bull_bear_escaped(p) for p in sec["paragraphs"]]
+    for group in tech_parsed.get("groups", []):
+        for ind in group.get("indicators", []):
+            ind["analysis"] = highlight_bull_bear_escaped(ind.get("analysis", ""))
+    if tech_parsed.get("summary"):
+        tech_parsed["summary"] = highlight_bull_bear_escaped(tech_parsed["summary"])
+    if overall_summary.get("text"):
+        overall_summary["text"] = highlight_bull_bear_escaped(overall_summary["text"])
 
     # ═══════════════════════════════════════════════════════════
     # STEP 2 — Render the Jinja2 template with all collected data.
