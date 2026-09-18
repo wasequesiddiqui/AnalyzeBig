@@ -26,6 +26,7 @@ Environment Variables (.env)
 import os
 import re
 import io
+import time
 import urllib.error
 import urllib.request
 import streamlit as st
@@ -507,6 +508,73 @@ def currency_display_string(currency: str = "") -> str:
     return f"{symbol} "
 
 
+# =========================================================
+# YAHOO RATE-LIMIT HANDLING
+# =========================================================
+# Yahoo Finance rate-limits by IP address, and Streamlit Community Cloud apps
+# share heavily-used AWS egress IPs — so yfinance can raise YFRateLimitError
+# ("Too Many Requests. Rate limited. Try after a while.") even on the first
+# call of a session. Two defences:
+#   1. Cache every Yahoo fetch, so one successful fetch serves every rerun and
+#      every session inside this app process until the TTL expires.
+#   2. Retry a few times with backoff, because the limit is often just a burst.
+_RATE_LIMIT_ATTEMPTS = 3
+_RATE_LIMIT_BACKOFF_SECONDS = 2.0
+
+
+def _is_yahoo_rate_limit(exc: Exception) -> bool:
+    """Return True when ``exc`` is a Yahoo rate-limit (HTTP 429) failure."""
+    text = str(exc)
+    return "Too Many Requests" in text or "Rate limited" in text or "429" in text
+
+
+def _yahoo_error_message(exc: Exception) -> str:
+    """Turn a Yahoo failure into something the user can act on.
+
+    Rate limits get a specific explanation because they are the single most
+    common failure on Community Cloud and are usually transient, whereas a raw
+    "Too Many Requests" text looks like an app bug.
+    """
+    if _is_yahoo_rate_limit(exc):
+        return (
+            "Yahoo Finance is rate-limiting this app's IP address — a known issue on "
+            "shared cloud hosts. Wait a minute and try again; fetched data is cached, "
+            "so a successful run will not call Yahoo again for a while."
+        )
+    return str(exc)
+
+
+def _retry_on_rate_limit(fetch, attempts: int = _RATE_LIMIT_ATTEMPTS):
+    """Call ``fetch()``, retrying only while Yahoo keeps rate-limiting us.
+
+    A genuine "no such ticker" failure is NOT retried — it raises immediately.
+    The final exception propagates so the caller can build the error message.
+    """
+    for attempt in range(attempts):
+        try:
+            return fetch()
+        except Exception as exc:  # noqa: BLE001
+            if not _is_yahoo_rate_limit(exc) or attempt == attempts - 1:
+                raise
+            time.sleep(_RATE_LIMIT_BACKOFF_SECONDS * (attempt + 1))
+
+
+def _raise_if_error(payload, what: str):
+    """Return ``payload``, or raise when it represents a failure.
+
+    Cached fetchers must RAISE rather than return an error value, because
+    ``st.cache_data`` stores whatever comes back — caching a transient
+    "Too Many Requests" dict would keep showing that error for the whole TTL,
+    even after Yahoo has recovered. Raising also lets ``_retry_on_rate_limit``
+    see the failure and retry it.
+    """
+    if payload is None:
+        raise RuntimeError(f"{what} returned no data.")
+    if isinstance(payload, dict) and payload.get("error"):
+        raise RuntimeError(str(payload["error"]))
+    return payload
+
+
 @tool
 def get_dcf_valuation(ticker: str) -> dict:
     """Fetch multi-model DCF valuation data for a given ticker symbol.
@@ -530,16 +598,80 @@ def get_dcf_valuation(ticker: str) -> dict:
     try:
         # The complete Yahoo Finance symbol is used exactly as entered.
         resolved = ticker.strip().upper()
-        dcf_data = adm.run_valuation_analysis(
-            ticker=resolved,
-            currency=currency_display_string(),
-            verbose=False,
-        )
+        dcf_data = _cached_dcf_valuation(resolved, currency_display_string())
         if not dcf_data:
             return {"error": "No DCF data found."}
         return dcf_data
     except Exception as e:
-        return {"error": str(e)}
+        return {"error": _yahoo_error_message(e)}
+
+
+@st.cache_data(ttl=900, show_spinner=False)
+def _cached_dcf_valuation(symbol: str, currency_label: str) -> dict:
+    """Multi-model DCF valuation, cached 15 minutes to respect Yahoo's limits.
+
+    ``ALL_DCF_MODELS.run_valuation_analysis`` creates several ``yf.Ticker``
+    objects, so this is one of the most request-hungry calls in the app.
+    ``currency_label`` is part of the cache key because the sidebar's display
+    currency feeds the model output.
+    """
+    return _retry_on_rate_limit(
+        lambda: _raise_if_error(
+            adm.run_valuation_analysis(
+                ticker=symbol, currency=currency_label, verbose=False
+            ),
+            "DCF analysis",
+        )
+    )
+
+
+@st.cache_data(ttl=900, show_spinner=False)
+def _cached_stock_price(symbol: str) -> dict:
+    """Yahoo OHLCV snapshot, cached 15 minutes to respect Yahoo's limits.
+
+    Cache staleness is deliberate: an intraday price moving by a few cents does
+    not change any conclusion, while a rate-limited app shows no price at all.
+    """
+    def fetch() -> dict:
+        hist = yf.Ticker(symbol).history(period="5d")
+        if hist.empty:
+            # Raised rather than returned, so this failure is never cached: a
+            # stale "no data" entry would outlive the user's retry.
+            raise RuntimeError(f"No stock data found for '{symbol}'.")
+        latest = hist.iloc[-1]
+        exchange = "Global"
+        if symbol.endswith(".NS"):
+            exchange = "NSE India"
+        elif symbol.endswith(".BO"):
+            exchange = "BSE India"
+        return {
+            "ticker": symbol,
+            "exchange": exchange,
+            "currency": "INR" if exchange in ("NSE India", "BSE India") else "USD",
+            "current_price": round(latest["Close"], 2),
+            "open": round(latest["Open"], 2),
+            "high": round(latest["High"], 2),
+            "low": round(latest["Low"], 2),
+            "volume": int(latest["Volume"]),
+        }
+    return _retry_on_rate_limit(fetch)
+
+
+@st.cache_data(ttl=900, show_spinner=False)
+def _cached_technical_indicators(symbol: str):
+    """5 years of daily OHLCV plus the indicator DataFrame, cached 15 minutes.
+
+    This is the single heaviest Yahoo request in the app (five years of daily
+    bars), so caching it matters most for staying under Yahoo's rate limits.
+    Returns a pandas DataFrame; ``st.cache_data`` hands each caller its own copy.
+    """
+    return _retry_on_rate_limit(
+        lambda: _raise_if_error(
+            TECH_ANALYSIS.compute_technical_indicators(symbol),
+            "Technical indicators",
+        )
+    )
+
 
 @tool
 def get_stock_price(ticker: str) -> dict:
@@ -565,29 +697,9 @@ def get_stock_price(ticker: str) -> dict:
     try:
         # Consume the value exactly as entered — the user supplies the full
         # Yahoo Finance symbol, so no ".NS" / ".BO" suffix is appended here.
-        symbol = ticker.upper().strip()
-        stock = yf.Ticker(symbol)
-        hist = stock.history(period="5d")
-        if hist.empty:
-            return {"error": f"No stock data found for '{symbol}'."}
-        latest = hist.iloc[-1]
-        exchange = "Global"
-        if symbol.endswith(".NS"):
-            exchange = "NSE India"
-        elif symbol.endswith(".BO"):
-            exchange = "BSE India"
-        return {
-            "ticker": symbol,
-            "exchange": exchange,
-            "currency": "INR" if exchange in ("NSE India", "BSE India") else "USD",
-            "current_price": round(latest["Close"], 2),
-            "open": round(latest["Open"], 2),
-            "high": round(latest["High"], 2),
-            "low": round(latest["Low"], 2),
-            "volume": int(latest["Volume"])
-        }
+        return _cached_stock_price(ticker.upper().strip())
     except Exception as e:
-        return {"error": str(e)}
+        return {"error": _yahoo_error_message(e)}
 
 
 @tool
@@ -2073,7 +2185,7 @@ def run_analysis(ticker: str, company_name: str):
         status_text.info("🧮 Computing technical indicators...")
         progress_bar.progress(72, text="Computing technical indicators...")
         try:
-            tech_df = TECH_ANALYSIS.compute_technical_indicators(ticker)
+            tech_df = _cached_technical_indicators(ticker)
         except Exception as e:
             print(f"[TECH] Could not compute technical indicators: {e}")
             tech_df = None

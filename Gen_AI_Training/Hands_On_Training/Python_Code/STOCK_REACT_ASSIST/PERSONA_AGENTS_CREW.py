@@ -250,10 +250,12 @@ See Also
 
 from __future__ import annotations
 
+import functools
 import json
 import os
 import re
 import sys
+import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
@@ -841,6 +843,78 @@ def build_lead_agent(persona_llm: LLM) -> Agent:
 
 
 # =========================================================
+# IN-PROCESS CACHE (Yahoo rate-limit protection)
+# =========================================================
+# Yahoo Finance rate-limits by IP address. One crew run asks for the SAME data
+# several times — all four persona agents call ``get_stock_fundamentals`` (each
+# fetching ``.info`` + three statements), and the deterministic model fetches
+# them again — so without a cache a single run can fire 15+ Yahoo requests and
+# trip the limit. This TTL cache collapses those duplicates into one fetch per
+# ticker per window.
+#
+# Deliberately NOT ``st.cache_data``: this module is also used headlessly (the
+# CLI and the test suite) and must not depend on a Streamlit runtime.
+#
+# Wrapped functions:  get_price_snapshot, build_fundamentals_text,
+#                     build_news_and_sentiment_text, reporting_currency,
+#                     deterministic_persona_values
+#
+# Example:
+#     >>> get_price_snapshot("AAPL") is get_price_snapshot("AAPL")   # 2nd is cached
+#     True
+#     >>> _CACHE_TTL_SECONDS
+#     900.0
+
+#: Seconds a fetched value stays fresh. Override with ``CREWAI_CACHE_TTL``.
+_CACHE_TTL_SECONDS = float(os.getenv("CREWAI_CACHE_TTL", "900"))
+
+#: Sentinel distinguishing "not cached" from a legitimately cached ``None``.
+_MISS = object()
+
+_CACHE: dict[str, tuple[float, object]] = {}
+
+
+def _cache_get(key: str) -> object:
+    """Return the cached value for ``key``, or :data:`_MISS` when absent/expired."""
+    entry = _CACHE.get(key)
+    if entry is None:
+        return _MISS
+    expires_at, value = entry
+    if time.monotonic() >= expires_at:
+        _CACHE.pop(key, None)
+        return _MISS
+    return value
+
+
+def _memoise(prefix: str):
+    """Cache a function's result per-arguments for :data:`_CACHE_TTL_SECONDS`.
+
+    A tiny decorator rather than a Streamlit cache so the module keeps working
+    from the CLI. Keyed on ``repr(args)`` / ``sorted(kwargs)``, which is enough
+    here because every wrapped function takes plain strings.
+
+    Args:
+        prefix (str): Namespace for the cache key, so two functions with the
+            same argument shape never collide.
+
+    Returns:
+        Callable: The decorator.
+    """
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            key = f"{prefix}:{args!r}:{sorted(kwargs.items())!r}"
+            cached = _cache_get(key)
+            if cached is not _MISS:
+                return cached
+            value = func(*args, **kwargs)
+            _CACHE[key] = (time.monotonic() + _CACHE_TTL_SECONDS, value)
+            return value
+        return wrapper
+    return decorator
+
+
+# =========================================================
 # DATA HELPERS (plain functions — also used by the tools)
 # =========================================================
 
@@ -991,6 +1065,7 @@ def get_fx_rate(from_currency: str, to_currency: str) -> float:
     return rate
 
 
+@_memoise("rep_currency")
 def reporting_currency(ticker: str) -> str:
     """Return the currency the company reports its financials in (best-effort).
 
@@ -1032,6 +1107,7 @@ def reporting_currency(ticker: str) -> str:
         return "USD"
 
 
+@_memoise("price")
 def get_price_snapshot(ticker: str) -> dict[str, Any]:
     """Return a small price snapshot for a COMPLETE Yahoo Finance symbol.
 
@@ -1100,6 +1176,7 @@ def get_price_snapshot(ticker: str) -> dict[str, Any]:
         return {"error": str(e)}
 
 
+@_memoise("fundamentals")
 def build_fundamentals_text(ticker: str) -> str:
     """Fetch fundamentals + ratios and render a compact prompt-ready summary.
 
@@ -1260,6 +1337,7 @@ def build_fundamentals_text(ticker: str) -> str:
         return f"Fundamentals unavailable: {e}"
 
 
+@_memoise("news")
 def build_news_and_sentiment_text(company_name: str) -> str:
     """Fetch recent headlines + TextBlob sentiment and render a prompt summary.
 
@@ -2066,6 +2144,7 @@ def _convert_money(
     return value * rate if rate and rate != 1.0 else value
 
 
+@_memoise("deterministic_personas")
 def deterministic_persona_values(
     ticker: str, to_currency: Optional[str] = None
 ) -> dict[str, Optional[float]]:
