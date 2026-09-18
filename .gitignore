@@ -6,3 +6,15 @@ Gen_AI_Training/Hands_On_Training/Python_Code/MATH_ASSIST/.env
 Gen_AI_Training/Hands_On_Training/Python_Code/REFLECTION_AGENT/.env
 Gen_AI_Training/Hands_On_Training/Python_Code/YOUTUBE_AGENT/.env
 Gen_AI_Training/Hands_On_Training/Python_Code/STOCK_REACT_ASSIST/.env
+
+# --- Python virtual environments and caches (never commit) ---
+# venv/ also has its own .gitignore, but keep this here so a stray file or a
+# newly created environment can never be committed by accident.
+**/venv/
+**/.venv/
+**/__pycache__/
+*.py[cod]
+
+# --- Streamlit secrets ----------------------------------------
+# Never commit these: enter the values in the Cloud app's Secrets settings.
+**/.streamlit/secrets.toml

@@ -60,11 +60,17 @@ _collection = None   # cached collection
 
 
 def _require_env(key: str, what: str) -> str:
-    """Return a non-empty env var or raise a clear error."""
+    """Return a non-empty env var or raise a clear, environment-aware error.
+
+    The message names both places the value can live, because mentioning only
+    ".env" is misleading on Streamlit Community Cloud — there is no .env file
+    there, and the value comes from the app's Secrets instead.
+    """
     value = os.getenv(key)
     if not value:
         raise EnvironmentError(
-            f"Missing {key} in .env — required for {what}."
+            f"Missing {key} — required for {what}. Add it to your .env file "
+            f"locally, or to the app's Secrets on Streamlit Community Cloud."
         )
     return value
 

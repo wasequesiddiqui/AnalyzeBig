@@ -26,6 +26,8 @@ Environment Variables (.env)
 import os
 import re
 import io
+import urllib.error
+import urllib.request
 import streamlit as st
 import yfinance as yf
 import pandas as pd
@@ -57,6 +59,154 @@ st.set_page_config(
 # LOAD ENVIRONMENT VARIABLES
 # =========================================================
 load_dotenv()
+
+
+# =========================================================
+# SECRETS BRIDGE — .env locally, st.secrets on Streamlit Cloud
+# =========================================================
+# Locally, load_dotenv() above copies .env into os.environ. On Streamlit
+# Community Cloud there is no .env file: the same keys are entered in the app's
+# "Advanced settings" dialog and exposed ONLY through st.secrets. Every client
+# created below (ChatOpenAI, NewsApiClient, crewAI/LiteLLM, CHROMA_STORE) reads
+# os.getenv(...), so the secrets are mirrored into os.environ here — and this
+# must happen before those clients are constructed.
+def _load_secrets_into_env() -> None:
+    """Copy top-level st.secrets entries into os.environ (no-op when unset).
+
+    Nested TOML sections (e.g. ``[connections]``) are skipped, because only
+    scalars map cleanly to environment variables. ``setdefault`` is used so a
+    real environment variable — or a local ``.env`` value — always wins.
+
+    Important: ``st.secrets`` is a LAZY proxy. Accessing the attribute is always
+    safe, but the file is not parsed until ``.items()`` is called — and that
+    call raises ``StreamlitSecretNotFoundError`` when no secrets.toml exists,
+    which is the normal local case. That is why the whole read (attribute access
+    plus ``.items()``) sits inside the ``try``, and the result is materialised
+    with ``list()`` so no lazy exception can escape mid-iteration.
+    """
+    try:
+        secrets_items = list(st.secrets.items())
+    except Exception:
+        return  # no secrets.toml locally / nothing configured on Cloud
+    for key, value in secrets_items:
+        if isinstance(value, (str, int, float, bool)):
+            os.environ.setdefault(key, str(value))
+
+
+_load_secrets_into_env()
+
+
+@st.cache_resource(show_spinner=False)
+def _ensure_nltk_data() -> bool:
+    """Bootstrap the NLTK tokenizer data that TextBlob depends on.
+
+    A fresh Streamlit Cloud container ships no NLTK data, and TextBlob's
+    sentiment analyzer tokenizes with NLTK's ``word_tokenize``, which raises
+    ``LookupError`` without the ``punkt`` resources. This downloads them once
+    per container (into ``~/nltk_data``) so sentiment keeps working in the news
+    cards, the persona crew and the technical agent.
+
+    Returns:
+        bool: ``True`` when nltk is importable, ``False`` when it is not. Any
+            download failure is swallowed so the app still boots.
+    """
+    try:
+        import nltk
+    except Exception:
+        return False
+    for resource, path in (("punkt_tab", "tokenizers/punkt_tab"),
+                           ("punkt", "tokenizers/punkt")):
+        try:
+            nltk.data.find(path)
+        except LookupError:
+            try:
+                nltk.download(resource, quiet=True)
+            except Exception:
+                pass  # offline or blocked -> sentiment degrades, app still runs
+    return True
+
+
+_ensure_nltk_data()
+
+
+# =========================================================
+# API KEY VERIFICATION
+# =========================================================
+# The presence check in the sidebar only proves a variable is SET — a leftover
+# placeholder like "sk-xxxxxxxx" passes it happily. These helpers make one cheap
+# authenticated request per provider so that "valid" means the key really works.
+# Stdlib networking only, so this adds no dependency to requirements.txt.
+
+#: Rendered for each probe result.
+API_KEY_STATUS = {
+    "valid": ("✅", "valid — authenticated successfully"),
+    "invalid": ("❌", "rejected by the provider (placeholder, typo or expired key)"),
+    "unknown": ("⚠️", "could not verify (network or provider issue)"),
+}
+
+
+def _probe_endpoint(url: str, headers: dict, timeout: float = 6.0) -> str:
+    """Return ``valid``, ``invalid`` or ``unknown`` for one authenticated GET.
+
+    A 401/403 means the provider rejected the key itself, so that is reported as
+    ``invalid``. Any other status — or a connection failure — is ``unknown``, so
+    that a provider outage or a blocked network is never mistaken for a bad key.
+
+    Args:
+        url (str): Endpoint to call — pick one that requires authentication but
+            costs nothing meaningful (a balance lookup, or a one-item query).
+        headers (dict): Request headers, normally the Authorization header.
+        timeout (float): Per-request timeout in seconds.
+
+    Returns:
+        str: ``"valid"``, ``"invalid"`` or ``"unknown"``. Never raises.
+    """
+    try:
+        request = urllib.request.Request(url, headers=headers)
+        with urllib.request.urlopen(request, timeout=timeout) as response:
+            return "valid" if response.status == 200 else "unknown"
+    except urllib.error.HTTPError as exc:
+        return "invalid" if exc.code in (401, 403) else "unknown"
+    except Exception:  # noqa: BLE001  (DNS, TLS, timeout, proxy, ...)
+        return "unknown"
+
+
+@st.cache_data(ttl=600, show_spinner=False)
+def _verify_api_keys(deepseek_key: str, news_key: str) -> dict:
+    """Authenticate both API keys, caching the verdict for 10 minutes.
+
+    The keys are passed as arguments rather than read from the environment, so
+    rotating a key produces a different cache entry and is re-checked straight
+    away. This is only called when the user presses "Verify keys", so it never
+    slows down app boot or the normal rerun loop.
+
+    Args:
+        deepseek_key (str): Candidate DeepSeek key; ``""`` skips the check.
+        news_key (str): Candidate NewsAPI key; ``""`` skips the check.
+
+    Returns:
+        dict: One entry per non-empty key, e.g.
+            ``{"DEEPSEEK_API_KEY": "valid", "NEWS_API_KEY": "invalid"}``.
+
+    Note:
+        Reads are cheap but not free: the NewsAPI call consumes one request from
+        the free-tier daily quota, which is why this is button-driven and cached.
+    """
+    results: dict = {}
+    if deepseek_key:
+        # GET /user/balance is authenticated and free — ideal for a probe.
+        results["DEEPSEEK_API_KEY"] = _probe_endpoint(
+            "https://api.deepseek.com/user/balance",
+            {"Authorization": f"Bearer {deepseek_key}"},
+        )
+    if news_key:
+        # Cheapest authenticated NewsAPI call: a single-article query.
+        results["NEWS_API_KEY"] = _probe_endpoint(
+            "https://newsapi.org/v2/everything"
+            f"?q=markets&pageSize=1&apiKey={news_key}",
+            {},
+        )
+    return results
 
 # =========================================================
 # SESSION STATE INIT
@@ -1209,14 +1359,35 @@ def render_sidebar():
             key="display_currency",
             help="Prices will be converted to the selected currency for display"
         )
-        api_key_ok = bool(os.getenv("DEEPSEEK_API_KEY"))
-        news_key_ok = bool(os.getenv("NEWS_API_KEY"))
+        # Presence check — instant, but it only proves the variable is SET: a
+        # placeholder like "sk-xxxxxxxx" passes it. Hence the wording "key
+        # detected" rather than "configured". Press the button below to actually
+        # authenticate the keys against both providers.
+        deepseek_key = os.getenv("DEEPSEEK_API_KEY") or ""
+        news_key = os.getenv("NEWS_API_KEY") or ""
         st.markdown(
-            f"- DeepSeek API: {'✅ Configured' if api_key_ok else '❌ Missing'}"
+            f"- DeepSeek API: {'✅ Key detected' if deepseek_key else '❌ Missing'}"
         )
         st.markdown(
-            f"- NewsAPI: {'✅ Configured' if news_key_ok else '❌ Missing'}"
+            f"- NewsAPI: {'✅ Key detected' if news_key else '❌ Missing'}"
         )
+
+        if st.button(
+            "🔑 Verify keys",
+            use_container_width=True,
+            help="Makes one cheap authenticated request per provider and caches "
+                 "the result for 10 minutes.",
+        ):
+            st.session_state["key_verification"] = _verify_api_keys(
+                deepseek_key, news_key
+            )
+
+        for label, key_name in (("DeepSeek API", "DEEPSEEK_API_KEY"),
+                                ("NewsAPI", "NEWS_API_KEY")):
+            status = (st.session_state.get("key_verification") or {}).get(key_name)
+            if status:
+                icon, text = API_KEY_STATUS.get(status, API_KEY_STATUS["unknown"])
+                st.markdown(f"- {label}: {icon} {text}")
 
         st.markdown("---")
         st.markdown(
@@ -2183,6 +2354,9 @@ def render_persona_valuation(result: dict, display_currency: str = "INR"):
     personas = result.get("personas") or []
     aggregate = result.get("aggregate") or {}
     deterministic = result.get("deterministic_range") or {}
+    # False when too few rule-based personas priced (or it failed) — the whole
+    # rule-based comparison is then hidden rather than shown as a point estimate.
+    deterministic_usable = bool(result.get("deterministic_usable"))
 
     def _fmt(value) -> str:
         """Format a native-currency value in the display currency (— when None)."""
@@ -2269,6 +2443,14 @@ def render_persona_valuation(result: dict, display_currency: str = "INR"):
                 st.markdown(
                     f"**Fair value:** {_fmt(fv)} (in {src_cur}{delta_txt})"
                 )
+                # Rule-based estimate and the crew/rule average for this persona.
+                # Hidden when the rule-based model is degenerate (see above).
+                if deterministic_usable and p.get("blended_fair_value") is not None:
+                    st.markdown(
+                        f"**Rule-based:** {_fmt(p.get('deterministic_fair_value'))} "
+                        f"| **Average (CrewAI + rule-based):** "
+                        f"{_fmt(p.get('blended_fair_value'))}"
+                    )
                 st.markdown(f"**Thesis:** {p.get('one_line_thesis') or '—'}")
                 st.markdown(f"**Rationale:** {p.get('rationale') or '—'}")
                 sources = p.get("sources") or []
@@ -2303,6 +2485,44 @@ def render_persona_valuation(result: dict, display_currency: str = "INR"):
     #         "Rule-based 4-persona DCF range from PERSONA_BASED_VALUATION.py "
     #         "(converted to native currency) for comparison with the agentic crew."
     #     )
+    if deterministic_usable:
+        st.markdown("### 📊 Rule-based vs CrewAI")
+        d1, d2, d3, d4 = st.columns(4)
+        d1.metric("Det. min", _fmt(deterministic.get("min")))
+        d2.metric("Det. midpoint", _fmt(deterministic.get("mid")))
+        d3.metric("Det. max", _fmt(deterministic.get("max")))
+        d4.metric("Blended fair value", _fmt(result.get("blended_fair_value")))
+
+        # One card per persona, each showing the persona portrait (no emoji) plus
+        # the three figures. Mirrors the persona-card styling used above.
+        if personas:
+            for col, p in zip(st.columns(len(personas)), personas):
+                with col:
+                    with st.container(border=True):
+                        # Portrait only — deliberately no emoji fallback here, so a
+                        # persona whose image is unavailable shows just its name.
+                        if p.get("image"):
+                            st.image(p["image"], width=72)
+                        st.markdown(
+                            f"<p style='margin:0 0 6px 0; font-size:0.95rem; "
+                            f"font-weight:700;'>{p.get('persona', '')}</p>",
+                            unsafe_allow_html=True,
+                        )
+                        st.markdown(
+                            "<div style='font-size:0.85rem; line-height:1.7;'>"
+                            f"CrewAI: <b>{_fmt(p.get('fair_value_per_share'))}</b><br>"
+                            f"Rule-based: <b>{_fmt(p.get('deterministic_fair_value'))}</b><br>"
+                            f"Average: <b>{_fmt(p.get('blended_fair_value'))}</b>"
+                            "</div>",
+                            unsafe_allow_html=True,
+                        )
+        st.caption(
+            "Average = mean of the CrewAI and rule-based value for the same persona; "
+            "Blended fair value = mean of those averages "
+            f"({result.get('deterministic_participating', 0)} of {len(personas)} "
+            "rule-based personas priced). 'Det. midpoint' is the rule-based min/max "
+            "midpoint, which is not the same as a persona's Average."
+        )
 
     # ── Usage + errors ──
     usage = result.get("usage") or {}

@@ -1,7 +1,7 @@
 import yfinance as yf
 import pandas as pd
 import numpy as np
-from typing import Tuple, Optional
+from typing import Dict, List, Optional, Tuple
 
 # -------------------------------------------------------------------
 # Helper: safe extraction from financial DataFrames
@@ -17,10 +17,31 @@ def _get_fin(df: pd.DataFrame, names: list, idx: int = 0) -> float:
 # -------------------------------------------------------------------
 # Main function: persona‑refined super valuation
 # -------------------------------------------------------------------
-def persona_super_valuation(ticker: str) -> Tuple[Optional[float], Optional[float], Optional[float]]:
-    """
-    Computes four persona‑based fair values (Buffett, Munger, Jhunjhunwala, Damodaran)
-    and returns the min, max, and simple average of those per‑share prices.
+def _persona_prices(ticker: str) -> List[Tuple[str, float]]:
+    """Extract the four rule-based per-share persona values for a ticker.
+
+    Internal engine shared by persona_super_valuation() and persona_valuations().
+    It runs the four rule-based models (Buffett owner earnings, Munger residual
+    income, Jhunjhunwala three-stage FCFF, Damodaran scenario DCF) and returns
+    each named result in the company's REPORTING currency.
+
+    A rule is only included when its per-share value came out positive. That is
+    the pre-existing `if val > 0` filter, preserved deliberately so the range and
+    the per-persona values can never disagree.
+
+    Failures are logged, never raised: on any error (including "all four rules
+    failed") this returns an empty list, so both public wrappers degrade cleanly.
+
+    Returns:
+        List[Tuple[str, float]]: Named values, e.g.
+            [('Buffett', 1280.0), ('Munger', 1250.0)], in reporting currency.
+            Empty list when nothing could be computed.
+
+    Example:
+        Reached through the public wrappers rather than called directly::
+
+            persona_valuations("AAPL")        # -> {'Buffett': 187.4, ...}
+            persona_super_valuation("AAPL")   # -> (min, max, midpoint)
     """
     try:
         stock = yf.Ticker(ticker)
@@ -38,8 +59,23 @@ def persona_super_valuation(ticker: str) -> Tuple[Optional[float], Optional[floa
         ni = _get_fin(fin, ['Net Income', 'Net Income Common Stockholders'])
         int_exp = _get_fin(fin, ['Interest Expense', 'Interest Expense Non Operating'], 0)
         tax = _get_fin(fin, ['Tax Provision', 'Income Tax Expense'])
-        depr = _get_fin(fin, ['Depreciation & Amortization', 'Depreciation And Amortization', 'Depreciation'])
-        capex = _get_fin(cf, ['Capital Expenditure', 'Capital Expenditures']) * -1 if _get_fin(cf, ['Capital Expenditure', 'Capital Expenditures']) < 0 else _get_fin(cf, ['Capital Expenditure', 'Capital Expenditures'])
+        # D&A lives on the INCOME statement as 'Reconciled Depreciation' for most
+        # yfinance listings and on the CASHFLOW statement as 'Depreciation And
+        # Amortization', so check both and then fall back to zero. Without this,
+        # depr is NaN and the Buffett / Jhunjhunwala / Damodaran rules are all
+        # silently dropped (Munger is the only rule that never uses depr).
+        depr = _get_fin(fin, ['Depreciation & Amortization', 'Depreciation And Amortization',
+                              'Depreciation', 'Reconciled Depreciation'])
+        if pd.isna(depr):
+            depr = _get_fin(cf, ['Depreciation And Amortization',
+                                 'Depreciation Amortization Depletion', 'Depreciation'])
+        if pd.isna(depr):
+            depr = 0.0
+
+        # Yahoo signs capex negative; normalise it to a positive spend and treat a
+        # missing row as zero instead of NaN.
+        capex_raw_signed = _get_fin(cf, ['Capital Expenditure', 'Capital Expenditures'])
+        capex = abs(capex_raw_signed) if not pd.isna(capex_raw_signed) else 0.0
         div_paid = _get_fin(cf, ['Dividends Paid'])
         shares = info.get('sharesOutstanding')
         if not shares:
@@ -49,22 +85,45 @@ def persona_super_valuation(ticker: str) -> Tuple[Optional[float], Optional[floa
         # Balance sheet
         tot_assets = _get_fin(bs, ['Total Assets'])
         cash = _get_fin(bs, ['Cash And Cash Equivalents', 'Cash'])
-        std = _get_fin(bs, ['Short Term Debt', 'Current Debt'])
-        ltd = _get_fin(bs, ['Long Term Debt', 'Long Term Debt And Capital Lease Obligation'])
+        # Debt label sets differ a lot by listing (Indian filings have no 'Short
+        # Term Debt' row at all), so widen the candidates and treat a missing row
+        # as zero. A NaN here propagates through nwc and removes three rules.
+        std = _get_fin(bs, ['Short Term Debt', 'Current Debt',
+                            'Current Debt And Capital Lease Obligation',
+                            'Current Debt And Lease Obligation', 'Other Current Borrowings'])
+        if pd.isna(std):
+            std = 0.0
+        ltd = _get_fin(bs, ['Long Term Debt', 'Long Term Debt And Capital Lease Obligation',
+                            'Long Term Debt And Lease Obligation'])
+        if pd.isna(ltd):
+            ltd = 0.0
         tot_debt = std + ltd
         equity = _get_fin(bs, ['Total Stockholder Equity', 'Total Equity Gross Minority Interest'])
         nwc = (_get_fin(bs, ['Current Assets']) - cash) - (_get_fin(bs, ['Current Liabilities']) - std)
+        if pd.isna(nwc):
+            nwc = 0.0
         # previous equity for residual income
         equity_prev = _get_fin(bs, ['Total Stockholder Equity', 'Total Equity Gross Minority Interest'], 1)
         if pd.isna(equity_prev) or equity_prev <= 0:
             equity_prev = equity - ni + div_paid if not pd.isna(div_paid) else equity - ni
 
         # Ratios
+        def _ratio(num: float, den: float, default: float) -> float:
+            """Return num/den, or `default` when an input is missing or den is 0.
+
+            yfinance omits whole rows for many listings, and an unguarded NaN
+            here propagates into a persona rule and silently removes it from the
+            range — which is how this model ended up with only one survivor.
+            """
+            if pd.isna(num) or pd.isna(den) or not den:
+                return default
+            return num / den
+
         tax_rate = tax / (ni + tax) if (ni + tax) > 0 else 0.21
-        ebit_margin = ebit / rev if rev > 0 else 0.15
-        depr_ratio = depr / rev if rev > 0 else 0.03
-        capex_ratio = capex / rev if rev > 0 else 0.03
-        nwc_ratio = nwc / rev if rev > 0 else 0.1
+        ebit_margin = _ratio(ebit, rev, 0.15)
+        depr_ratio = _ratio(depr, rev, 0.03)
+        capex_ratio = _ratio(capex, rev, 0.03)
+        nwc_ratio = _ratio(nwc, rev, 0.1)
 
         # Cost of capital
         rf = 0.04                  # base US risk‑free
@@ -85,8 +144,8 @@ def persona_super_valuation(ticker: str) -> Tuple[Optional[float], Optional[floa
         if pd.isna(rev_growth) or rev_growth < -0.5:
             rev_growth = 0.05
         rev_growth = max(0.0, min(0.30, rev_growth))  # cap 0‑30%
-        roe = ni / equity_prev if equity_prev > 0 else 0.15
-        roic = (ebit * (1 - tax_rate)) / (tot_assets - cash + nwc) if tot_assets else 0.10  # rough
+        roe = _ratio(ni, equity_prev, 0.15)
+        roic = _ratio(ebit * (1 - tax_rate), tot_assets - cash + nwc, 0.10)  # rough
         g_term = min(rf, 0.025)
 
         # --- Persona Confidence Index (PCI) factors ---------------
@@ -219,18 +278,100 @@ def persona_super_valuation(ticker: str) -> Tuple[Optional[float], Optional[floa
         if not prices:
             raise ValueError("All persona valuations failed.")
 
-        # Apply PCI weights to obtain final blended price (for audit)
-        # but the requested output is min, max, avg of the raw persona estimates.
-        # We return the simple min/max/midpoint as requested.
-        vals = [p[1] for p in prices]
-        min_p = min(vals)
-        max_p = max(vals)
-        avg_p = (min_p + max_p) / 2
-        return min_p, max_p, avg_p
+        # The named values are returned as-is: both public wrappers derive their
+        # output from this single list, so the range and the per-persona figures
+        # are guaranteed to come from identical numbers.
+        return prices
 
     except Exception as e:
         print(f"Error for {ticker}: {e}")
+        return []
+
+
+#: Canonical persona names produced by _persona_prices(), in report order.
+PERSONA_RULE_NAMES: Tuple[str, ...] = ("Buffett", "Munger", "Jhunjhunwala", "Damodaran")
+
+
+def persona_super_valuation(ticker: str) -> Tuple[Optional[float], Optional[float], Optional[float]]:
+    """Return the (min, max, midpoint) per-share range across the four personas.
+
+    Thin wrapper over _persona_prices() that keeps the original public contract:
+    same values, same order, and (None, None, None) when nothing could be valued.
+
+    Note that the third element is the MIDPOINT of min and max, not the mean of
+    the four persona values. That is pre-existing behaviour and is left untouched
+    on purpose, since existing callers depend on it. Use persona_valuations()
+    when you want the individual values instead of the range.
+
+    Args:
+        ticker (str): Complete Yahoo symbol, e.g. "AAPL" or "INFY.NS".
+
+    Returns:
+        Tuple[Optional[float], Optional[float], Optional[float]]: (min, max, mid)
+            in the company's REPORTING currency, or (None, None, None) on failure.
+
+    Example:
+        Unchanged usage, so this call site keeps working::
+
+            min_p, max_p, mid = persona_super_valuation("AAPL")
+            print(f"AAPL range: {min_p:.2f} - {max_p:.2f} | mid {mid:.2f}")
+    """
+    prices = _persona_prices(ticker)
+    if not prices:
         return None, None, None
+    vals = [p[1] for p in prices]
+    min_p = min(vals)
+    max_p = max(vals)
+    avg_p = (min_p + max_p) / 2
+    return min_p, max_p, avg_p
+
+
+def persona_valuations(ticker: str) -> Dict[str, Optional[float]]:
+    """Return each rule-based persona's per-share value for a ticker.
+
+    The per-persona counterpart to persona_super_valuation(): same underlying
+    computation, but the four values stay separate and labelled instead of being
+    collapsed into a range. This is what lets the agentic crew be compared, and
+    blended, persona by persona.
+
+    All four keys are ALWAYS present. A key maps to None when that rule produced
+    no positive value (or when the whole computation failed), so callers can count
+    participants without special-casing a missing key.
+
+    Values are in the company's REPORTING currency (USD for INFY.NS), which may
+    differ from its trading currency. Convert before comparing with a market
+    price.
+
+    Args:
+        ticker (str): Complete Yahoo symbol, e.g. "AAPL" or "INFY.NS".
+
+    Returns:
+        Dict[str, Optional[float]]: Keys Buffett, Munger, Jhunjhunwala,
+            Damodaran; values in reporting currency, or None. Never raises.
+
+    Example:
+        Separating the four opinions::
+
+            >>> vals = persona_valuations("AAPL")          # doctest: +SKIP
+            >>> vals["Buffett"], vals["Damodaran"]         # doctest: +SKIP
+            (187.42, 203.11)
+
+        Counting how many rules actually priced. Fewer than two is treated as
+        degenerate by the UI, which then hides the comparison entirely::
+
+            >>> vals = persona_valuations("INFY.NS")       # doctest: +SKIP
+            >>> sum(1 for v in vals.values() if v is not None)   # doctest: +SKIP
+            4
+
+        A total failure yields four None values rather than an exception::
+
+            >>> persona_valuations("NOT_A_TICKER")         # doctest: +SKIP
+            {'Buffett': None, 'Munger': None, 'Jhunjhunwala': None, 'Damodaran': None}
+    """
+    found: Dict[str, float] = {}
+    for name, value in _persona_prices(ticker):
+        found[name] = float(value)
+    return {name: found.get(name) for name in PERSONA_RULE_NAMES}
 
 # -------------------------------------------------------------------
 # Example
@@ -241,3 +382,12 @@ if __name__ == "__main__":
         print(f"AAPL Persona Range: ${min_p:.2f} – ${max_p:.2f} | Midpoint: ${mid:.2f}")
     else:
         print("Valuation could not be computed.")
+
+    # Per-persona breakdown: what each rule-based model produced, and how many of
+    # the four actually priced. Fewer than two priced values means the range is
+    # degenerate (min == max == midpoint) and the UI hides it.
+    per_persona = persona_valuations("AAPL")
+    priced = sum(1 for v in per_persona.values() if v is not None)
+    print(f"\nPer-persona rule-based values ({priced}/4 priced):")
+    for name, value in per_persona.items():
+        print(f"  {name:<14} {'-' if value is None else f'${value:,.2f}'}")

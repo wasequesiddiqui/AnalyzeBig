@@ -376,6 +376,11 @@ class PersonaValuation(BaseModel):
         fair_value_per_share (float | None): Fair value expressed in
             ``currency``; ``None`` when the persona declined to estimate (see
             ``stance``), or when its number failed the plausibility check.
+        deterministic_fair_value (float | None): The matching rule-based estimate
+            from ``PERSONA_BASED_VALUATION``, converted into the market-price
+            currency. ``None`` when that rule produced no value.
+        blended_fair_value (float | None): Mean of ``fair_value_per_share`` and
+            ``deterministic_fair_value``; ``None`` unless BOTH exist.
         currency (str): Currency of ``fair_value_per_share`` — always the
             stock's *market-price* currency, never the reporting currency.
         stance (str): One of ``Undervalued`` / ``Fairly valued`` /
@@ -404,8 +409,8 @@ class PersonaValuation(BaseModel):
         JSON-safe, so it round-trips through ``st.session_state`` or an HTTP
         response via ``.model_dump()``::
 
-            >>> sorted(card.model_dump())[:3]
-            ['conviction', 'currency', 'emoji']
+            >>> "blended_fair_value" in card.model_dump()
+            True
 
         ``conviction`` is validated on construction, so ``conviction=1.5``
         raises ``pydantic.ValidationError`` rather than silently rendering a
@@ -424,6 +429,16 @@ class PersonaValuation(BaseModel):
     image: str = Field("", description="Portrait image path for the persona card")
     fair_value_per_share: Optional[float] = Field(
         None, description="Fair value per share in the stock's native currency"
+    )
+    deterministic_fair_value: Optional[float] = Field(
+        None,
+        description="Rule-based (PERSONA_BASED_VALUATION) fair value per share, "
+                    "converted to the market-price currency",
+    )
+    blended_fair_value: Optional[float] = Field(
+        None,
+        description="Mean of the crew and rule-based fair values for this persona "
+                    "(None unless both exist)",
     )
     currency: str = Field("USD", description="Currency of the fair value")
     stance: str = Field(
@@ -507,6 +522,20 @@ class PersonaCrewResult(BaseModel):
         aggregate (AggregateResult): Consensus range and commentary.
         deterministic_range (dict): ``{'min': .., 'max': .., 'mid': ..}`` from
             the rule-based model, or ``{'error': '...'}`` if that failed.
+        deterministic_personas (dict): Rule-based fair value per persona, keyed by
+            the ``key`` field of :data:`PERSONAS` and converted to the
+            market-price currency; ``None`` for personas the rules did not price.
+        deterministic_participating (int): How many rule-based personas produced a
+            value (0-4).
+        deterministic_usable (bool): ``True`` when at least
+            ``MIN_DETERMINISTIC_PERSONAS`` rule-based personas priced, i.e. when
+            there is something to compare at all. The UI hides the panel when this
+            is ``False``. Individual personas whose rule-based value is missing are
+            dropped from the comparison silently: the panel shows their CrewAI
+            value and no average, rather than hiding the whole table.
+        blended_fair_value (float | None): Mean of the per-persona blended values
+            (crew and rule-based averaged per persona), or ``None`` when no persona
+            has both.
         errors (list[str]): Human-readable partial-failure notes; empty on a
             clean run.
         usage (dict): ``total_tokens`` / ``prompt_tokens`` /
@@ -551,6 +580,20 @@ class PersonaCrewResult(BaseModel):
     deterministic_range: dict[str, Optional[float]] = Field(
         default_factory=dict, description="min/max/mid from PERSONA_BASED_VALUATION"
     )
+    deterministic_personas: dict[str, Optional[float]] = Field(
+        default_factory=dict,
+        description="Rule-based fair value per PERSONAS key, in market currency",
+    )
+    deterministic_participating: int = Field(
+        0, description="Rule-based personas that produced a value (0-4)"
+    )
+    deterministic_usable: bool = Field(
+        False,
+        description="True when enough rule-based personas priced to be shown",
+    )
+    blended_fair_value: Optional[float] = Field(
+        None, description="Mean of the per-persona blended fair values"
+    )
     errors: list[str] = Field(default_factory=list)
     usage: dict[str, Any] = Field(default_factory=dict)
 
@@ -568,6 +611,9 @@ class PersonaCrewResult(BaseModel):
 # Keys (all strings):
 #     key       Short slug; the crewAI task is named ``persona_<key>`` and that
 #               name is how the raw output is mapped back to the persona.
+#     det_key   Name used by ``PERSONA_BASED_VALUATION.persona_valuations()`` for
+#               the matching rule-based estimate, e.g. "Buffett". Links the LLM
+#               persona to its rule-based counterpart for the blended average.
 #     persona   Display name shown on the card, e.g. "Warren Buffett".
 #     emoji     Fallback glyph used when no portrait resolves.
 #     image     File name inside ./images, or "" to always use the emoji.
@@ -599,6 +645,7 @@ class PersonaCrewResult(BaseModel):
 PERSONAS: list[dict[str, str]] = [
     {
         "key": "warren_buffett",
+        "det_key": "Buffett",
         "persona": "Warren Buffett",
         "emoji": "🧸",
         "image": "WARREN_BUFFET.png",
@@ -619,6 +666,7 @@ PERSONAS: list[dict[str, str]] = [
     },
     {
         "key": "charlie_munger",
+        "det_key": "Munger",
         "persona": "Charlie Munger",
         "emoji": "🧠",
         "image": "CHARLIE_MUNGER.png",
@@ -640,6 +688,7 @@ PERSONAS: list[dict[str, str]] = [
     },
     {
         "key": "jhunjhunwala",
+        "det_key": "Jhunjhunwala",
         "persona": "Rakesh Jhunjhunwala",
         "emoji": "🦁",
         "image": "RAKESH.png",
@@ -661,6 +710,7 @@ PERSONAS: list[dict[str, str]] = [
     },
     {
         "key": "damodaran",
+        "det_key": "Damodaran",
         "persona": "Aswath Damodaran",
         "emoji": "📐",
         "image": "ASWATH.png",
@@ -1955,14 +2005,175 @@ Use ONLY the persona fair values provided in context — never invent numbers.
 # =========================================================
 
 
+# =========================================================
+# RULE-BASED (PERSONA_BASED_VALUATION) BRIDGE
+# =========================================================
+# The agentic crew and the rule-based model must be compared in the SAME currency
+# and must derive from ONE computation, so these three helpers are the only bridge
+# between the two modules:
+#
+#   deterministic_persona_values()  -> per-persona values, market currency
+#   _range_from_persona_values()    -> min/max/midpoint over those values
+#   deterministic_range()           -> the range, for direct callers
+#
+# Example:
+#     >>> deterministic_persona_values("INFY.NS", to_currency="INR")   # doctest: +SKIP
+#     {'warren_buffett': None, 'charlie_munger': 346.1, ...}
+#     >>> deterministic_range("INFY.NS", to_currency="INR")            # doctest: +SKIP
+#     {'min': 346.1, 'max': 346.1, 'mid': 346.1}
+
+
+# Minimum number of rule-based personas that must produce a value before the panel
+# is shown at all. Kept at 1 so the comparison still appears when the rule-based
+# model prices only some personas: a persona whose rule-based value is missing is
+# dropped from the comparison silently, and the panel then shows its CrewAI value
+# with no average rather than hiding the whole table.
+MIN_DETERMINISTIC_PERSONAS = 1
+
+
+def _convert_money(
+    value: Optional[float], from_currency: str, to_currency: Optional[str]
+) -> Optional[float]:
+    """Convert one money value between currencies, unchanged when not possible.
+
+    Returns ``value`` untouched when it is ``None``, when no target currency was
+    given, when both currencies already match, or when the FX lookup degrades to
+    ``1.0`` — a slightly wrong magnitude beats a crashed valuation.
+
+    Args:
+        value (float | None): Amount expressed in ``from_currency``.
+        from_currency (str): Currency ``value`` is expressed in.
+        to_currency (str | None): Target currency; ``None`` means "do not convert".
+
+    Returns:
+        float | None: The converted amount, or ``value`` unchanged.
+
+    Example:
+        Missing-target and same-currency cases are no-ops::
+
+            >>> _convert_money(100.0, "USD", "USD")
+            100.0
+            >>> _convert_money(100.0, "USD", None)
+            100.0
+            >>> _convert_money(None, "USD", "INR") is None
+            True
+    """
+    if value is None or not to_currency or not from_currency:
+        return value
+    if from_currency.upper() == to_currency.upper():
+        return value
+    rate = get_fx_rate(from_currency, to_currency)
+    return value * rate if rate and rate != 1.0 else value
+
+
+def deterministic_persona_values(
+    ticker: str, to_currency: Optional[str] = None
+) -> dict[str, Optional[float]]:
+    """Return the rule-based fair value for each persona, keyed by crew key.
+
+    Bridges ``PERSONA_BASED_VALUATION.persona_valuations`` (which labels its output
+    ``Buffett`` / ``Munger`` / ``Jhunjhunwala`` / ``Damodaran``) to the crew's
+    :data:`PERSONAS` keys via each entry's ``det_key``. Every persona key is always
+    present, with ``None`` where the rule produced no value, so the caller can
+    count participants without special-casing a missing key.
+
+    Values are converted from the company's reporting currency into
+    ``to_currency`` (normally the market-price currency) so they line up with the
+    crew's fair values.
+
+    Args:
+        ticker (str): Complete Yahoo symbol, e.g. ``"INFY.NS"``.
+        to_currency (str | None): Target currency, typically
+            ``get_price_snapshot(ticker)["currency"]``.
+
+    Returns:
+        dict[str, Optional[float]]: One entry per :data:`PERSONAS` key, e.g.
+            ``{'warren_buffett': None, 'charlie_munger': 346.1, ...}``. Never
+            raises — an unexpected failure yields all-``None``.
+
+    Example:
+        Compare each rule-based value with its crew counterpart::
+
+            >>> rule = deterministic_persona_values("INFY.NS", to_currency="INR")   # doctest: +SKIP
+            >>> rule["charlie_munger"]                                            # doctest: +SKIP
+            346.1
+
+        Count how many rules priced, which is what drives
+        :data:`MIN_DETERMINISTIC_PERSONAS`::
+
+            priced = sum(
+                1
+                for value in deterministic_persona_values("AAPL", "USD").values()
+                if value is not None
+            )
+    """
+    try:
+        raw = pv.persona_valuations(ticker)
+    except Exception:  # noqa: BLE001
+        return {meta["key"]: None for meta in PERSONAS}
+    from_currency = reporting_currency(ticker)
+    return {
+        meta["key"]: _convert_money(
+            raw.get(meta.get("det_key", "")), from_currency, to_currency
+        )
+        for meta in PERSONAS
+    }
+
+
+def _range_from_persona_values(
+    values: dict[str, Optional[float]]
+) -> dict[str, Optional[float]]:
+    """Collapse per-persona values into a min/max/midpoint range.
+
+    Replicates ``PERSONA_BASED_VALUATION.persona_super_valuation`` exactly, so the
+    range and the per-persona figures are always derived from the same numbers.
+    ``mid`` is the **midpoint of min and max**, not the mean of the values.
+
+    Args:
+        values (dict[str, Optional[float]]): Persona key to fair value; ``None``
+            entries are ignored.
+
+    Returns:
+        dict[str, Optional[float]]: ``{'min', 'max', 'mid'}``, all ``None`` when
+            nothing priced.
+
+    Example:
+        Two participants, so the midpoint sits halfway between the extremes::
+
+            >>> _range_from_persona_values({"a": 100.0, "b": None, "c": 130.0})
+            {'min': 100.0, 'max': 130.0, 'mid': 115.0}
+
+        A single participant collapses to a point — the degenerate case the UI
+        hides::
+
+            >>> _range_from_persona_values({"a": 26.3, "b": None})
+            {'min': 26.3, 'max': 26.3, 'mid': 26.3}
+
+        Nobody priced::
+
+            >>> _range_from_persona_values({"a": None})["min"] is None
+            True
+    """
+    vals = [v for v in values.values() if v is not None]
+    if not vals:
+        return {"min": None, "max": None, "mid": None}
+    low, high = min(vals), max(vals)
+    return {"min": low, "max": high, "mid": (low + high) / 2}
+
+
 def deterministic_range(ticker: str, to_currency: Optional[str] = None) -> dict[str, Optional[float]]:
     """Compute the deterministic 4-persona range for side-by-side comparison.
 
-    ``PERSONA_BASED_VALUATION.persona_super_valuation`` derives per-share values
-    from the financial statements, so for dual-listed names it returns values in
-    the *reporting* currency (e.g. USD for ``INFY.NS``). When ``to_currency`` is
-    given and differs from the reporting currency, the result is converted so it
-    can be compared against the price-currency fair values from the crew.
+    Derived from :func:`deterministic_persona_values` (which reads
+    ``PERSONA_BASED_VALUATION.persona_valuations``) using the same min/max/midpoint
+    arithmetic as ``persona_super_valuation`` — ``mid`` is the **midpoint of min
+    and max**, not the mean of the four values.
+
+    The rule-based model derives per-share values from the financial statements,
+    so for dual-listed names they come back in the *reporting* currency (e.g. USD
+    for ``INFY.NS``). When ``to_currency`` is given and differs from the reporting
+    currency, the values are converted so they can be compared against the
+    price-currency fair values from the crew.
 
     Args:
         ticker (str): Complete Yahoo symbol.
@@ -1996,14 +2207,9 @@ def deterministic_range(ticker: str, to_currency: Optional[str] = None) -> dict[
         collapsing to a point estimate is itself information worth showing.
     """
     try:
-        low, high, mid = pv.persona_super_valuation(ticker)
-        if to_currency and low is not None:
-            from_cur = reporting_currency(ticker)
-            if from_cur != to_currency:
-                rate = get_fx_rate(from_cur, to_currency)
-                if rate and rate != 1.0:
-                    low, high, mid = (low * rate, high * rate, mid * rate)
-        return {"min": low, "max": high, "mid": mid}
+        return _range_from_persona_values(
+            deterministic_persona_values(ticker, to_currency=to_currency)
+        )
     except Exception as e:  # noqa: BLE001
         return {"error": str(e)}
 
@@ -2163,7 +2369,17 @@ def run_persona_crew(
             f"currency). If you need to convert, use the approximate rate "
             f"1 {rep_cur} \u2248 {rate:,.2f} {currency} (so 1 {currency} \u2248 {1/rate:,.4f} {rep_cur}).\n"
         )
-    result.deterministic_range = deterministic_range(snap["ticker"], to_currency=currency)
+    # One computation serves both the range and the per-persona values, so the
+    # two can never disagree (and the statements are fetched only once).
+    det_values = deterministic_persona_values(snap["ticker"], to_currency=currency)
+    result.deterministic_personas = det_values
+    result.deterministic_range = _range_from_persona_values(det_values)
+    result.deterministic_participating = sum(
+        1 for value in det_values.values() if value is not None
+    )
+    result.deterministic_usable = (
+        result.deterministic_participating >= MIN_DETERMINISTIC_PERSONAS
+    )
 
     # 3. Build crew
     llm = get_llm()
@@ -2246,7 +2462,50 @@ def run_persona_crew(
         result.errors.append(f"Crew execution failed: {e}")
         result.aggregate = _compute_fallback_aggregate(result.personas, currency)
 
+    # 5. Blend the rule-based values into the cards (mean of the two
+    #    methodologies per persona) and derive the overall blended value.
+    _apply_deterministic_blend(result)
+
     return result
+
+
+def _apply_deterministic_blend(result: PersonaCrewResult) -> None:
+    """Attach the rule-based value and the crew/rule average to each card.
+
+    Mutates ``result`` in place:
+
+    * ``card.deterministic_fair_value`` — the matching rule-based estimate.
+    * ``card.blended_fair_value`` — mean of the crew and rule-based values, or
+      ``None`` when either side is missing. A missing rule-based value must not
+      silently drag the average towards zero.
+    * ``result.blended_fair_value`` — mean of the per-persona averages.
+
+    Cards are matched to :data:`PERSONAS` positionally, which is safe because
+    :func:`run_persona_crew` appends exactly one card per persona, in order, on
+    every path (success, missing output, or parse failure).
+
+    Args:
+        result (PersonaCrewResult): The partially built result to enrich.
+
+    Example:
+        One blended value per persona, plus the overall mean of those::
+
+            _apply_deterministic_blend(res)
+            res.personas[0].blended_fair_value     # (crew + rule) / 2
+            res.blended_fair_value                 # mean across personas
+    """
+    rule_values = result.deterministic_personas or {}
+    blended: list[float] = []
+    for meta, card in zip(PERSONAS, result.personas):
+        rule_value = rule_values.get(meta["key"])
+        card.deterministic_fair_value = rule_value
+        crew_value = card.fair_value_per_share
+        if rule_value is not None and crew_value is not None:
+            card.blended_fair_value = (rule_value + crew_value) / 2
+            blended.append(card.blended_fair_value)
+        else:
+            card.blended_fair_value = None
+    result.blended_fair_value = sum(blended) / len(blended) if blended else None
 
 
 def _summarise_usage(metrics: Any) -> dict[str, Any]:
@@ -2332,6 +2591,20 @@ if __name__ == "__main__":
     # currency by run_persona_crew. Shows {'error': ...} rather than {'min', ...}
     # if PERSONA_BASED_VALUATION raised.
     print(f"Deterministic range: {res.deterministic_range}")
+
+    # Crew vs rule-based vs their average, per persona. The UI hides this whole
+    # section when deterministic_usable is False (too few rule-based personas
+    # priced for the comparison to mean anything).
+    def _num(value):
+        return "None" if value is None else f"{value:,.2f}"
+
+    print(f"\nBlended view (deterministic_usable={res.deterministic_usable}, "
+          f"{res.deterministic_participating}/{len(res.personas)} rule-based priced)")
+    for meta, p in zip(PERSONAS, res.personas):
+        rule_value = res.deterministic_personas.get(meta["key"])
+        print(f"  {p.persona:<22} crew={_num(p.fair_value_per_share):>10}"
+              f"  rule={_num(rule_value):>10}  avg={_num(p.blended_fair_value):>10}")
+    print(f"  Overall blended fair value: {_num(res.blended_fair_value)}")
 
     # Partial failures are surfaced, never swallowed.
     if res.errors:
