@@ -1,0 +1,1373 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Chroma Persistence Layer — CHROMA_STORE.py Reference</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+
+<style>
+/* ── Design tokens ───────────────────────────────────────────────── */
+:root{
+  --bg:#f5f7fb; --surface:#fff; --surface-2:#fafbfe; --border:#e4e8f0;
+  --text:#0f172a; --text-2:#5b6679; --text-3:#8b95a7;
+  --accent:#4f46e5; --accent-soft:#eef0ff; --accent-2:#0284c7;
+  --green:#0f9d58; --green-soft:#e8f7ef;
+  --amber:#b45309; --amber-soft:#fdf3e3;
+  --rose:#be123c; --rose-soft:#fdeaf0;
+  --violet:#7c3aed; --violet-soft:#f3ecfe;
+  --teal:#0f766e; --teal-soft:#e6f6f4;
+  --code-bg:#f3f5fa;
+  --radius:14px; --radius-sm:9px;
+  --shadow:0 1px 2px rgba(15,23,42,.05), 0 10px 28px -14px rgba(15,23,42,.22);
+  --mono:"JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+[data-theme="dark"]{
+  --bg:#080b13; --surface:#0f1523; --surface-2:#121a2b; --border:#222c42;
+  --text:#e9eefb; --text-2:#9aa6bd; --text-3:#6c7891;
+  --accent:#8f8ff8; --accent-soft:#1a1f3d; --accent-2:#4cc9f0;
+  --green:#3ddc97; --green-soft:#0d2a1f;
+  --amber:#f0b357; --amber-soft:#2a1f0d;
+  --rose:#fb7185; --rose-soft:#2d1119;
+  --violet:#c4b5fd; --violet-soft:#1f1836;
+  --teal:#5eead4; --teal-soft:#082522;
+  --code-bg:#0c1220;
+  --shadow:0 1px 2px rgba(0,0,0,.6), 0 14px 36px -18px rgba(0,0,0,.9);
+}
+
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0; background:var(--bg); color:var(--text);
+  font-family:Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size:15px; line-height:1.65; -webkit-font-smoothing:antialiased}
+
+/* ── Header ──────────────────────────────────────────────────────── */
+header{position:sticky; top:0; z-index:40;
+  background:color-mix(in srgb, var(--surface) 88%, transparent);
+  backdrop-filter:blur(12px); border-bottom:1px solid var(--border)}
+.hdr-inner{max-width:1180px; margin:0 auto; padding:14px 26px;
+  display:flex; align-items:center; gap:16px}
+.brand{display:flex; align-items:center; gap:13px; min-width:0}
+.logo{width:40px; height:40px; flex:none; border-radius:11px;
+  background:linear-gradient(135deg, #f59e0b, var(--accent));
+  display:grid; place-items:center; color:#fff; font-weight:700; font-size:12px;
+  box-shadow:0 6px 16px -6px var(--accent)}
+.brand h1{margin:0; font-size:16.5px; font-weight:650; letter-spacing:-.01em; white-space:nowrap}
+.brand p{margin:0; font-size:12.5px; color:var(--text-2)}
+.hdr-actions{margin-left:auto; display:flex; align-items:center; gap:10px}
+.src-chip{font-family:var(--mono); font-size:11.5px; padding:5px 11px; border-radius:99px;
+  background:var(--code-bg); border:1px solid var(--border); color:var(--text-2); white-space:nowrap}
+.icon-btn{width:36px; height:36px; border-radius:10px; border:1px solid var(--border);
+  background:var(--surface); color:var(--text-2); cursor:pointer;
+  display:grid; place-items:center; font-size:15px; transition:.15s}
+.icon-btn:hover{color:var(--accent); border-color:var(--accent)}
+
+main{max-width:1180px; margin:0 auto; padding:26px 26px 90px}
+
+/* ── Tabs ────────────────────────────────────────────────────────── */
+.tabs{display:flex; gap:5px; padding:6px; margin-bottom:26px;
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:13px; box-shadow:var(--shadow); overflow-x:auto}
+.tab{flex:1 1 auto; min-width:104px; border:0; cursor:pointer; background:transparent;
+  color:var(--text-2); font:inherit; font-weight:550; font-size:13px;
+  padding:10px 13px; border-radius:9px; transition:.15s; white-space:nowrap}
+.tab:hover{color:var(--text); background:var(--surface-2)}
+.tab.active{background:linear-gradient(135deg, var(--accent), var(--accent-2));
+  color:#fff; box-shadow:0 6px 18px -8px var(--accent)}
+.tab.active[data-a="chroma"]{background:linear-gradient(135deg,#0284c7,#075985); box-shadow:0 6px 18px -8px #0284c7}
+.tab.active[data-a="doc"]{background:linear-gradient(135deg,#6366f1,#4338ca); box-shadow:0 6px 18px -8px #4f46e5}
+.tab.active[data-a="persona"]{background:linear-gradient(135deg,#8b5cf6,#6d28d9); box-shadow:0 6px 18px -8px #7c3aed}
+.tab.active[data-a="meta"]{background:linear-gradient(135deg,#0d9488,#0f766e); box-shadow:0 6px 18px -8px #0f766e}
+.tab.active[data-a="api"]{background:linear-gradient(135deg,#d97706,#b45309); box-shadow:0 6px 18px -8px #b45309}
+
+.panel{display:none}
+.panel.active{display:block; animation:fade .22s ease}
+@keyframes fade{from{opacity:0; transform:translateY(4px)}to{opacity:1;transform:none}}
+
+/* ── Sections & cards ────────────────────────────────────────────── */
+.sec{margin-bottom:28px}
+.sec-head{display:flex; align-items:baseline; gap:12px; margin:0 0 14px}
+.sec-head .num{font-family:var(--mono); font-size:12px; font-weight:600;
+  color:var(--accent); background:var(--accent-soft); padding:3px 9px; border-radius:7px; flex:none}
+.sec-head h2{margin:0; font-size:19px; font-weight:650; letter-spacing:-.015em}
+.sec-head .tag{margin-left:auto; font-size:11.5px; color:var(--text-3);
+  font-family:var(--mono); white-space:nowrap}
+
+.card{background:var(--surface); border:1px solid var(--border);
+  border-radius:var(--radius); box-shadow:var(--shadow); margin-bottom:14px; overflow:hidden}
+.card-top{padding:14px 18px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+  border-bottom:1px solid var(--border); background:var(--surface-2)}
+.card-top h3{margin:0; font-size:14.5px; font-weight:625; letter-spacing:-.01em}
+.card-body{padding:16px 18px}
+
+.badge{font-size:10.5px; font-weight:650; letter-spacing:.03em; text-transform:uppercase;
+  padding:3.5px 9px; border-radius:99px; white-space:nowrap}
+.b-orch{background:var(--rose-soft); color:var(--rose)}
+.b-public{background:var(--amber-soft); color:var(--amber)}
+.b-render{background:var(--accent-soft); color:var(--accent)}
+.b-chroma{background:var(--teal-soft); color:var(--teal)}
+.b-helper{background:var(--violet-soft); color:var(--violet)}
+.b-data{background:var(--green-soft); color:var(--green)}
+.b-fmt{background:var(--green-soft); color:var(--green)}
+
+/* ── Code / prompt blocks ────────────────────────────────────────── */
+.prompt,.sig{font-family:var(--mono); font-size:12.2px; line-height:1.7;
+  background:var(--code-bg); border:1px solid var(--border);
+  border-left:3px solid var(--pa, var(--accent));
+  border-radius:var(--radius-sm); padding:13px 15px; margin:2px 0 12px;
+  white-space:pre-wrap; word-break:break-word; color:var(--text); overflow-x:auto}
+.formula{background:var(--code-bg); border:1px solid var(--border);
+  border-left:3px solid var(--pa, var(--accent));
+  border-radius:var(--radius-sm); padding:14px 16px; margin:2px 0 12px;
+  overflow-x:auto; overflow-y:hidden}
+.formula .katex-display{margin:.25em 0}
+.formula .katex{font-size:1.05em}
+
+.note{font-size:13px; color:var(--text-2); margin:8px 0 0}
+.note strong{color:var(--text); font-weight:600}
+.impl{display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+  font-size:12.5px; color:var(--text-2); margin-top:10px;
+  padding-top:10px; border-top:1px dashed var(--border)}
+.impl .lbl{font-weight:600; color:var(--text)}
+
+code, .mono{font-family:var(--mono)}
+code{font-size:12.3px; background:var(--code-bg); border:1px solid var(--border);
+  padding:1.5px 6px; border-radius:5px; color:var(--text); white-space:nowrap}
+.chips{display:flex; flex-wrap:wrap; gap:6px}
+.chip{font-family:var(--mono); font-size:11.3px; padding:3px 9px; border-radius:7px;
+  background:var(--code-bg); border:1px solid var(--border); color:var(--text-2)}
+.chip.call{color:var(--accent-2); border-color:color-mix(in srgb, var(--accent-2) 30%, var(--border))}
+.chip.by{color:var(--violet); border-color:color-mix(in srgb, var(--violet) 30%, var(--border))}
+.chip.none{opacity:.55}
+
+/* ── Overview grids ──────────────────────────────────────────────── */
+.pgrid{display:grid; grid-template-columns:repeat(auto-fill,minmax(248px,1fr)); gap:12px}
+.pcard{border:1px solid var(--border); border-top:3px solid var(--pc);
+  border-radius:var(--radius); background:var(--surface);
+  box-shadow:var(--shadow); padding:15px 16px; cursor:pointer; transition:.15s}
+.pcard:hover{transform:translateY(-2px); border-color:color-mix(in srgb, var(--pc) 45%, var(--border))}
+.pcard .glyph{width:36px; height:36px; border-radius:10px; display:grid; place-items:center;
+  font-family:var(--mono); font-weight:700; font-size:12px;
+  background:color-mix(in srgb, var(--pc) 14%, transparent); color:var(--pc);
+  border:1px solid color-mix(in srgb, var(--pc) 28%, var(--border))}
+.pcard h4{margin:9px 0 2px; font-size:14.5px; font-weight:660; color:var(--pc)}
+.pcard .kind{font-size:10.5px; text-transform:uppercase; letter-spacing:.05em;
+  color:var(--text-3); font-weight:650}
+.pcard p{margin:8px 0 0; font-size:12.4px; color:var(--text-2)}
+
+.lgrid{display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:11px}
+.lcard{border:1px solid var(--border); border-radius:var(--radius);
+  background:var(--surface); box-shadow:var(--shadow); padding:14px 16px;
+  border-left:3px solid var(--lc)}
+.lcard .n{font-family:var(--mono); font-size:11px; font-weight:600; color:var(--lc)}
+.lcard h4{margin:4px 0 6px; font-size:14px; font-weight:640}
+.lcard p{margin:0; font-size:12.5px; color:var(--text-2)}
+.lcard .fn{font-family:var(--mono); font-size:11.3px; color:var(--text-3); margin-top:7px}
+
+/* ── Function reference ──────────────────────────────────────────── */
+.toolbar{display:flex; align-items:center; gap:12px; margin-bottom:16px; flex-wrap:wrap}
+.search{flex:1; min-width:230px; display:flex; align-items:center; gap:9px;
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:11px; padding:9px 13px; box-shadow:var(--shadow)}
+.search input{border:0; outline:0; background:transparent; color:var(--text);
+  font:inherit; font-size:14px; width:100%}
+.search input::placeholder{color:var(--text-3)}
+.count{font-size:12.5px; color:var(--text-2); font-family:var(--mono); white-space:nowrap}
+
+.fn{background:var(--surface); border:1px solid var(--border);
+  border-radius:var(--radius); box-shadow:var(--shadow); margin-bottom:12px;
+  overflow:hidden; transition:.15s}
+.fn:hover{border-color:color-mix(in srgb, var(--accent) 40%, var(--border))}
+.fn-head{padding:14px 18px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+  border-bottom:1px solid var(--border); background:var(--surface-2)}
+.fn-name{font-family:var(--mono); font-size:13.5px; font-weight:600; color:var(--accent)}
+.fn-sec{font-size:11.5px; color:var(--text-3); margin-left:auto; white-space:nowrap}
+.fn .sig{border-left:0; margin-bottom:12px}
+.sig .fn-key{color:var(--accent); font-weight:600}
+.sig .ty{color:var(--text-3)}
+.kv{display:grid; grid-template-columns:96px 1fr; gap:5px 14px; font-size:13.2px}
+.kv dt{color:var(--text-3); font-weight:600; font-size:11.5px; text-transform:uppercase;
+  letter-spacing:.03em; padding-top:2px}
+.kv dd{margin:0; color:var(--text-2)}
+
+/* ── Dependency map ──────────────────────────────────────────────── */
+.flow{display:flex; flex-direction:column; gap:0}
+.layer{background:var(--surface); border:1px solid var(--border);
+  border-radius:var(--radius); box-shadow:var(--shadow); padding:16px 18px}
+.layer-h{display:flex; align-items:center; gap:10px; margin-bottom:12px; flex-wrap:wrap}
+.layer-h h4{margin:0; font-size:13px; font-weight:650; text-transform:uppercase;
+  letter-spacing:.06em; color:var(--text-2)}
+.layer-idx{font-family:var(--mono); font-size:11px; font-weight:600; color:var(--accent);
+  background:var(--accent-soft); padding:2px 8px; border-radius:6px}
+.conn{display:grid; place-items:center; padding:5px 0}
+.conn span{width:2px; height:26px;
+  background:linear-gradient(var(--accent), color-mix(in srgb, var(--accent) 25%, transparent));
+  border-radius:2px; position:relative}
+.conn span::after{content:""; position:absolute; bottom:-1px; left:50%; transform:translateX(-50%);
+  border-left:4.5px solid transparent; border-right:4.5px solid transparent; border-top:7px solid var(--accent)}
+.node-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:8px}
+.node{border:1px solid var(--border); border-radius:10px; padding:9px 12px;
+  background:var(--surface-2); font-size:12.4px}
+.node b{font-family:var(--mono); font-size:11.8px; font-weight:600; color:var(--text); display:block}
+.node span{color:var(--text-3); font-size:11.4px}
+.node.orch{border-left:3px solid var(--rose)}
+.node.pub{border-left:3px solid var(--amber)}
+.node.ren{border-left:3px solid var(--accent)}
+.node.hp{border-left:3px solid var(--violet)}
+.node.ch{border-left:3px solid var(--teal)}
+
+table{width:100%; border-collapse:collapse; font-size:13px; margin-top:4px}
+th,td{padding:9px 11px; text-align:left; border-bottom:1px solid var(--border)}
+th{font-size:11px; text-transform:uppercase; letter-spacing:.05em;
+  color:var(--text-3); font-weight:650; background:var(--surface-2)}
+tbody tr:last-child td{border-bottom:0}
+td.mono{font-family:var(--mono); font-size:11.8px; color:var(--accent)}
+td.c{text-align:center; font-family:var(--mono); color:var(--text-2)}
+
+.legend{display:flex; gap:14px; flex-wrap:wrap; font-size:12px; color:var(--text-2);
+  margin-top:12px; padding-top:12px; border-top:1px solid var(--border)}
+.legend i{display:inline-block; width:9px; height:9px; border-radius:3px; margin-right:6px}
+.dot-orch{background:var(--rose)} .dot-pub{background:var(--amber)}
+.dot-ren{background:var(--accent)} .dot-hp{background:var(--violet)} .dot-ch{background:var(--teal)}
+
+.callout{display:flex; gap:11px; padding:13px 15px; border-radius:var(--radius-sm);
+  background:var(--amber-soft); border:1px solid color-mix(in srgb, var(--amber) 25%, var(--border));
+  font-size:13px; color:var(--text-2); margin-bottom:14px}
+.callout b{color:var(--text)}
+.callout .ico{flex:none; font-size:14px}
+
+footer{max-width:1180px; margin:0 auto; padding:22px 26px 40px;
+  border-top:1px solid var(--border); color:var(--text-3); font-size:12.5px}
+footer code{font-size:11.5px}
+kbd{font-family:var(--mono); font-size:11px; background:var(--surface-2);
+  border:1px solid var(--border); border-bottom-width:2px; border-radius:5px;
+  padding:1px 6px; color:var(--text-2)}
+
+@media (max-width:820px){
+  .hdr-inner, main, footer{padding-left:16px; padding-right:16px}
+  .src-chip{display:none}
+  .kv{grid-template-columns:1fr; gap:2px}
+  .kv dt{padding-top:8px}
+  .brand p{display:none}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="hdr-inner">
+    <div class="brand">
+      <div class="logo">DB</div>
+      <div>
+        <h1>Chroma Persistence Layer</h1>
+        <p>Every aspect and function in <code style="font-size:11.5px">CHROMA_STORE.py</code></p>
+      </div>
+    </div>
+    <div class="hdr-actions">
+      <span class="src-chip">11 functions · 6 sections · 1 collection</span>
+      <button class="icon-btn" id="themeBtn" title="Toggle light / dark" aria-label="Toggle theme">◐</button>
+    </div>
+  </div>
+</header>
+
+<main>
+
+  <nav class="tabs" role="tablist">
+    <button class="tab active" role="tab" data-panel="p-overview">Overview</button>
+    <button class="tab" role="tab" data-panel="p-chroma" data-a="chroma">Chroma Layer</button>
+    <button class="tab" role="tab" data-panel="p-doc" data-a="doc">Document Rendering</button>
+    <button class="tab" role="tab" data-panel="p-persona" data-a="persona">Persona Consensus</button>
+    <button class="tab" role="tab" data-panel="p-meta" data-a="meta">Metadata</button>
+    <button class="tab" role="tab" data-panel="p-api" data-a="api">Saving &amp; Retrieval</button>
+    <button class="tab" role="tab" data-panel="p-funcs">Function Reference</button>
+    <button class="tab" role="tab" data-panel="p-deps">Dependency Map</button>
+  </nav>
+
+  <!-- ══════════════════ OVERVIEW ══════════════════ -->
+  <section class="panel active" id="p-overview">
+
+    <div class="callout">
+      <span class="ico">◆</span>
+      <div>
+        <b>This module is a persistence layer, not an agent.</b> It stores an analysis
+        <em>snapshot</em> into a Chroma Cloud collection — there are no investor personas or LLM
+        calls here. Each save creates <strong>one document</strong> whose text is the full labelled
+        snapshot (so it stays semantically retrievable) alongside scalar metadata for filtering.
+        Every save is a new record, so history is append-only.
+      </div>
+    </div>
+
+    <!-- Aspects -->
+    <div class="sec">
+      <div class="sec-head"><span class="num">A</span><h2>Aspects of the module</h2>
+        <span class="tag">click a card to open its tab</span></div>
+      <div class="pgrid">
+        <div class="pcard" style="--pc:var(--accent-2)" data-goto="p-chroma">
+          <div class="glyph">01</div><h4>Chroma Layer</h4>
+          <div class="kind">Client · collection · embeddings</div>
+          <p>Lazy client construction, Cloud token auth, and the cosine collection bound to an
+             OpenAI embedding function.</p>
+        </div>
+        <div class="pcard" style="--pc:var(--accent)" data-goto="p-doc">
+          <div class="glyph">02</div><h4>Document Rendering</h4>
+          <div class="kind">dict → retrievable markdown</div>
+          <p>Turns a record into one labelled document: header plus six ordered sections.</p>
+        </div>
+        <div class="pcard" style="--pc:var(--violet)" data-goto="p-persona">
+          <div class="glyph">03</div><h4>Persona Consensus</h4>
+          <div class="kind">The one persona-shaped block</div>
+          <p>The lead-analyst consensus that gets persisted — range, stance and commentary.</p>
+        </div>
+        <div class="pcard" style="--pc:var(--teal)" data-goto="p-meta">
+          <div class="glyph">04</div><h4>Metadata</h4>
+          <div class="kind">Filters, not text</div>
+          <p>Flat scalar metadata that makes snapshots queryable by ticker, verdict or stance.</p>
+        </div>
+        <div class="pcard" style="--pc:var(--amber)" data-goto="p-api">
+          <div class="glyph">05</div><h4>Saving &amp; Retrieval</h4>
+          <div class="kind">The three public calls</div>
+          <p>Document id generation, the write path, and the two read helpers.</p>
+        </div>
+        <div class="pcard" style="--pc:var(--rose)" data-goto="p-funcs">
+          <div class="glyph">06</div><h4>Function Reference</h4>
+          <div class="kind">All 14 symbols</div>
+          <p>Signatures, purpose, return contract and call relationships for everything defined.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Write path -->
+    <div class="sec">
+      <div class="sec-head"><span class="num">B</span><h2>The write path</h2>
+        <span class="tag">save_analysis_record</span></div>
+      <div class="card">
+        <div class="card-body">
+          <div class="prompt">record: dict
+   │
+   ├─ _render_document(record) ──────► document text  (labelled markdown, embedded)
+   ├─ _render_metadata(record) ──────► metadata       (flat scalars, filterable)
+   └─ _ticker_token(ticker) + now() ─► doc_id         ({TOKEN}_{YYYYMMDD_HHMMSS})
+                │
+                ▼
+        get_collection().add(ids=[doc_id],
+                             documents=[document],
+                             metadatas=[metadata])
+                │
+                └─► returns doc_id</div>
+          <p class="note">
+            Validation happens before any network call: the record must carry a
+            <strong>ticker and/or company_name</strong>, otherwise <code>ValueError</code> is raised.
+            The three renderers are pure functions over the dict, which is what makes them cheap to
+            test without a live Chroma connection.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Public API -->
+    <div class="sec">
+      <div class="sec-head"><span class="num">C</span><h2>Public surface</h2>
+        <span class="tag">5 functions callers should use</span></div>
+      <div class="card">
+        <div class="card-body" style="padding:0">
+          <table>
+            <thead><tr><th style="width:34%">Call</th><th>Purpose</th></tr></thead>
+            <tbody>
+              <tr><td class="mono">get_client()</td><td>Cached Chroma Cloud HTTP client from .env credentials.</td></tr>
+              <tr><td class="mono">get_collection()</td><td>Auto-creating cosine collection with an OpenAI embedding function.</td></tr>
+              <tr><td class="mono">save_analysis_record(record)</td><td>Renders and persists one snapshot; returns the new document id.</td></tr>
+              <tr><td class="mono">count()</td><td>How many snapshots are stored.</td></tr>
+              <tr><td class="mono">get_recent(limit=5)</td><td>The last <code>limit</code> records as <code>(id, document, metadata)</code> triples.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <p class="note">
+        Everything else is private (<code>_render_*</code>, <code>_clean_text</code>,
+        <code>_ticker_token</code>, <code>_fmt_value</code>, <code>_require_env</code>) — reachable
+        for tests, but not part of the documented contract.
+      </p>
+    </div>
+
+    <!-- Env -->
+    <div class="sec">
+      <div class="sec-head"><span class="num">D</span><h2>Configuration</h2>
+        <span class="tag">read at call time, not import time</span></div>
+      <div class="card">
+        <div class="card-body" style="padding:0">
+          <table>
+            <thead><tr><th style="width:26%">Variable</th><th style="width:24%">Default</th><th>Used for</th></tr></thead>
+            <tbody>
+              <tr><td class="mono">CHROMA_HOST</td><td><code>api.trychroma.com</code></td><td>Chroma Cloud host.</td></tr>
+              <tr><td class="mono">CHROMA_API_KEY</td><td><strong>required</strong></td><td>Sent as the <code>X-Chroma-Token</code> header.</td></tr>
+              <tr><td class="mono">CHROMA_TENANT</td><td><code>default_tenant</code></td><td>Tenant id.</td></tr>
+              <tr><td class="mono">CHROMA_DATABASE</td><td><code>StockAnalytics</code></td><td>Database the collection lives in.</td></tr>
+              <tr><td class="mono">OPENAI_API_KEY</td><td><strong>required</strong></td><td>Only when embeddings are produced (<code>text-embedding-3-small</code>).</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <p class="note">
+        <code>load_dotenv()</code> runs at import, but the values are read lazily inside
+        <code>get_client()</code> / <code>get_collection()</code> — so importing the module never
+        requires credentials, and missing ones surface as a clear
+        <code>EnvironmentError</code> naming both <code>.env</code> and Streamlit Secrets.
+      </p>
+    </div>
+
+  </section>
+
+  <!-- ══════════════════ CHROMA LAYER ══════════════════ -->
+  <section class="panel" id="p-chroma" style="--pa:var(--accent-2)">
+    <div class="sec">
+      <div class="sec-head"><span class="num">1</span><h2>Lazy client construction</h2>
+        <span class="tag">get_client()</span></div>
+      <div class="card">
+        <div class="card-body">
+          <div class="prompt">import chromadb                      # deferred on purpose
+chromadb.HttpClient(
+    host    = os.getenv("CHROMA_HOST", "api.trychroma.com"),
+    port    = 8000,
+    ssl     = True,
+    headers = {"X-Chroma-Token": _require_env("CHROMA_API_KEY", "Chroma Cloud")},
+    tenant  = os.getenv("CHROMA_TENANT") or "default_tenant",
+    database= os.getenv("CHROMA_DATABASE", "StockAnalytics"),
+)</div>
+          <p class="note">
+            <code>import chromadb</code> is deliberately <strong>inside</strong> the function, mirroring
+            the lazy crewAI import in <code>PERSONA_AGENTS_CREW.py</code>. Importing this module
+            therefore never slows the Streamlit boot. The client is memoised in the module-level
+            <code>_client</code> global, so the connection is built once per process.
+          </p>
+          <p class="note">
+            Note that <code>port=8000</code> and <code>ssl=True</code> are <strong>hard-coded</strong> —
+            only <code>host</code> is configurable.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><span class="num">2</span><h2>Authentication</h2>
+        <span class="tag">the gotcha that breaks first</span></div>
+      <div class="card">
+        <div class="card-body">
+          <div class="prompt"># ✅ works with Chroma Cloud
+headers = {"X-Chroma-Token": api_key}
+
+# ❌ rejected -> ChromaError: Permission denied
+headers = {"Authorization": f"Bearer {api_key}"}</div>
+          <p class="note">
+            Chroma Cloud authenticates with the API key in the <strong><code>X-Chroma-Token</code></strong>
+            header. A conventional <code>Authorization: Bearer</code> header is rejected with
+            <em>Permission denied</em>, which looks like a bad key rather than a bad header — the
+            single most likely thing to debug here.
+          </p>
+          <div class="impl">
+            <span class="lbl">Implemented by</span>
+            <code>get_client()</code>
+            <span class="arrow">←</span>
+            <span class="chips"><span class="chip">_require_env</span><span class="chip">CHROMA_API_KEY</span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><span class="num">3</span><h2>Collection &amp; embeddings</h2>
+        <span class="tag">get_collection()</span></div>
+      <div class="card">
+        <div class="card-body">
+          <div class="prompt">get_client().get_or_create_collection(
+    name               = "stock_analysis_reports",
+    embedding_function = OpenAIEmbeddingFunction(
+                             api_key    = OPENAI_API_KEY,
+                             model_name = "text-embedding-3-small"),
+    metadata           = {"hnsw:space": "cosine"},
+)</div>
+          <table>
+            <thead><tr><th style="width:26%">Setting</th><th>Value</th></tr></thead>
+            <tbody>
+              <tr><td class="mono">COLLECTION_NAME</td><td><code>stock_analysis_reports</code></td></tr>
+              <tr><td class="mono">EMBEDDING_MODEL</td><td><code>text-embedding-3-small</code></td></tr>
+              <tr><td class="mono">distance space</td><td><code>cosine</code> — declared as <code>hnsw:space</code> metadata</td></tr>
+              <tr><td class="mono">creation</td><td><code>get_or_create_collection</code> — creates on first save, reuses thereafter</td></tr>
+            </tbody>
+          </table>
+          <p class="note">
+            The collection is memoised in the module-level <code>_collection</code> global.
+            <code>hnsw:space</code> is fixed <strong>at creation time</strong> — changing it later has
+            no effect on an existing collection, so it should be treated as permanent.
+          </p>
+          <p class="note">
+            The embedding function is what makes stored snapshots semantically searchable later.
+            It is only invoked when documents are added or queried — <code>count()</code> and
+            <code>get_recent()</code> do not embed anything, so they work without
+            <code>OPENAI_API_KEY</code> being valid.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════ DOCUMENT RENDERING ══════════════════ -->
+  <section class="panel" id="p-doc" style="--pa:var(--accent)">
+    <div class="sec">
+      <div class="sec-head"><span class="num">1</span><h2>Document layout</h2>
+        <span class="tag">_render_document(record)</span></div>
+      <div class="card">
+        <div class="card-body">
+          <div class="prompt"># Stock Analysis Snapshot
+Ticker: INFY.NS
+Company: Infosys
+Generated: 2026-09-19 10:42:07
+
+## Financial Outlook
+&lt;commentary&gt; | "No commentary available."
+
+## Key Risks
+&lt;commentary&gt; | "No commentary available."
+
+## Growth Potential
+&lt;commentary&gt; | "No commentary available."
+
+## Investment Recommendation
+Verdict: BUY
+&lt;commentary&gt; | "No commentary available."
+
+## Overall Technical Summary
+Technical Verdict: STRONG BUY
+&lt;summary&gt; | "No technical summary available."
+
+## Persona Lead-Analyst Consensus
+Market price: 1,502.30 INR
+Min fair value: ...  Avg ...  Max ...
+Blended stance: Undervalued
+Lead-analyst commentary: ...
+| "Persona agents were not run for this snapshot."</div>
+          <p class="note">
+            Sections are joined with a blank line (<code>"\n\n".join(parts)</code>) so the document
+            reads cleanly when retrieved by a similarity search and pasted into a prompt.
+            <strong>Every section is always emitted</strong> — a missing value produces an explicit
+            fallback sentence rather than a silently shortened document, which keeps the shape of
+            stored records consistent across saves.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><span class="num">2</span><h2>The six sections</h2>
+        <span class="tag">FUNDAMENTAL_SECTION_ORDER drives iteration</span></div>
+
+      <div class="card">
+        <div class="card-top"><h3>Header block</h3><span class="badge b-render">Header</span></div>
+        <div class="card-body">
+          <p class="note">
+            Three optional lines built from <code>record["ticker"]</code>,
+            <code>record["company_name"]</code> and <code>record["generated_at"]</code>. Each is
+            emitted only when non-empty; if all three are blank the block renders a single em dash
+            (<code>"—"</code>) so the document never starts with an empty line.
+          </p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-top"><h3>## Financial Outlook</h3><span class="badge b-render">Section 1</span></div>
+        <div class="card-body">
+          <p class="note">
+            Source: <code>record["fundamental_sections"]["Financial Outlook"]</code>.
+            Fallback: <em>"No commentary available."</em>
+          </p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-top"><h3>## Key Risks</h3><span class="badge b-render">Section 2</span></div>
+        <div class="card-body">
+          <p class="note">
+            Source: <code>record["fundamental_sections"]["Key Risks"]</code>.
+            Fallback: <em>"No commentary available."</em>
+          </p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-top"><h3>## Growth Potential</h3><span class="badge b-render">Section 3</span></div>
+        <div class="card-body">
+          <p class="note">
+            Source: <code>record["fundamental_sections"]["Growth Potential"]</code>.
+            Fallback: <em>"No commentary available."</em>
+          </p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-top"><h3>## Investment Recommendation</h3><span class="badge b-render">Section 4</span></div>
+        <div class="card-body">
+          <p class="note">
+            The <strong>only section with extra logic</strong>: it prepends a verdict line from
+            <code>record["recommendation_verdict"]</code>, upper-cased —
+          </p>
+          <div class="prompt">Verdict: BUY          # record["recommendation_verdict"].upper()</div>
+          <p class="note">
+            The verdict line is skipped entirely when the value is blank, and the commentary itself
+            falls back to <em>"No commentary available."</em>
+          </p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-top"><h3>## Overall Technical Summary</h3><span class="badge b-render">Section 5</span></div>
+        <div class="card-body">
+          <p class="note">
+            Built from <code>record["technical_verdict"]</code> (upper-cased) plus
+            <code>record["technical_summary"]</code>. Either line is omitted when blank; if both are
+            blank the section still renders with <em>"No technical summary available."</em>
+          </p>
+          <div class="impl">
+            <span class="lbl">Detailed on</span>
+            <span class="chips"><span class="chip">Persona Consensus tab</span><span class="chip">Section 6</span></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card" style="--pa:var(--violet)">
+        <div class="card-top"><h3>## Persona Lead-Analyst Consensus</h3><span class="badge" style="background:var(--violet-soft);color:var(--violet)">Section 6</span></div>
+        <div class="card-body">
+          <p class="note">
+            The only section sourced from a nested dict — see the
+            <strong>Persona Consensus</strong> tab for the full field-by-field breakdown.
+          </p>
+          <div class="impl">
+            <span class="lbl">Source</span>
+            <code>record["persona"]</code>
+            <span class="arrow">→</span>
+            <span class="chips"><span class="chip">rendered by <code>_render_document</code></span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════ PERSONA CONSENSUS ══════════════════ -->
+  <section class="panel" id="p-persona" style="--pa:var(--violet)">
+    <div class="sec">
+      <div class="sec-head"><span class="num">1</span><h2>The persona block</h2>
+        <span class="tag">the only persona-shaped data this module stores</span></div>
+
+      <div class="callout" style="background:var(--violet-soft); border-color:color-mix(in srgb, var(--violet) 25%, var(--border))">
+        <span class="ico">◆</span>
+        <div>
+          What gets persisted is the <b>lead-analyst consensus</b> — an aggregate range and stance —
+          <b>not the four individual persona cards</b>. The per-persona fair values live in
+          <code>PersonaCrewResult.personas</code> in memory and are not written to Chroma.
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-body" style="padding:0">
+          <table>
+            <thead><tr><th style="width:28%">Field</th><th style="width:16%">Type</th><th>Rendered as / stored as</th></tr></thead>
+            <tbody>
+              <tr><td class="mono">currency</td><td>str</td><td>Suffix on every money value; also copied to <code>persona_currency</code>.</td></tr>
+              <tr><td class="mono">market_price</td><td>float</td><td><code>Market price: 1,502.30 INR</code> · also <code>persona_market_price</code>.</td></tr>
+              <tr><td class="mono">min_fair_value</td><td>float</td><td><code>Min fair value: …</code> · also <code>persona_min_fair_value</code>.</td></tr>
+              <tr><td class="mono">avg_fair_value</td><td>float</td><td><code>Avg fair value: …</code> · also <code>persona_avg_fair_value</code>.</td></tr>
+              <tr><td class="mono">max_fair_value</td><td>float</td><td><code>Max fair value: …</code> · also <code>persona_max_fair_value</code>.</td></tr>
+              <tr><td class="mono">blended_stance</td><td>str</td><td><code>Blended stance: Undervalued</code> · also <code>persona_blended_stance</code>.</td></tr>
+              <tr><td class="mono">commentary</td><td>str</td><td><code>Lead-analyst commentary: …</code> — document text only, not copied to metadata.</td></tr>
+              <tr><td class="mono">exchange</td><td>str</td><td>Present in the record contract but <strong>not rendered</strong> by this module.</td></tr>
+              <tr><td class="mono">generated_at</td><td>str</td><td>Present in the contract but the document uses the top-level <code>generated_at</code> instead.</td></tr>
+              <tr><td class="mono">participating</td><td>int</td><td>Present in the contract but <strong>not rendered</strong> nor stored in metadata.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <p class="note">
+        Every line is emitted <strong>only when its value is non-empty</strong>, so a partially
+        populated persona block produces a shorter section rather than a list of blank labels. If
+        nothing renders at all the section falls back to
+        <em>"No persona consensus available."</em>
+      </p>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><span class="num">2</span><h2>Presence logic</h2>
+        <span class="tag">has_persona</span></div>
+      <div class="card">
+        <div class="card-body">
+          <div class="formula">
+            \[ \text{has\_persona} \;=\; \text{record}[\texttt{"has\_persona"}] \;\lor\; \big(\text{record}[\texttt{"persona"}] \neq \varnothing\big) \]
+          </div>
+          <p class="note">
+            A <strong>non-empty persona dict flips the flag on its own</strong> — the caller cannot
+            accidentally store persona data while reporting <code>has_persona = False</code>. It is a
+            one-way override, so the flag is best read as "persona data is present", never as
+            "the caller asserted it".
+          </p>
+          <p class="note">
+            In the document itself the test is simply
+            <code>if persona:</code> — an empty or missing dict renders
+            <em>"Persona agents were not run for this snapshot."</em>
+          </p>
+          <div class="impl">
+            <span class="lbl">Implemented by</span>
+            <code>_render_document()</code>
+            <span class="arrow">and</span>
+            <code>_render_metadata()</code>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><span class="num">3</span><h2>Where the values come from</h2>
+        <span class="tag">upstream, not here</span></div>
+      <div class="card">
+        <div class="card-body">
+          <div class="lcard-flow" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:11px">
+            <div class="lcard" style="--lc:var(--accent)">
+              <div class="n">UPSTREAM</div><h4>PERSONA_AGENTS_CREW</h4>
+              <p>Runs the four persona agents and the lead analyst, producing the consensus.</p>
+              <div class="fn">run_persona_crew() → aggregate</div>
+            </div>
+            <div class="lcard" style="--lc:var(--amber)">
+              <div class="n">BRIDGE</div><h4>Home.py</h4>
+              <p>Builds the flat <code>persona</code> dict from the crew result and passes it in.</p>
+              <div class="fn">_build_save_record()</div>
+            </div>
+            <div class="lcard" style="--lc:var(--violet)">
+              <div class="n">HERE</div><h4>CHROMA_STORE</h4>
+              <p>Renders the block into the document and lifts four numbers into metadata.</p>
+              <div class="fn">_render_document() · _render_metadata()</div>
+            </div>
+          </div>
+          <p class="note">
+            This module performs <strong>no aggregation and no validation</strong> of the persona
+            values — it renders whatever dict it is given. The only numeric coercion is
+            <code>float(...)</code> when copying fair values into metadata, so a non-numeric value
+            raises there rather than silently storing a string.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════ METADATA ══════════════════ -->
+  <section class="panel" id="p-meta" style="--pa:var(--teal)">
+    <div class="sec">
+      <div class="sec-head"><span class="num">1</span><h2>Flat scalars only</h2>
+        <span class="tag">_render_metadata(record)</span></div>
+      <div class="card">
+        <div class="card-body">
+          <p class="note">
+            Chroma metadata accepts <strong>scalars only</strong> — <code>str</code>,
+            <code>int</code>, <code>float</code>, <code>bool</code>. Nested dicts or lists must
+            therefore be flattened, which is exactly what this function does: the whole
+            <code>persona</code> sub-dict is reduced to flat <code>persona_*</code> keys.
+          </p>
+          <div class="card" style="margin:0">
+            <div class="card-body" style="padding:0">
+              <table>
+                <thead><tr><th style="width:32%">Metadata key</th><th style="width:12%">Type</th><th>Source</th></tr></thead>
+                <tbody>
+                  <tr><td class="mono">ticker</td><td>str</td><td><code>record["ticker"]</code></td></tr>
+                  <tr><td class="mono">company_name</td><td>str</td><td><code>record["company_name"]</code></td></tr>
+                  <tr><td class="mono">recommendation_verdict</td><td>str</td><td><code>record["recommendation_verdict"]</code>, upper-cased</td></tr>
+                  <tr><td class="mono">technical_verdict</td><td>str</td><td><code>record["technical_verdict"]</code>, upper-cased</td></tr>
+                  <tr><td class="mono">has_analysis</td><td>bool</td><td><code>bool(record["has_analysis"])</code></td></tr>
+                  <tr><td class="mono">has_persona</td><td>bool</td><td>flag <strong>or</strong> non-empty persona dict</td></tr>
+                  <tr><td class="mono">persona_blended_stance</td><td>str</td><td><code>persona["blended_stance"]</code></td></tr>
+                  <tr><td class="mono">persona_currency</td><td>str</td><td><code>persona["currency"]</code></td></tr>
+                  <tr><td class="mono">saved_at</td><td>str</td><td><code>record["generated_at"]</code>, else <strong>now</strong></td></tr>
+                  <tr><td class="mono">persona_market_price</td><td>float</td><td><code>persona["market_price"]</code> — omitted when <code>None</code></td></tr>
+                  <tr><td class="mono">persona_min_fair_value</td><td>float</td><td><code>persona["min_fair_value"]</code> — omitted when <code>None</code></td></tr>
+                  <tr><td class="mono">persona_avg_fair_value</td><td>float</td><td><code>persona["avg_fair_value"]</code> — omitted when <code>None</code></td></tr>
+                  <tr><td class="mono">persona_max_fair_value</td><td>float</td><td><code>persona["max_fair_value"]</code> — omitted when <code>None</code></td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><span class="num">2</span><h2>Behaviour worth knowing</h2>
+        <span class="tag">affects what you can query</span></div>
+      <div class="card">
+        <div class="card-body" style="padding:0">
+          <table>
+            <thead><tr><th style="width:32%">Behaviour</th><th>Consequence</th></tr></thead>
+            <tbody>
+              <tr>
+                <td class="mono">Optional float keys</td>
+                <td>The four <code>persona_*</code> numbers are added <strong>only when not None</strong>. A record saved without personas therefore has a <em>different metadata schema</em> than one saved with them — so a range filter on <code>persona_max_fair_value</code> silently excludes persona-less records.</td>
+              </tr>
+              <tr>
+                <td class="mono">saved_at fallback</td>
+                <td>Falls back to <code>datetime.now()</code> when the record has no <code>generated_at</code>. This is the server's local clock, so the value should be treated as a label rather than a trustworthy event time.</td>
+              </tr>
+              <tr>
+                <td class="mono">Verdicts upper-cased</td>
+                <td>Metadata stores <code>BUY</code> / <code>STRONG BUY</code> regardless of input casing, so filters must match upper-case exactly.</td>
+              </tr>
+              <tr>
+                <td class="mono">Empty strings kept</td>
+                <td>Missing text becomes <code>""</code> rather than being omitted, so every record has the full scalar schema for the string keys.</td>
+              </tr>
+              <tr>
+                <td class="mono">No numeric guard</td>
+                <td><code>float(value)</code> is applied without a try/except — a non-numeric <code>market_price</code> raises rather than being coerced or dropped.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════ SAVING & RETRIEVAL ══════════════════ -->
+  <section class="panel" id="p-api" style="--pa:var(--amber)">
+    <div class="sec">
+      <div class="sec-head"><span class="num">1</span><h2>Document id</h2>
+        <span class="tag">_ticker_token()</span></div>
+      <div class="card">
+        <div class="card-body">
+          <div class="formula">
+            \[ \text{doc\_id} \;=\; \text{ticker\_token} \;+\; \text{"\_"} \;+\; \text{strftime(timestamp)} \]
+          </div>
+          <div class="prompt">_ticker_token("INFY.NS")  ->  "INFYNS"
+_ticker_token("BRK-B")    ->  "BRKB"
+_ticker_token("")         ->  "UNKNOWN"
+
+doc_id  ->  "INFYNS_20260919_104207"</div>
+          <p class="note">
+            The token strips every non-alphanumeric character and upper-cases the result, falling
+            back to <code>UNKNOWN</code> when nothing survives. Combined with a second-resolution
+            timestamp this gives a readable, sortable id.
+          </p>
+          <p class="note">
+            <strong>The timestamp is only second-resolution</strong>, and the collection uses
+            <code>add()</code> rather than <code>upsert()</code> — so two saves of the same ticker
+            within the same second produce a duplicate id, which Chroma rejects.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><span class="num">2</span><h2>Writing a snapshot</h2>
+        <span class="tag">save_analysis_record()</span></div>
+      <div class="card">
+        <div class="card-body">
+          <div class="prompt">ticker  = _clean_text(record.get("ticker"))
+company = _clean_text(record.get("company_name"))
+if not ticker and not company:
+    raise ValueError("save_analysis_record requires a ticker and/or company_name.")
+
+document = _render_document(record)
+metadata = _render_metadata(record)
+doc_id   = f"{_ticker_token(ticker)}_{now:%Y%m%d_%H%M%S}"
+
+get_collection().add(ids=[doc_id], documents=[document], metadatas=[metadata])
+return doc_id</div>
+          <p class="note">
+            Validation is the <strong>only</strong> failure the caller is expected to handle — it
+            happens before any network I/O, so a malformed record never opens a connection.
+            Everything after it can still fail on credentials, quota or network, and those propagate
+            as Chroma/requests exceptions.
+          </p>
+          <p class="note">
+            History is <strong>append-only by design</strong>: saving the same ticker twice creates
+            two documents, which is what makes the store a time series of analyses rather than a
+            latest-value cache.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><span class="num">3</span><h2>Reading back</h2>
+        <span class="tag">count() · get_recent()</span></div>
+      <div class="card">
+        <div class="card-body">
+          <div class="prompt">count()                     # -> int, total snapshots in the collection
+
+get_recent(limit=5)
+    get_collection().get(limit=limit, include=["documents", "metadatas"])
+    -> list(zip(ids, documents, metadatas))
+    -> [(id, document, metadata), ...]</div>
+          <p class="note">
+            <code>count()</code> is a cheap collection-level call and does not embed anything.
+            <code>get_recent()</code> returns triples with all three lists zipped positionally.
+          </p>
+          <div class="callout" style="margin-top:12px">
+            <span class="ico">!</span>
+            <div>
+              <b>The name overstates the guarantee.</b> Chroma's <code>get()</code> has no sort
+              parameter, so records come back in <em>storage order</em> — not sorted by
+              <code>saved_at</code>. "Recent" is therefore not enforced: if you need true
+              newest-first ordering, sort the returned metadata on the client side.
+            </div>
+          </div>
+          <div class="impl">
+            <span class="lbl">Both wrap</span>
+            <code>get_collection()</code>
+            <span class="arrow">→</span>
+            <span class="chips">
+              <span class="chip">never calls the embedding function</span>
+              <span class="chip">no write access needed</span>
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════ FUNCTION REFERENCE ══════════════════ -->
+  <section class="panel" id="p-funcs">
+    <div class="toolbar">
+      <label class="search">
+        <span style="color:var(--text-3)">⌕</span>
+        <input id="fnSearch" type="search" placeholder="Filter by name, purpose or aspect…" autocomplete="off">
+      </label>
+      <span class="count" id="fnCount"></span>
+    </div>
+    <div id="fnList"></div>
+  </section>
+
+  <!-- ══════════════════ DEPENDENCY MAP ══════════════════ -->
+  <section class="panel" id="p-deps">
+
+    <div class="sec">
+      <div class="sec-head"><span class="num">⤓</span><h2>Call hierarchy</h2>
+        <span class="tag">consumer → public API → renderers → helpers → Chroma</span></div>
+      <div class="flow">
+
+        <div class="layer">
+          <div class="layer-h"><span class="layer-idx">L1</span><h4>Consumer</h4></div>
+          <div class="node-grid">
+            <div class="node orch"><b>Home.py</b>
+              <span>_save_current_analysis() — lazy import → build record → save</span></div>
+          </div>
+        </div>
+
+        <div class="conn"><span></span></div>
+
+        <div class="layer">
+          <div class="layer-h"><span class="layer-idx">L2</span><h4>Public API</h4></div>
+          <div class="node-grid">
+            <div class="node pub"><b>save_analysis_record()</b><span>validate → render → add → id</span></div>
+            <div class="node pub"><b>count()</b><span>collection size</span></div>
+            <div class="node pub"><b>get_recent()</b><span>(id, document, metadata) triples</span></div>
+          </div>
+        </div>
+
+        <div class="conn"><span></span></div>
+
+        <div class="layer">
+          <div class="layer-h"><span class="layer-idx">L3</span><h4>Renderers — pure dict → output</h4></div>
+          <div class="node-grid">
+            <div class="node ren"><b>_render_document()</b><span>record → labelled markdown</span></div>
+            <div class="node ren"><b>_render_metadata()</b><span>record → flat scalars</span></div>
+          </div>
+        </div>
+
+        <div class="conn"><span></span></div>
+
+        <div class="layer">
+          <div class="layer-h"><span class="layer-idx">L4</span><h4>Formatting helpers</h4></div>
+          <div class="node-grid">
+            <div class="node hp"><b>_clean_text()</b><span>coerce to stripped string</span></div>
+            <div class="node hp"><b>_fmt_value()</b><span>number + currency, 2 dp</span></div>
+            <div class="node hp"><b>_ticker_token()</b><span>filesystem-safe id token</span></div>
+          </div>
+        </div>
+
+        <div class="conn"><span></span></div>
+
+        <div class="layer">
+          <div class="layer-h"><span class="layer-idx">L5</span><h4>Chroma layer</h4></div>
+          <div class="node-grid">
+            <div class="node ch"><b>get_collection()</b><span>memoised, auto-creating</span></div>
+            <div class="node ch"><b>get_client()</b><span>memoised HttpClient</span></div>
+            <div class="node ch"><b>_require_env()</b><span>clear missing-credential error</span></div>
+          </div>
+        </div>
+
+        <div class="conn"><span></span></div>
+
+        <div class="layer">
+          <div class="layer-h"><span class="layer-idx">L6</span><h4>External services</h4></div>
+          <div class="node-grid">
+            <div class="node ch"><b>chromadb</b><span>deferred import · HttpClient</span></div>
+            <div class="node ch"><b>Chroma Cloud</b><span>api.trychroma.com · X-Chroma-Token</span></div>
+            <div class="node ch"><b>OpenAI embeddings</b><span>text-embedding-3-small</span></div>
+          </div>
+        </div>
+
+      </div>
+      <div class="legend">
+        <span><i class="dot-orch"></i>Consumer</span>
+        <span><i class="dot-pub"></i>Public API</span>
+        <span><i class="dot-ren"></i>Renderer</span>
+        <span><i class="dot-hp"></i>Helper</span>
+        <span><i class="dot-ch"></i>Chroma layer</span>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><span class="num">⇄</span><h2>Linkage matrix</h2>
+        <span class="tag">who calls whom</span></div>
+      <div class="card">
+        <div class="card-body" style="padding:0">
+          <table>
+            <thead><tr><th>Symbol</th><th>Calls</th><th>Called by</th><th style="text-align:center">Layer</th></tr></thead>
+            <tbody id="matrixBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><span class="num">!</span><h2>Notable behaviours</h2>
+        <span class="tag">read before debugging</span></div>
+      <div class="card">
+        <div class="card-body" style="padding:0">
+          <table>
+            <thead><tr><th style="width:30%">Location</th><th>Behaviour</th></tr></thead>
+            <tbody>
+              <tr>
+                <td class="mono">get_client()</td>
+                <td>Chroma Cloud requires the API key in an <code>X-Chroma-Token</code> header. A standard <code>Authorization: Bearer</code> header is rejected with <em>Permission denied</em>, which reads like an invalid key rather than a wrong header.</td>
+              </tr>
+              <tr>
+                <td class="mono">module top level</td>
+                <td><code>import chromadb</code> is deferred into <code>get_client()</code>, so importing the module costs nothing and the Streamlit boot is unaffected — mirroring the lazy crewAI import.</td>
+              </tr>
+              <tr>
+                <td class="mono">_render_metadata()</td>
+                <td>The four <code>persona_*</code> float keys are omitted when <code>None</code>, so persona-less records have a <strong>different metadata schema</strong>. Range filters on those keys silently skip them.</td>
+              </tr>
+              <tr>
+                <td class="mono">_render_metadata()</td>
+                <td>Chroma metadata is scalar-only (<code>str</code>/<code>int</code>/<code>float</code>/<code>bool</code>), which is why the nested <code>persona</code> dict has to be flattened into prefixed keys.</td>
+              </tr>
+              <tr>
+                <td class="mono">doc_id</td>
+                <td>Second-resolution timestamp plus <code>add()</code> (not <code>upsert()</code>) means two saves of the same ticker inside one second collide and raise.</td>
+              </tr>
+              <tr>
+                <td class="mono">get_recent()</td>
+                <td>Chroma's <code>get()</code> takes no sort parameter, so there is <strong>no ordering guarantee</strong> despite the name — sort client-side if newest-first matters.</td>
+              </tr>
+              <tr>
+                <td class="mono">_render_document()</td>
+                <td>Every section is always emitted with an explicit fallback sentence, so stored documents keep a consistent shape even when parts of the analysis are missing.</td>
+              </tr>
+              <tr>
+                <td class="mono">_fmt_value()</td>
+                <td>Formats to exactly 2 decimal places and appends the currency as a suffix: <code>"1,502.30 INR"</code>. It returns <code>""</code> for <code>None</code>, which callers test for truthiness before emitting a line.</td>
+              </tr>
+              <tr>
+                <td class="mono">Global caches</td>
+                <td><code>_client</code> and <code>_collection</code> are module-level singletons with no invalidation hook — credentials are effectively fixed for the process lifetime.</td>
+              </tr>
+              <tr>
+                <td class="mono">_client / _collection</td>
+                <td>Both are plain globals, not thread-local. Under Streamlit's threaded model this is safe because assignment is atomic and the worst case is building the collection twice.</td>
+              </tr>
+              <tr>
+                <td class="mono">get_collection()</td>
+                <td><code>hnsw:space = "cosine"</code> is fixed at collection creation — changing it later has no effect on an existing collection.</td>
+              </tr>
+              <tr>
+                <td class="mono">save_analysis_record()</td>
+                <td>Performs <strong>no aggregation or validation</strong> of persona numbers; it renders whatever dict it is handed. The only numeric coercion is <code>float(...)</code> in <code>_render_metadata</code>, which raises on a non-numeric value.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </section>
+
+</main>
+
+<footer>
+  Generated reference for <code>CHROMA_STORE.py</code> · 11 functions, 3 constants, 6 document
+  sections · Press <kbd>/</kbd> to search the function reference.
+</footer>
+
+<script>
+/* ──────────────────────────────────────────────────────────────────
+   Symbol reference data
+   ────────────────────────────────────────────────────────────────── */
+const FUNCS = [
+  {
+    name: "save_analysis_record", kind: "public", kindLabel: "Public API", layer: "L2", aspect: "Saving",
+    sig: "save_analysis_record(\n    record: dict,\n) -> str",
+    purpose: "Persist one analysis snapshot into the Chroma collection. Validates that the record identifies a subject, renders the document text and metadata, builds the id, and adds the record.",
+    returns: "str — the id of the newly created document, e.g. 'INFYNS_20260919_104207'.",
+    calls: ["_clean_text", "_render_document", "_render_metadata", "_ticker_token", "get_collection"],
+    calledBy: ["Home.py (via _save_current_analysis)"],
+    notes: "Raises ValueError when the record has neither ticker nor company_name — validation happens BEFORE any network I/O. Uses add() rather than upsert(), so history is append-only and a duplicate id raises."
+  },
+  {
+    name: "count", kind: "public", kindLabel: "Public API", layer: "L2", aspect: "Retrieval",
+    sig: "count() -> int",
+    purpose: "Number of saved analysis snapshots in the collection.",
+    returns: "int — the collection's record count.",
+    calls: ["get_collection"],
+    calledBy: ["external callers"],
+    notes: "A collection-level call — it does not embed anything, so it works without a valid OPENAI_API_KEY."
+  },
+  {
+    name: "get_recent", kind: "public", kindLabel: "Public API", layer: "L2", aspect: "Retrieval",
+    sig: "get_recent(\n    limit: int = 5,\n) -> list[tuple[str, str, dict]]",
+    purpose: "Returns the most recent `limit` saved records as (id, document, metadata) triples, zipping the three lists Chroma returns positionally.",
+    returns: "list of (id, document, metadata) tuples.",
+    calls: ["get_collection"],
+    calledBy: ["external callers"],
+    notes: "The name overstates the guarantee: Chroma's get() has no sort parameter, so records come back in storage order, NOT sorted by saved_at. Sort client-side if newest-first ordering matters. Uses include=['documents','metadatas'] — no embeddings are fetched or produced."
+  },
+  {
+    name: "get_collection", kind: "chroma", kindLabel: "Chroma", layer: "L5", aspect: "Chroma layer",
+    sig: "get_collection() -> Any",
+    purpose: "Returns (auto-creating) the analysis-reports collection, bound to an OpenAI text-embedding-3-small embedding function.",
+    returns: "The cached collection handle.",
+    calls: ["get_client", "OpenAIEmbeddingFunction", "_require_env"],
+    calledBy: ["save_analysis_record", "count", "get_recent"],
+    notes: "Memoised in the module-level _collection global. Requires OPENAI_API_KEY via _require_env. metadata={'hnsw:space':'cosine'} is fixed at creation time — changing it later has no effect on an existing collection."
+  },
+  {
+    name: "get_client", kind: "chroma", kindLabel: "Chroma", layer: "L5", aspect: "Chroma layer",
+    sig: "get_client() -> Any",
+    purpose: "Returns a cached Chroma Cloud HTTP client built from .env credentials, deferring `import chromadb` so module import never slows the Streamlit boot.",
+    returns: "The cached chromadb.HttpClient.",
+    calls: ["chromadb.HttpClient", "_require_env"],
+    calledBy: ["get_collection"],
+    notes: "Authenticates with headers={'X-Chroma-Token': api_key} — Authorization: Bearer is rejected with 'Permission denied'. port=8000 and ssl=True are hard-coded; only host is configurable. Memoised in the module-level _client global."
+  },
+  {
+    name: "_require_env", kind: "helper", kindLabel: "Guard", layer: "L5", aspect: "Chroma layer",
+    sig: "_require_env(\n    key: str,\n    what: str,\n) -> str",
+    purpose: "Returns a non-empty environment variable or raises a clear, environment-aware error.",
+    returns: "str — the environment value.",
+    calls: ["os.getenv"],
+    calledBy: ["get_client", "get_collection"],
+    notes: "The message deliberately names BOTH places the value can live — a local .env file and the app's Secrets on Streamlit Community Cloud — because mentioning only '.env' is misleading in the Cloud deployment where no .env exists."
+  },
+  {
+    name: "_render_document", kind: "render", kindLabel: "Renderer", layer: "L3", aspect: "Document",
+    sig: "_render_document(\n    record: dict,\n) -> str",
+    purpose: "Turns a snapshot record into one labelled markdown document: a header block plus six ordered sections (four fundamental sections, the technical summary, and the persona consensus).",
+    returns: "str — the full document text that gets embedded and stored.",
+    calls: ["_clean_text", "_fmt_value", "FUNDAMENTAL_SECTION_ORDER"],
+    calledBy: ["save_analysis_record"],
+    notes: "Sections are joined with '\\n\\n'. Every section is ALWAYS emitted with an explicit fallback sentence ('No commentary available.' / 'No technical summary available.' / 'Persona agents were not run for this snapshot.') so stored documents keep a consistent shape. Investment Recommendation is the only section with extra logic — it prepends 'Verdict: X' from recommendation_verdict."
+  },
+  {
+    name: "_render_metadata", kind: "render", kindLabel: "Renderer", layer: "L3", aspect: "Metadata",
+    sig: "_render_metadata(\n    record: dict,\n) -> dict",
+    purpose: "Builds flat scalar metadata for the snapshot, flattening the nested persona dict into prefixed persona_* keys so the values are filterable.",
+    returns: "dict — str/int/float/bool values only, as Chroma requires.",
+    calls: ["_clean_text"],
+    calledBy: ["save_analysis_record"],
+    notes: "The four persona_* float keys are omitted when None, so persona-less records have a DIFFERENT metadata schema — range filters on those keys silently skip them. saved_at falls back to datetime.now(). No try/except around float(), so a non-numeric fair value raises."
+  },
+  {
+    name: "_clean_text", kind: "helper", kindLabel: "Helper", layer: "L4", aspect: "Formatting",
+    sig: "_clean_text(\n    value: Any,\n) -> str",
+    purpose: "Coerces any value to a stripped string, returning '' for None.",
+    returns: "str — the stripped string, or ''.",
+    calls: [],
+    calledBy: ["save_analysis_record", "_render_document", "_render_metadata", "_fmt_value"],
+    notes: "The most-called helper in the module. Returning '' rather than None is what lets callers branch on truthiness (if ticker: ...) without a separate None check."
+  },
+  {
+    name: "_fmt_value", kind: "helper", kindLabel: "Helper", layer: "L4", aspect: "Formatting",
+    sig: "_fmt_value(\n    value: Any,\n    currency: Any = None,\n) -> str",
+    purpose: "Formats a numeric fair value with its currency suffix, to exactly two decimal places with thousands separators.",
+    returns: "str — e.g. '1,502.30 INR'; '' when value is None.",
+    calls: ["_clean_text"],
+    calledBy: ["_render_document"],
+    notes: "Currency is appended as a SUFFIX, not a prefix. Returning '' for None lets _render_document test truthiness before appending a line, so a missing fair value simply omits that line."
+  },
+  {
+    name: "_ticker_token", kind: "helper", kindLabel: "Helper", layer: "L4", aspect: "Saving",
+    sig: "_ticker_token(\n    ticker: Any,\n) -> str",
+    purpose: "Produces a filesystem-safe ticker token for document ids by stripping every non-alphanumeric character and upper-casing the result.",
+    returns: "str — e.g. 'INFY.NS' -> 'INFYNS', 'BRK-B' -> 'BRKB'; 'UNKNOWN' when nothing survives.",
+    calls: ["re.sub"],
+    calledBy: ["save_analysis_record"],
+    notes: "The 'UNKNOWN' fallback guarantees a non-empty id component even for a blank ticker — needed because save_analysis_record allows a company_name-only record."
+  },
+  {
+    name: "COLLECTION_NAME", kind: "data", kindLabel: "Constant", layer: "L5", aspect: "Chroma layer",
+    sig: "COLLECTION_NAME = \"stock_analysis_reports\"",
+    purpose: "Name of the collection holding saved analysis snapshots, inside the Chroma database configured by CHROMA_DATABASE.",
+    returns: "str — the collection name.",
+    calls: [],
+    calledBy: ["get_collection"],
+    notes: "A module constant, so renaming the collection is a code change rather than configuration."
+  },
+  {
+    name: "EMBEDDING_MODEL", kind: "data", kindLabel: "Constant", layer: "L5", aspect: "Chroma layer",
+    sig: "EMBEDDING_MODEL = \"text-embedding-3-small\"",
+    purpose: "The OpenAI embedding model used to vectorise stored documents, so they can be compared semantically later.",
+    returns: "str — the model name.",
+    calls: [],
+    calledBy: ["get_collection"],
+    notes: "Passed to OpenAIEmbeddingFunction as model_name. Changing it does NOT re-embed existing documents, so a switch should be accompanied by a re-ingest."
+  },
+  {
+    name: "FUNDAMENTAL_SECTION_ORDER", kind: "data", kindLabel: "Constant", layer: "L3", aspect: "Document",
+    sig: "FUNDAMENTAL_SECTION_ORDER = [\n    \"Financial Outlook\",\n    \"Key Risks\",\n    \"Growth Potential\",\n    \"Investment Recommendation\",\n]",
+    purpose: "Canonical order of the fundamental-report commentary sections that every snapshot document carries. _render_document iterates this list, so the stored document always has a stable, predictable section order.",
+    returns: "list[str] — the four section titles.",
+    calls: [],
+    calledBy: ["_render_document"],
+    notes: "The titles are used as dict keys into record['fundamental_sections'], so a caller's section titles must match these strings exactly or the section renders its 'No commentary available.' fallback."
+  },
+  {
+    name: "_client / _collection", kind: "data", kindLabel: "Module state", layer: "L5", aspect: "Chroma layer",
+    sig: "_client = None      # cached chromadb.HttpClient\n_collection = None  # cached collection",
+    purpose: "Module-level singletons memoising the HTTP client and the collection, so each is constructed at most once per process.",
+    returns: "chromadb.HttpClient / collection handle once initialised.",
+    calls: [],
+    calledBy: ["get_client", "get_collection"],
+    notes: "No invalidation hook exists, so credentials and host are effectively fixed for the process lifetime. Safe under Streamlit's threading because assignment is atomic — the worst case is building the collection twice."
+  }
+];
+
+/* ── Rendering ────────────────────────────────────────────────────── */
+const esc = s => String(s)
+  .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+function sigHTML(sig){
+  return esc(sig)
+    .replace(/^(\s*)([a-z_][a-z0-9_]*)/, '$1<span class="fn-key">$2</span>')
+    .replace(/(:\s*)([A-Z\[][A-Za-z0-9_\[\], \.]*|float|int|str|dict|bool|Any|list|None)(?=[,\n\)])/g,
+             '$1<span class="ty">$2</span>');
+}
+
+function chips(arr, cls){
+  if(!arr || !arr.length) return '<span class="chip none">— none —</span>';
+  return arr.map(n => `<span class="chip ${cls}">${esc(n)}</span>`).join('');
+}
+
+function fnCard(f){
+  return `
+  <article class="fn">
+    <div class="fn-head">
+      <span class="fn-name">${esc(f.name)}</span>
+      <span class="badge b-${f.kind}">${esc(f.kindLabel)}</span>
+      <span class="fn-sec">${esc(f.aspect)} · ${esc(f.layer)}</span>
+    </div>
+    <div class="card-body">
+      <pre class="sig">${sigHTML(f.sig)}</pre>
+      <dl class="kv">
+        <dt>Purpose</dt><dd>${esc(f.purpose)}</dd>
+        <dt>Returns</dt><dd>${esc(f.returns)}</dd>
+        <dt>Calls</dt><dd><div class="chips">${chips(f.calls, 'call')}</div></dd>
+        <dt>Called by</dt><dd><div class="chips">${chips(f.calledBy, 'by')}</div></dd>
+        ${f.notes ? `<dt>Notes</dt><dd>${esc(f.notes)}</dd>` : ''}
+      </dl>
+    </div>
+  </article>`;
+}
+
+function renderFns(q){
+  const term = (q || "").trim().toLowerCase();
+  const list = FUNCS.filter(f => !term ||
+    (f.name + " " + f.purpose + " " + f.aspect + " " + f.kindLabel + " " + f.layer)
+      .toLowerCase().includes(term));
+  document.getElementById("fnList").innerHTML =
+    list.length ? list.map(fnCard).join("")
+                : '<p class="note" style="padding:20px">No symbols match that filter.</p>';
+  document.getElementById("fnCount").textContent = list.length + " / " + FUNCS.length + " symbols";
+}
+
+/* ── Linkage matrix ───────────────────────────────────────────────── */
+function renderMatrix(){
+  document.getElementById("matrixBody").innerHTML = FUNCS.map(f => `
+    <tr>
+      <td class="mono">${esc(f.name)}</td>
+      <td><div class="chips">${chips(f.calls, 'call')}</div></td>
+      <td><div class="chips">${chips(f.calledBy, 'by')}</div></td>
+      <td class="c">${esc(f.layer)}</td>
+    </tr>`).join("");
+}
+
+/* ── Tabs ─────────────────────────────────────────────────────────── */
+function activate(panelId){
+  document.querySelectorAll(".tab").forEach(x =>
+    x.classList.toggle("active", x.dataset.panel === panelId));
+  document.querySelectorAll(".panel").forEach(p =>
+    p.classList.toggle("active", p.id === panelId));
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function initTabs(){
+  document.querySelectorAll(".tab").forEach(t =>
+    t.addEventListener("click", () => activate(t.dataset.panel)));
+  document.querySelectorAll("[data-goto]").forEach(card =>
+    card.addEventListener("click", () => activate(card.dataset.goto)));
+}
+
+/* ── Theme ────────────────────────────────────────────────────────── */
+function initTheme(){
+  const root = document.documentElement;
+  const saved = localStorage.getItem("chroma-theme");
+  if(saved) root.dataset.theme = saved;
+  document.getElementById("themeBtn").addEventListener("click", () => {
+    root.dataset.theme = root.dataset.theme === "dark" ? "light" : "dark";
+    localStorage.setItem("chroma-theme", root.dataset.theme);
+  });
+}
+
+/* ── Init ─────────────────────────────────────────────────────────── */
+document.addEventListener("DOMContentLoaded", () => {
+  initTabs();
+  initTheme();
+  renderFns("");
+  renderMatrix();
+  document.getElementById("fnSearch").addEventListener("input", e => renderFns(e.target.value));
+
+  document.addEventListener("keydown", e => {
+    if(e.key === "/" && document.activeElement.tagName !== "INPUT"){
+      e.preventDefault();
+      activate("p-funcs");
+      document.getElementById("fnSearch").focus();
+    }
+  });
+});
+
+/* KaTeX: render every \[ … \] block once the DOM and library are ready. */
+window.addEventListener("load", () => {
+  if(window.renderMathInElement){
+    renderMathInElement(document.body, {
+      delimiters: [
+        {left: "\\[", right: "\\]", display: true},
+        {left: "\\(", right: "\\)", display: false}
+      ],
+      throwOnError: false
+    });
+  }
+});
+</script>
+
+</body>
+</html>

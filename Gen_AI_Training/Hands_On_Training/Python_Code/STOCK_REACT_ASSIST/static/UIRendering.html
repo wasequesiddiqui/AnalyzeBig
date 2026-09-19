@@ -1,0 +1,1799 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Streamlit UI & Orchestration — Home.py Reference</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+
+<style>
+/* ── Design tokens ───────────────────────────────────────────────── */
+:root{
+  --bg:#f5f7fb; --surface:#fff; --surface-2:#fafbfe; --border:#e4e8f0;
+  --text:#0f172a; --text-2:#5b6679; --text-3:#8b95a7;
+  --accent:#4f46e5; --accent-soft:#eef0ff; --accent-2:#0284c7;
+  --green:#0f9d58; --green-soft:#e8f7ef;
+  --amber:#b45309; --amber-soft:#fdf3e3;
+  --rose:#be123c; --rose-soft:#fdeaf0;
+  --violet:#7c3aed; --violet-soft:#f3ecfe;
+  --teal:#0f766e; --teal-soft:#e6f6f4;
+  --code-bg:#f3f5fa;
+  --radius:14px; --radius-sm:9px;
+  --shadow:0 1px 2px rgba(15,23,42,.05), 0 10px 28px -14px rgba(15,23,42,.22);
+  --mono:"JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+[data-theme="dark"]{
+  --bg:#080b13; --surface:#0f1523; --surface-2:#121a2b; --border:#222c42;
+  --text:#e9eefb; --text-2:#9aa6bd; --text-3:#6c7891;
+  --accent:#8f8ff8; --accent-soft:#1a1f3d; --accent-2:#4cc9f0;
+  --green:#3ddc97; --green-soft:#0d2a1f;
+  --amber:#f0b357; --amber-soft:#2a1f0d;
+  --rose:#fb7185; --rose-soft:#2d1119;
+  --violet:#c4b5fd; --violet-soft:#1f1836;
+  --teal:#5eead4; --teal-soft:#082522;
+  --code-bg:#0c1220;
+  --shadow:0 1px 2px rgba(0,0,0,.6), 0 14px 36px -18px rgba(0,0,0,.9);
+}
+
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0; background:var(--bg); color:var(--text);
+  font-family:Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size:15px; line-height:1.65; -webkit-font-smoothing:antialiased}
+
+header{position:sticky; top:0; z-index:40;
+  background:color-mix(in srgb, var(--surface) 88%, transparent);
+  backdrop-filter:blur(12px); border-bottom:1px solid var(--border)}
+.hdr-inner{max-width:1180px; margin:0 auto; padding:14px 26px;
+  display:flex; align-items:center; gap:16px}
+.brand{display:flex; align-items:center; gap:13px; min-width:0}
+.logo{width:40px; height:40px; flex:none; border-radius:11px;
+  background:linear-gradient(135deg, var(--accent), #06b6d4);
+  display:grid; place-items:center; color:#fff; font-weight:700; font-size:12px;
+  box-shadow:0 6px 16px -6px var(--accent)}
+.brand h1{margin:0; font-size:16.5px; font-weight:650; letter-spacing:-.01em; white-space:nowrap}
+.brand p{margin:0; font-size:12.5px; color:var(--text-2)}
+.hdr-actions{margin-left:auto; display:flex; align-items:center; gap:10px}
+.src-chip{font-family:var(--mono); font-size:11.5px; padding:5px 11px; border-radius:99px;
+  background:var(--code-bg); border:1px solid var(--border); color:var(--text-2); white-space:nowrap}
+.icon-btn{width:36px; height:36px; border-radius:10px; border:1px solid var(--border);
+  background:var(--surface); color:var(--text-2); cursor:pointer;
+  display:grid; place-items:center; font-size:15px; transition:.15s}
+.icon-btn:hover{color:var(--accent); border-color:var(--accent)}
+
+main{max-width:1180px; margin:0 auto; padding:26px 26px 90px}
+
+/* ── Tabs ────────────────────────────────────────────────────────── */
+.tabs{display:flex; gap:5px; padding:6px; margin-bottom:26px;
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:13px; box-shadow:var(--shadow); overflow-x:auto}
+.tab{flex:1 1 auto; min-width:96px; border:0; cursor:pointer; background:transparent;
+  color:var(--text-2); font:inherit; font-weight:550; font-size:12.5px;
+  padding:10px 12px; border-radius:9px; transition:.15s; white-space:nowrap}
+.tab:hover{color:var(--text); background:var(--surface-2)}
+.tab.active{background:linear-gradient(135deg, var(--accent), var(--accent-2));
+  color:#fff; box-shadow:0 6px 18px -8px var(--accent)}
+.tab.active[data-a="found"]{background:linear-gradient(135deg,#0891b2,#0e7490); box-shadow:0 6px 18px -8px #0891b2}
+.tab.active[data-a="data"]{background:linear-gradient(135deg,#0d9488,#0f766e); box-shadow:0 6px 18px -8px #0f766e}
+.tab.active[data-a="ai"]{background:linear-gradient(135deg,#6366f1,#4338ca); box-shadow:0 6px 18px -8px #4f46e5}
+.tab.active[data-a="rag"]{background:linear-gradient(135deg,#c026d3,#a21caf); box-shadow:0 6px 18px -8px #a21caf}
+.tab.active[data-a="ui"]{background:linear-gradient(135deg,#f97316,#c2410c); box-shadow:0 6px 18px -8px #c2410c}
+.tab.active[data-a="int"]{background:linear-gradient(135deg,#8b5cf6,#6d28d9); box-shadow:0 6px 18px -8px #7c3aed}
+.tab.active[data-a="orch"]{background:linear-gradient(135deg,#e11d48,#be123c); box-shadow:0 6px 18px -8px #be123c}
+
+.panel{display:none}
+.panel.active{display:block; animation:fade .22s ease}
+@keyframes fade{from{opacity:0; transform:translateY(4px)}to{opacity:1;transform:none}}
+
+/* ── Sections & cards ────────────────────────────────────────────── */
+.sec{margin-bottom:28px}
+.sec-head{display:flex; align-items:baseline; gap:12px; margin:0 0 14px}
+.sec-head .num{font-family:var(--mono); font-size:12px; font-weight:600;
+  color:var(--accent); background:var(--accent-soft); padding:3px 9px; border-radius:7px; flex:none}
+.sec-head h2{margin:0; font-size:19px; font-weight:650; letter-spacing:-.015em}
+.sec-head .tag{margin-left:auto; font-size:11.5px; color:var(--text-3);
+  font-family:var(--mono); white-space:nowrap}
+
+.card{background:var(--surface); border:1px solid var(--border);
+  border-radius:var(--radius); box-shadow:var(--shadow); margin-bottom:14px; overflow:hidden}
+.card-top{padding:14px 18px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+  border-bottom:1px solid var(--border); background:var(--surface-2)}
+.card-top h3{margin:0; font-size:14.5px; font-weight:625; letter-spacing:-.01em}
+.card-body{padding:16px 18px}
+
+.badge{font-size:10.5px; font-weight:650; letter-spacing:.03em; text-transform:uppercase;
+  padding:3.5px 9px; border-radius:99px; white-space:nowrap}
+.b-orch{background:var(--rose-soft); color:var(--rose)}
+.b-tool{background:var(--amber-soft); color:var(--amber)}
+.b-render{background:var(--accent-soft); color:var(--accent)}
+.b-data{background:var(--green-soft); color:var(--green)}
+.b-helper{background:var(--violet-soft); color:var(--violet)}
+.b-rag{background:var(--violet-soft); color:var(--violet)}
+.b-int{background:var(--teal-soft); color:var(--teal)}
+.b-ai{background:var(--accent-soft); color:var(--accent)}
+
+/* ── Code / prompt blocks ────────────────────────────────────────── */
+.prompt,.sig{font-family:var(--mono); font-size:12.2px; line-height:1.7;
+  background:var(--code-bg); border:1px solid var(--border);
+  border-left:3px solid var(--pa, var(--accent));
+  border-radius:var(--radius-sm); padding:13px 15px; margin:2px 0 12px;
+  white-space:pre-wrap; word-break:break-word; color:var(--text); overflow-x:auto}
+.formula{background:var(--code-bg); border:1px solid var(--border);
+  border-left:3px solid var(--pa, var(--accent));
+  border-radius:var(--radius-sm); padding:14px 16px; margin:2px 0 12px;
+  overflow-x:auto; overflow-y:hidden}
+.formula .katex-display{margin:.25em 0}
+.formula .katex{font-size:1.05em}
+
+.note{font-size:13px; color:var(--text-2); margin:8px 0 0}
+.note strong{color:var(--text); font-weight:600}
+.impl{display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+  font-size:12.5px; color:var(--text-2); margin-top:10px;
+  padding-top:10px; border-top:1px dashed var(--border)}
+.impl .lbl{font-weight:600; color:var(--text)}
+
+code, .mono{font-family:var(--mono)}
+code{font-size:12.3px; background:var(--code-bg); border:1px solid var(--border);
+  padding:1.5px 6px; border-radius:5px; color:var(--text); white-space:nowrap}
+.chips{display:flex; flex-wrap:wrap; gap:6px}
+.chip{font-family:var(--mono); font-size:11.3px; padding:3px 9px; border-radius:7px;
+  background:var(--code-bg); border:1px solid var(--border); color:var(--text-2)}
+.chip.call{color:var(--accent-2); border-color:color-mix(in srgb, var(--accent-2) 30%, var(--border))}
+.chip.by{color:var(--violet); border-color:color-mix(in srgb, var(--violet) 30%, var(--border))}
+.chip.none{opacity:.55}
+
+/* ── Grids ───────────────────────────────────────────────────────── */
+.pgrid{display:grid; grid-template-columns:repeat(auto-fill,minmax(232px,1fr)); gap:12px}
+.pcard{border:1px solid var(--border); border-top:3px solid var(--pc);
+  border-radius:var(--radius); background:var(--surface);
+  box-shadow:var(--shadow); padding:15px 16px; cursor:pointer; transition:.15s}
+.pcard:hover{transform:translateY(-2px); border-color:color-mix(in srgb, var(--pc) 45%, var(--border))}
+.pcard .glyph{width:36px; height:36px; border-radius:10px; display:grid; place-items:center;
+  font-family:var(--mono); font-weight:700; font-size:12px;
+  background:color-mix(in srgb, var(--pc) 14%, transparent); color:var(--pc);
+  border:1px solid color-mix(in srgb, var(--pc) 28%, var(--border))}
+.pcard h4{margin:9px 0 2px; font-size:14.5px; font-weight:660; color:var(--pc)}
+.pcard .kind{font-size:10.5px; text-transform:uppercase; letter-spacing:.05em;
+  color:var(--text-3); font-weight:650}
+.pcard p{margin:8px 0 0; font-size:12.4px; color:var(--text-2)}
+
+.lgrid{display:grid; grid-template-columns:repeat(auto-fill,minmax(238px,1fr)); gap:11px}
+.lcard{border:1px solid var(--border); border-radius:var(--radius);
+  background:var(--surface); box-shadow:var(--shadow); padding:14px 16px;
+  border-left:3px solid var(--lc)}
+.lcard .n{font-family:var(--mono); font-size:11px; font-weight:600; color:var(--lc)}
+.lcard h4{margin:4px 0 6px; font-size:14px; font-weight:640}
+.lcard p{margin:0; font-size:12.5px; color:var(--text-2)}
+.lcard .fn{font-family:var(--mono); font-size:11.3px; color:var(--text-3); margin-top:7px}
+
+.steps{counter-reset:s; padding:0; margin:0; list-style:none}
+.steps li{position:relative; padding:11px 0 11px 46px; border-bottom:1px solid var(--border); font-size:13.2px}
+.steps li:last-child{border-bottom:0}
+.steps li::before{counter-increment:s; content:counter(s); position:absolute; left:0; top:11px;
+  width:28px; height:28px; border-radius:8px; display:grid; place-items:center;
+  font-family:var(--mono); font-size:11.5px; font-weight:700;
+  background:var(--accent-soft); color:var(--accent)}
+.steps b{display:block; font-size:13.4px}
+.steps span{color:var(--text-2)}
+
+/* ── Function reference ──────────────────────────────────────────── */
+.toolbar{display:flex; align-items:center; gap:12px; margin-bottom:16px; flex-wrap:wrap}
+.search{flex:1; min-width:230px; display:flex; align-items:center; gap:9px;
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:11px; padding:9px 13px; box-shadow:var(--shadow)}
+.search input{border:0; outline:0; background:transparent; color:var(--text);
+  font:inherit; font-size:14px; width:100%}
+.search input::placeholder{color:var(--text-3)}
+.count{font-size:12.5px; color:var(--text-2); font-family:var(--mono); white-space:nowrap}
+
+.fn{background:var(--surface); border:1px solid var(--border);
+  border-radius:var(--radius); box-shadow:var(--shadow); margin-bottom:12px;
+  overflow:hidden; transition:.15s}
+.fn:hover{border-color:color-mix(in srgb, var(--accent) 40%, var(--border))}
+.fn-head{padding:13px 18px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+  border-bottom:1px solid var(--border); background:var(--surface-2)}
+.fn-name{font-family:var(--mono); font-size:13.5px; font-weight:600; color:var(--accent)}
+.fn-sec{font-size:11.5px; color:var(--text-3); margin-left:auto; white-space:nowrap}
+.fn .sig{border-left:0; margin-bottom:12px}
+.sig .fn-key{color:var(--accent); font-weight:600}
+.sig .ty{color:var(--text-3)}
+.kv{display:grid; grid-template-columns:96px 1fr; gap:5px 14px; font-size:13.2px}
+.kv dt{color:var(--text-3); font-weight:600; font-size:11.5px; text-transform:uppercase;
+  letter-spacing:.03em; padding-top:2px}
+.kv dd{margin:0; color:var(--text-2)}
+
+/* ── Dependency map ──────────────────────────────────────────────── */
+.flow{display:flex; flex-direction:column; gap:0}
+.layer{background:var(--surface); border:1px solid var(--border);
+  border-radius:var(--radius); box-shadow:var(--shadow); padding:16px 18px}
+.layer-h{display:flex; align-items:center; gap:10px; margin-bottom:12px; flex-wrap:wrap}
+.layer-h h4{margin:0; font-size:13px; font-weight:650; text-transform:uppercase;
+  letter-spacing:.06em; color:var(--text-2)}
+.layer-idx{font-family:var(--mono); font-size:11px; font-weight:600; color:var(--accent);
+  background:var(--accent-soft); padding:2px 8px; border-radius:6px}
+.conn{display:grid; place-items:center; padding:5px 0}
+.conn span{width:2px; height:26px;
+  background:linear-gradient(var(--accent), color-mix(in srgb, var(--accent) 25%, transparent));
+  border-radius:2px; position:relative}
+.conn span::after{content:""; position:absolute; bottom:-1px; left:50%; transform:translateX(-50%);
+  border-left:4.5px solid transparent; border-right:4.5px solid transparent; border-top:7px solid var(--accent)}
+.node-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(206px,1fr)); gap:8px}
+.node{border:1px solid var(--border); border-radius:10px; padding:9px 12px;
+  background:var(--surface-2); font-size:12.4px}
+.node b{font-family:var(--mono); font-size:11.8px; font-weight:600; color:var(--text); display:block}
+.node span{color:var(--text-3); font-size:11.4px}
+.node.orch{border-left:3px solid var(--rose)}
+.node.ui{border-left:3px solid #f97316}
+.node.dt{border-left:3px solid var(--green)}
+.node.hp{border-left:3px solid var(--violet)}
+.node.tl{border-left:3px solid var(--amber)}
+
+table{width:100%; border-collapse:collapse; font-size:13px; margin-top:4px}
+th,td{padding:9px 11px; text-align:left; border-bottom:1px solid var(--border)}
+th{font-size:11px; text-transform:uppercase; letter-spacing:.05em;
+  color:var(--text-3); font-weight:650; background:var(--surface-2)}
+tbody tr:last-child td{border-bottom:0}
+td.mono{font-family:var(--mono); font-size:11.8px; color:var(--accent)}
+td.c{text-align:center; font-family:var(--mono); color:var(--text-2)}
+
+.legend{display:flex; gap:14px; flex-wrap:wrap; font-size:12px; color:var(--text-2);
+  margin-top:12px; padding-top:12px; border-top:1px solid var(--border)}
+.legend i{display:inline-block; width:9px; height:9px; border-radius:3px; margin-right:6px}
+.dot-orch{background:var(--rose)} .dot-ui{background:#f97316}
+.dot-dt{background:var(--green)} .dot-hp{background:var(--violet)} .dot-tl{background:var(--amber)}
+
+.callout{display:flex; gap:11px; padding:13px 15px; border-radius:var(--radius-sm);
+  background:var(--amber-soft); border:1px solid color-mix(in srgb, var(--amber) 25%, var(--border));
+  font-size:13px; color:var(--text-2); margin-bottom:14px}
+.callout b{color:var(--text)}
+.callout .ico{flex:none; font-size:14px}
+
+footer{max-width:1180px; margin:0 auto; padding:22px 26px 40px;
+  border-top:1px solid var(--border); color:var(--text-3); font-size:12.5px}
+footer code{font-size:11.5px}
+kbd{font-family:var(--mono); font-size:11px; background:var(--surface-2);
+  border:1px solid var(--border); border-bottom-width:2px; border-radius:5px;
+  padding:1px 6px; color:var(--text-2)}
+
+@media (max-width:820px){
+  .hdr-inner, main, footer{padding-left:16px; padding-right:16px}
+  .src-chip{display:none}
+  .kv{grid-template-columns:1fr; gap:2px}
+  .kv dt{padding-top:8px}
+  .brand p{display:none}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="hdr-inner">
+    <div class="brand">
+      <div class="logo">UI</div>
+      <div>
+        <h1>Streamlit UI &amp; Orchestration</h1>
+        <p>Every aspect and function in <code style="font-size:11.5px">Home.py</code></p>
+      </div>
+    </div>
+    <div class="hdr-actions">
+      <span class="src-chip">58 symbols · 10 aspects · 4 @tools</span>
+      <button class="icon-btn" id="themeBtn" title="Toggle light / dark" aria-label="Toggle theme">◐</button>
+    </div>
+  </div>
+</header>
+
+<main>
+
+  <nav class="tabs" role="tablist">
+    <button class="tab active" role="tab" data-panel="p-overview">Overview</button>
+    <button class="tab" role="tab" data-panel="p-found" data-a="found">Foundations</button>
+    <button class="tab" role="tab" data-panel="p-data" data-a="data">Data Layer</button>
+    <button class="tab" role="tab" data-panel="p-ai" data-a="ai">AI Analysis</button>
+    <button class="tab" role="tab" data-panel="p-rag" data-a="rag">Vectorless RAG</button>
+    <button class="tab" role="tab" data-panel="p-ui" data-a="ui">UI Rendering</button>
+    <button class="tab" role="tab" data-panel="p-int" data-a="int">Integrations</button>
+    <button class="tab" role="tab" data-panel="p-orch" data-a="orch">Orchestration</button>
+    <button class="tab" role="tab" data-panel="p-funcs">Function Reference</button>
+    <button class="tab" role="tab" data-panel="p-deps">Dependency Map</button>
+  </nav>
+
+  <!-- ══════════════════ OVERVIEW ══════════════════ -->
+  <section class="panel active" id="p-overview">
+
+    <div class="callout">
+      <span class="ico">◆</span>
+      <div>
+        <b>Home.py is the Streamlit application itself</b> — the entrypoint, the whole UI, and the
+        orchestration layer that wires every other module together. It owns nothing analytical:
+        DCF math lives in <code>ALL_DCF_MODELS</code>, indicators in <code>TECH_ANALYSIS</code>,
+        the ReAct agent in <code>stock_react_agent</code>, the crew in
+        <code>PERSONA_AGENTS_CREW</code> and persistence in <code>CHROMA_STORE</code>.
+        Its job is to <em>orchestrate, cache, render and degrade gracefully</em>.
+      </div>
+    </div>
+
+    <!-- Aspects -->
+    <div class="sec">
+      <div class="sec-head"><span class="num">A</span><h2>Aspects of the module</h2>
+        <span class="tag">click a card to open its tab</span></div>
+      <div class="pgrid">
+        <div class="pcard" style="--pc:#0891b2" data-goto="p-found">
+          <div class="glyph">01</div><h4>Foundations</h4>
+          <div class="kind">Secrets · NLTK · API keys</div>
+          <p>Secrets bridge, tokenizer bootstrap, credential probes, plus the formatting and
+             currency helpers every card uses.</p>
+        </div>
+        <div class="pcard" style="--pc:var(--teal)" data-goto="p-data">
+          <div class="glyph">02</div><h4>Data Layer</h4>
+          <div class="kind">Cache · retry · @tools</div>
+          <p>Rate-limit handling and cached fetchers, exposed to the LLM as four tool functions.</p>
+        </div>
+        <div class="pcard" style="--pc:var(--accent)" data-goto="p-ai">
+          <div class="glyph">03</div><h4>AI Analysis</h4>
+          <div class="kind">Prompt · verdict detection</div>
+          <p>Builds the fundamental prompt and parses the reply back into sections and a verdict.</p>
+        </div>
+        <div class="pcard" style="--pc:#a21caf" data-goto="p-rag">
+          <div class="glyph">04</div><h4>Vectorless RAG</h4>
+          <div class="kind">Extract · chunk · retrieve</div>
+          <p>PDF filings become an in-memory corpus scored by keyword overlap — no vectors.</p>
+        </div>
+        <div class="pcard" style="--pc:#c2410c" data-goto="p-ui">
+          <div class="glyph">05</div><h4>UI Rendering</h4>
+          <div class="kind">11 renderers + export</div>
+          <p>Every visual section of the dashboard, plus the self-contained HTML export.</p>
+        </div>
+        <div class="pcard" style="--pc:var(--violet)" data-goto="p-int">
+          <div class="glyph">06</div><h4>Integrations</h4>
+          <div class="kind">Chroma · crewAI</div>
+          <p>Lazily bridges to the persistence layer and the multi-persona crew.</p>
+        </div>
+        <div class="pcard" style="--pc:var(--rose)" data-goto="p-orch">
+          <div class="glyph">07</div><h4>Orchestration</h4>
+          <div class="kind">run_analysis · main</div>
+          <p>The 9-step pipeline and the session-state-driven render pass.</p>
+        </div>
+        <div class="pcard" style="--pc:var(--amber)" data-goto="p-funcs">
+          <div class="glyph">08</div><h4>Function Reference</h4>
+          <div class="kind">All 58 symbols</div>
+          <p>Signatures, purpose, return contract, callers and notes for everything defined.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Pipeline -->
+    <div class="sec">
+      <div class="sec-head"><span class="num">B</span><h2>The analysis pipeline</h2>
+        <span class="tag">run_analysis — 9 steps, synchronously</span></div>
+      <div class="card">
+        <div class="card-body">
+          <ol class="steps">
+            <li><b>Stock price</b><span><code>get_stock_price</code> — OHLCV snapshot. A failure here aborts the run.</span></li>
+            <li><b>News</b><span><code>get_stock_news</code> — latest headlines for the company name.</span></li>
+            <li><b>Sentiment</b><span><code>analyze_news_sentiment</code> — TextBlob polarity over 20 articles.</span></li>
+            <li><b>DCF valuation</b><span><code>get_dcf_valuation</code> — multi-model intrinsic value.</span></li>
+            <li><b>RAG corpus build</b><span>PDF extraction + chunking, <em>only when the upload set changed</em>.</span></li>
+            <li><b>Lexical retrieval</b><span>Top-10 chunks by keyword overlap → prompt context.</span></li>
+            <li><b>Technical indicators</b><span><code>TECH_ANALYSIS</code> — 5-year DataFrame; a failure sets <code>tech_df = None</code>.</span></li>
+            <li><b>Parallel AI analysis</b><span>Fundamental + technical agents on two threads.</span></li>
+            <li><b>Parse &amp; merge verdicts</b><span><code>parse_analysis</code> + <code>build_overall_summary</code> → Overall Summary.</span></li>
+          </ol>
+          <p class="note">
+            Progress is reported through a <code>st.progress</code> bar and a status line, and each
+            stage writes into <code>st.session_state</code> as it completes. The run ends with
+            <code>st.rerun()</code> so <code>main()</code>'s results branch takes over — which is why
+            an interrupted run still renders whatever completed.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Module-level state -->
+    <div class="sec">
+      <div class="sec-head"><span class="num">C</span><h2>Module-level state</h2>
+        <span class="tag">built once per app process</span></div>
+      <div class="card">
+        <div class="card-body" style="padding:0">
+          <table>
+            <thead><tr><th style="width:30%">Object</th><th>Role</th></tr></thead>
+            <tbody>
+              <tr><td class="mono">llm</td><td><code>ChatOpenAI</code> pointed at DeepSeek's OpenAI-compatible endpoint, <code>temperature=0</code>.</td></tr>
+              <tr><td class="mono">newsapi</td><td><code>NewsApiClient</code> built from <code>NEWS_API_KEY</code>.</td></tr>
+              <tr><td class="mono">st.session_state</td><td>~20 keys initialised in one block — analysis results, RAG state and persona state. Every renderer reads from here rather than refetching.</td></tr>
+              <tr><td class="mono">API_KEY_STATUS</td><td>The three probe verdicts (<code>valid</code>/<code>invalid</code>/<code>unknown</code>) with their icons and captions.</td></tr>
+              <tr><td class="mono">CURRENCY_SYMBOLS</td><td>7 ISO code → symbol mappings used by every price formatter.</td></tr>
+              <tr><td class="mono">FUNDAMENTAL_TITLES</td><td>The four canonical sections persisted to Chroma.</td></tr>
+              <tr><td class="mono">_RATE_LIMIT_*</td><td>Retry attempts (3) and backoff base (2.0 s) for Yahoo throttling.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <p class="note">
+        The two clients are constructed at <strong>import time</strong>, so a missing API key
+        produces a client with <code>api_key=None</code> rather than an import error — the app still
+        boots and the sidebar reports the key as missing.
+      </p>
+    </div>
+
+  </section>
+
+  <!-- ══════════════════ FOUNDATIONS ══════════════════ -->
+  <section class="panel" id="p-found" style="--pa:#0891b2">
+    <div class="sec">
+      <div class="sec-head"><span class="num">1</span><h2>Secrets bridge</h2>
+        <span class="tag">_load_secrets_into_env()</span></div>
+      <div class="card">
+        <div class="card-body">
+          <div class="prompt">load_dotenv()                 # local .env -> os.environ
+_load_secrets_into_env()      # st.secrets  -> os.environ (setdefault)
+
+for key, value in st.secrets.items():
+    if isinstance(value, (str, int, float, bool)):
+        os.environ.setdefault(key, str(value))</div>
+          <p class="note">
+            On Streamlit Community Cloud there is <strong>no <code>.env</code></strong> — keys are
+            entered as app Secrets and exposed only through <code>st.secrets</code>, which does
+            <em>not</em> populate <code>os.environ</code>. Every client in this app reads
+            <code>os.getenv(...)</code>, so without this bridge each one would silently get
+            <code>None</code>. <code>setdefault</code> means a real environment variable or a local
+            <code>.env</code> always wins.
+          </p>
+          <p class="note">
+            <code>st.secrets</code> is a <strong>lazy</strong> proxy: reading the attribute is safe,
+            but the file is not parsed until <code>.items()</code> is called — and that raises when
+            no <code>secrets.toml</code> exists, which is the normal local case. That is why the
+            whole read sits inside a <code>try</code> and is materialised with <code>list()</code>.
+            Nested TOML sections are skipped because only scalars map to environment variables.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><span class="num">2</span><h2>NLTK bootstrap</h2>
+        <span class="tag">_ensure_nltk_data() · @st.cache_resource</span></div>
+      <div class="card">
+        <div class="card-body">
+          <div class="prompt">for resource, path in (("punkt_tab", "tokenizers/punkt_tab"),
+                       ("punkt",     "tokenizers/punkt")):
+    try:
+        nltk.data.find(path)
+    except LookupError:
+        nltk.download(resource, quiet=True)   # failures swallowed</div>
+          <p class="note">
+            A fresh Cloud container ships no NLTK data, and TextBlob tokenizes with
+            <code>word_tokenize</code>, which raises <code>LookupError</code> without
+            <code>punkt</code>. This downloads once per container into <code>~/nltk_data</code>.
+            Both a missing <code>nltk</code> import and a failed download are swallowed so the app
+            still boots — sentiment degrades rather than the page breaking.
+          </p>
+          <p class="note">
+            <code>@st.cache_resource</code> (not <code>cache_data</code>) is correct here: this is a
+            side-effecting setup routine that should run once per process, not a pure data fetch.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><span class="num">3</span><h2>API key verification</h2>
+        <span class="tag">_probe_endpoint() · _verify_api_keys()</span></div>
+      <div class="card">
+        <div class="card-body">
+          <p class="note">
+            The sidebar presence check only proves a variable is <em>set</em> — a leftover
+            placeholder like <code>sk-xxxxxxxx</code> passes it happily. These helpers make one cheap
+            authenticated request per provider so "valid" means the key actually works. Uses only
+            <code>urllib</code>, so it adds nothing to <code>requirements.txt</code>.
+          </p>
+          <table>
+            <thead><tr><th style="width:22%">Probe result</th><th style="width:30%">Condition</th><th>Meaning</th></tr></thead>
+            <tbody>
+              <tr><td class="mono">valid</td><td>HTTP 200</td><td>Key authenticated successfully.</td></tr>
+              <tr><td class="mono">invalid</td><td>HTTP 401 / 403</td><td>Provider rejected the key itself — placeholder, typo or expired.</td></tr>
+              <tr><td class="mono">unknown</td><td>Any other status, or a connection failure</td><td>Could not verify — a provider outage or blocked network is never mistaken for a bad key.</td></tr>
+            </tbody>
+          </table>
+          <p class="note">
+            Endpoints are chosen to be authenticated but free: DeepSeek's
+            <code>/user/balance</code>, and a single-article NewsAPI query. The NewsAPI probe still
+            consumes one request from the free-tier daily quota, which is why this is
+            <strong>button-driven and cached for 10 minutes</strong>, keyed on the key values so
+            rotating a key re-checks immediately.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><span class="num">4</span><h2>Formatting helpers</h2>
+        <span class="tag">presentation-only utilities</span></div>
+      <div class="card">
+        <div class="card-body" style="padding:0">
+          <table>
+            <thead><tr><th style="width:30%">Function</th><th>Behaviour</th></tr></thead>
+            <tbody>
+              <tr><td class="mono">strip_exchange_suffix()</td><td>Removes a trailing <code>.NS</code>/<code>.BO</code>, anchored with <code>$</code> so only a real suffix is stripped. Used for display filenames and news queries.</td></tr>
+              <tr><td class="mono">format_volume()</td><td>Indian numbering: <code>≥ 1 Cr</code> shown as <code>"3.25 Cr"</code>, <code>≥ 1 L</code> as <code>"12.50 L"</code>, else comma-grouped.</td></tr>
+              <tr><td class="mono">get_sentiment_emoji()</td><td>Positive/Negative/Neutral/Unknown/Error → icon; unknown labels fall back to ❓.</td></tr>
+              <tr><td class="mono">get_sentiment_color()</td><td>Sentiment → Streamlit theme color name. <code>error</code> intentionally falls through to neutral gray — an error is not a directional sentiment.</td></tr>
+              <tr><td class="mono">get_tech_verdict_style()</td><td>Returns <code>(color, emoji)</code> for the four-flag technical verdict plus the NEUTRAL fallback.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><span class="num">5</span><h2>Currency &amp; FX</h2>
+        <span class="tag">Yahoo FX tickers, cached 1 hour</span></div>
+      <div class="card">
+        <div class="card-body">
+          <div class="prompt">get_fx_rate("USD", "INR")     # ~83.5  (1 USD = 83.5 INR)
+
+same currency   -> 1.0
+from USD        -> fetch "{to}=X"          directly
+to USD          -> fetch "{from}=X", then reciprocal
+neither is USD  -> chain through USD (triangular)</div>
+          <p class="note">
+            Yahoo exposes pairs as tickers like <code>"INR=X"</code>, whose close is the value of one
+            unit of the first code in the second. Every path degrades to <strong>1.0</strong> on
+            failure, so the UI shows unconverted prices rather than crashing.
+            <code>_fx_lookup</code> is wrapped in <code>@st.cache_data(ttl=3600)</code> so repeated
+            conversions don't hammer Yahoo.
+          </p>
+          <table>
+            <thead><tr><th style="width:32%">Function</th><th>Layer</th></tr></thead>
+            <tbody>
+              <tr><td class="mono">_fx_lookup(ticker)</td><td>Raw Yahoo close for one FX ticker, cached; <code>None</code> on failure.</td></tr>
+              <tr><td class="mono">get_fx_rate(from, to)</td><td>Direction resolution and USD triangulation.</td></tr>
+              <tr><td class="mono">convert_price(value, from, to)</td><td>Multiplies by the rate, rounds to 2 dp.</td></tr>
+              <tr><td class="mono">format_price(value, native, display)</td><td>Symbol-prefixed, comma-grouped string, e.g. <code>"₹1,450.50"</code>.</td></tr>
+              <tr><td class="mono">current_selected_currency()</td><td>Reads the sidebar's <code>selectbox</code> value from session state, defaulting to INR.</td></tr>
+              <tr><td class="mono">currency_display_string(code)</td><td>Returns the <code>"₹ "</code>-style prefix that <code>ALL_DCF_MODELS</code> expects.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════ DATA LAYER ══════════════════ -->
+  <section class="panel" id="p-data" style="--pa:var(--teal)">
+    <div class="sec">
+      <div class="sec-head"><span class="num">1</span><h2>Yahoo rate-limit strategy</h2>
+        <span class="tag">two defences</span></div>
+      <div class="card">
+        <div class="card-body">
+          <p class="note">
+            Yahoo Finance rate-limits by IP address, and Streamlit Community Cloud apps share heavily
+            used AWS egress IPs — so <code>yfinance</code> can raise
+            <code>YFRateLimitError</code> even on the first call of a session.
+          </p>
+          <div class="lgrid">
+            <div class="lcard" style="--lc:var(--teal)">
+              <div class="n">DEFENCE 01</div><h4>Cache every fetch</h4>
+              <p><code>@st.cache_data(ttl=900)</code> means one successful fetch serves every rerun
+                 and every session in the process until the TTL expires.</p>
+              <div class="fn">_cached_dcf_valuation · _cached_stock_price · _cached_technical_indicators</div>
+            </div>
+            <div class="lcard" style="--lc:var(--amber)">
+              <div class="n">DEFENCE 02</div><h4>Retry with backoff</h4>
+              <p>Up to 3 attempts with linear backoff (2 s, 4 s), because the limit is often just a
+                 burst. A genuine "no such ticker" failure is <em>not</em> retried.</p>
+              <div class="fn">_retry_on_rate_limit</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-body">
+          <div class="prompt">def fetch():
+    hist = yf.Ticker(symbol).history(period="5d")
+    if hist.empty:
+        raise RuntimeError(...)   # RAISE, never return an error value
+
+_retry_on_rate_limit(fetch)</div>
+          <p class="note">
+            <strong>Why cached fetchers must raise.</strong> <code>st.cache_data</code> stores
+            whatever comes back — caching a transient "Too Many Requests" dict would keep showing
+            that error for the whole TTL, even after Yahoo recovered. Raising also lets
+            <code>_retry_on_rate_limit</code> see the failure and retry it.
+            <code>_raise_if_error</code> enforces this for the two fetchers that delegate to other
+            modules.
+          </p>
+          <p class="note">
+            <code>_yahoo_error_message</code> rewrites a raw <em>"Too Many Requests"</em> into an
+            actionable explanation, because on shared cloud hosts that message otherwise reads like
+            an app bug.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><span class="num">2</span><h2>Cached fetchers</h2>
+        <span class="tag">@st.cache_data(ttl=900)</span></div>
+      <div class="card">
+        <div class="card-body" style="padding:0">
+          <table>
+            <thead><tr><th style="width:34%">Fetcher</th><th>Wraps</th><th>Why cached</th></tr></thead>
+            <tbody>
+              <tr><td class="mono">_cached_stock_price(symbol)</td><td><code>yfinance</code> 5-day OHLCV</td><td>Intraday price drift doesn't change any conclusion, while a rate-limited app shows no price at all.</td></tr>
+              <tr><td class="mono">_cached_dcf_valuation(symbol, currency_label)</td><td><code>adm.run_valuation_analysis</code></td><td>Creates several <code>Ticker</code> objects — one of the most request-hungry calls. <code>currency_label</code> is part of the cache key because it feeds the model output.</td></tr>
+              <tr><td class="mono">_cached_technical_indicators(symbol)</td><td><code>TECH_ANALYSIS.compute_technical_indicators</code></td><td>The single heaviest request (5 years of daily bars), so caching it matters most.</td></tr>
+            </tbody>
+          </table>
+          <p class="note">
+            All three route through <code>_retry_on_rate_limit</code>, and the latter two through
+            <code>_raise_if_error</code> so a delegated failure is never cached.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><span class="num">3</span><h2>LLM tools</h2>
+        <span class="tag">4 @tool functions the model can invoke</span></div>
+      <div class="card">
+        <div class="card-body" style="padding:0">
+          <table>
+            <thead><tr><th style="width:28%">Tool</th><th>Returns</th></tr></thead>
+            <tbody>
+              <tr><td class="mono">get_stock_price(ticker)</td><td>OHLCV snapshot plus <code>exchange</code> and native <code>currency</code>; <code>{"error": ...}</code> on failure.</td></tr>
+              <tr><td class="mono">get_stock_news(company_name)</td><td>Up to 5 headlines with title, description and URL.</td></tr>
+              <tr><td class="mono">analyze_news_sentiment(company_name)</td><td>TextBlob polarity over ~20 articles → sentiment label, score, article count.</td></tr>
+              <tr><td class="mono">get_dcf_valuation(ticker)</td><td>Multi-model fair value across base/bull/bear plus RMSE metrics.</td></tr>
+            </tbody>
+          </table>
+          <p class="note">
+            Each tool wraps a cached fetcher and returns an <code>{"error": ...}</code> dict rather
+            than raising, so the agent can reason about missing data. Symbols are consumed
+            <strong>exactly as supplied</strong> — no <code>.NS</code>/<code>.BO</code> suffix is ever
+            appended or probed.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════ AI ANALYSIS ══════════════════ -->
+  <section class="panel" id="p-ai" style="--pa:var(--accent)">
+    <div class="sec">
+      <div class="sec-head"><span class="num">1</span><h2>Prompt construction</h2>
+        <span class="tag">generate_analysis()</span></div>
+      <div class="card">
+        <div class="card-body">
+          <p class="note">
+            Assembles the fundamental prompt from six inputs — ticker, stock data, sentiment, news,
+            DCF data and the retrieved RAG excerpts — plus the display currency, then demands four
+            labelled <code>##</code> sections ending in a bolded verdict word. The
+            <code>&lt;mark&gt;</code> tags are quarantined to the recommendation section so
+            intentional HTML cannot leak into sections rendered as escaped text.
+          </p>
+          <div class="impl">
+            <span class="lbl">Calls</span>
+            <code>llm.invoke(prompt)</code>
+            <span class="arrow">→</span>
+            <span class="chips">
+              <span class="chip">returns raw markdown</span>
+              <span class="chip">run in parallel with the technical agent</span>
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><span class="num">2</span><h2>Parsing &amp; verdict detection</h2>
+        <span class="tag">parse_analysis() — the trickiest logic here</span></div>
+      <div class="card">
+        <div class="card-body">
+          <p class="note">
+            Splits the markdown on <code>##</code> headers, matches each against the four known
+            sections, extracts paragraphs, and for the recommendation section only detects a
+            <strong>BUY / HOLD / SELL</strong> verdict in two stages.
+          </p>
+          <ol class="steps">
+            <li><b>Explicit marker wins</b><span>A leading <code>**HOLD.**</code>, <code>BUY:</code> or <code>SELL —</code> is returned directly, preventing false positives from words like "avoid" later in the commentary.</span></li>
+            <li><b>Keyword scan with negation awareness</b><span>Otherwise the body is scanned for BUY words, then SELL words — where a keyword only counts if no negator sits nearby.</span></li>
+            <li><b>Default to HOLD</b><span>Nothing matched, so the verdict is neutral rather than guessed.</span></li>
+          </ol>
+          <div class="formula">
+            \[ \text{directional}(w) \;\iff\; \exists\, \text{occurrence of } w \text{ with no negator within } 45 \text{ chars} \]
+          </div>
+          <p class="note">
+            The negation guard is what stops <em>"a SELL rating is not warranted"</em> being read as
+            SELL and <em>"a BUY would be premature"</em> being read as BUY. Two limits make it
+            precise: a <strong>45-character window</strong> keeps an unrelated "no" elsewhere in the
+            sentence from suppressing the call, and a <strong>clause-break test</strong> (comma,
+            semicolon, colon, or a conjunction like <em>and/but/however/although</em>) stops
+            <em>"the company has no debt and we recommend BUY"</em> from reading as negated.
+          </p>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-body" style="padding:0">
+          <table>
+            <thead><tr><th style="width:34%">Returned per section</th><th>Value</th></tr></thead>
+            <tbody>
+              <tr><td class="mono">title</td><td>Canonical section name when matched, else the raw header.</td></tr>
+              <tr><td class="mono">emoji</td><td>Per-section icon; unmatched sections get a generic 📌.</td></tr>
+              <tr><td class="mono">paragraphs</td><td>Body split on blank lines.</td></tr>
+              <tr><td class="mono">is_recommendation</td><td>True for the Investment Recommendation section only.</td></tr>
+              <tr><td class="mono">verdict</td><td>BUY / HOLD / SELL for that section, <code>None</code> for the rest.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════ VECTORLESS RAG ══════════════════ -->
+  <section class="panel" id="p-rag" style="--pa:#a21caf">
+    <div class="sec">
+      <div class="sec-head"><span class="num">1</span><h2>The five stages</h2>
+        <span class="tag">no embeddings, no vector database</span></div>
+      <div class="card">
+        <div class="card-body">
+          <p class="note">
+            <strong>Vectorless RAG</strong> keeps the <em>retrieval + augmented generation</em> idea
+            but drops the embedding and vector-database machinery entirely. The chunk list held in
+            <code>st.session_state</code> <em>is</em> the database, and the LLM's long context window
+            does the semantic reading.
+          </p>
+          <ol class="steps">
+            <li><b>EXTRACT</b><span><code>extract_pdf_text</code> — raw text per page via <code>pypdf</code>.</span></li>
+            <li><b>CHUNK</b><span><code>chunk_text</code> — ~1800-char chunks with 200-char overlap, cut at sentence boundaries.</span></li>
+            <li><b>STORE</b><span>A plain Python list in session state. No index, no embedding model, no external service.</span></li>
+            <li><b>RETRIEVE</b><span><code>lexical_search</code> — count query terms present in each chunk, keep the top 10.</span></li>
+            <li><b>AUGMENT</b><span><code>format_rag_context</code> — label each excerpt with file and page, then inject as plain text.</span></li>
+          </ol>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><span class="num">2</span><h2>Retrieval scoring</h2>
+        <span class="tag">lexical_search()</span></div>
+      <div class="card">
+        <div class="card-body">
+          <div class="formula">
+            \[ \text{score}(c) \;=\; \bigl|\{\, t \in Q \;:\; t \subseteq \text{lower}(c.\text{text}) \,\}\bigr| \]
+          </div>
+          <p class="note">
+            A case-insensitive substring overlap count — the stand-in for embedding similarity
+            search. Query terms are extracted with <code>[a-zA-Z]{3,}</code> and filtered against a
+            stop-word set that includes domain words like <em>stock</em>, <em>report</em>,
+            <em>filing</em> and <em>regulatory</em> so they don't dominate the score. Chunks scoring
+            zero are dropped; an empty or too-short query falls back to the first <code>top_k</code>
+            chunks rather than returning nothing.
+          </p>
+          <div class="lgrid">
+            <div class="lcard" style="--lc:var(--green)">
+              <div class="n">ADVANTAGE</div><h4>Zero infrastructure</h4>
+              <p>No embedding model to download or call, no vector database to run, and no embedding
+                 cost — only the DeepSeek context window is consumed.</p>
+            </div>
+            <div class="lcard" style="--lc:var(--green)">
+              <div class="n">ADVANTAGE</div><h4>Fully auditable</h4>
+              <p>The retrieved chunks are rendered in the UI, so you can inspect exactly which text
+                 reached the LLM — important for regulatory filings.</p>
+            </div>
+            <div class="lcard" style="--lc:var(--amber)">
+              <div class="n">TRADE-OFF</div><h4>No semantic matching</h4>
+              <p>Keyword overlap misses paraphrased queries that true embedding similarity would
+                 catch.</p>
+            </div>
+            <div class="lcard" style="--lc:var(--amber)">
+              <div class="n">TRADE-OFF</div><h4>Context-window bound</h4>
+              <p>The <code>top_k</code> cap keeps large filings from overflowing the LLM context
+                 window.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><span class="num">3</span><h2>Upload state &amp; timing</h2>
+        <span class="tag">extraction is deferred on purpose</span></div>
+      <div class="card">
+        <div class="card-body">
+          <div class="prompt">Upload  ->  _store_uploaded_files()      snapshots BYTES only
+Analyze ->  build_document_corpus()      extract + chunk (once)
+            _render_uploaded_docs_summary()  shows ✓/⚠️ per file</div>
+          <p class="note">
+            Streamlit <code>UploadedFile</code> objects are recreated on every rerun and are not
+            guaranteed to stay usable, so the bytes are snapshotted as
+            <code>{"name", "size", "bytes"}</code>. Expensive PDF parsing then runs
+            <strong>once</strong>, on the Analyze click — guarded by comparing an upload-set key so
+            an unchanged set is never re-extracted. When the set <em>does</em> change, all previously
+            built RAG artifacts are invalidated.
+          </p>
+          <p class="note">
+            Scanned or image-only PDFs yield no text; they are reported per-file with a
+            <em>"⚠️ No extractable text"</em> status rather than silently contributing nothing.
+            Every stage prints to the terminal running <code>streamlit run</code>, so the pipeline is
+            observable end-to-end.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════ UI RENDERING ══════════════════ -->
+  <section class="panel" id="p-ui" style="--pa:#c2410c">
+    <div class="sec">
+      <div class="sec-head"><span class="num">1</span><h2>The renderers</h2>
+        <span class="tag">every visual section of the dashboard</span></div>
+      <div class="card">
+        <div class="card-body" style="padding:0">
+          <table>
+            <thead><tr><th style="width:32%">Renderer</th><th>Renders</th></tr></thead>
+            <tbody>
+              <tr><td class="mono">render_header()</td><td>Title, tagline and a live date/time stamp. Purely presentational — inputs live in the sidebar.</td></tr>
+              <tr><td class="mono">render_sidebar()</td><td>All user inputs: ticker/company, Analyze button, persona button, PDF uploader with summary, currency selector, key status, disclaimer, Save and Export. Returns a 6-tuple of inputs and button states.</td></tr>
+              <tr><td class="mono">render_metrics(stock_data, display_currency)</td><td>The OHLCV metrics strip, currency-converted.</td></tr>
+              <tr><td class="mono">render_dcf_valuation(dcf_data, stock_data, display_currency)</td><td>Base / bull / bear scenario cards.</td></tr>
+              <tr><td class="mono">render_sentiment(sentiment_data)</td><td>Sentiment badge and animated score bar.</td></tr>
+              <tr><td class="mono">render_news(news)</td><td>Headline cards with links.</td></tr>
+              <tr><td class="mono">render_document_context(rag_chunks)</td><td>The retrieved filing excerpts — the audit trail for vectorless RAG.</td></tr>
+              <tr><td class="mono">render_analysis(parsed_sections)</td><td>The four fundamental sections.</td></tr>
+              <tr><td class="mono">_render_recommendation(section)</td><td>The recommendation card with its colour-coded verdict badge.</td></tr>
+              <tr><td class="mono">render_technical_analysis(tech_parsed)</td><td>Per-indicator cards grouped by technical category, plus the four-flag verdict.</td></tr>
+              <tr><td class="mono">render_overall_summary(overall)</td><td>The merged fundamental + technical stance.</td></tr>
+              <tr><td class="mono">render_persona_valuation(result, display_currency)</td><td>Persona cards, consensus range and the rule-based comparison.</td></tr>
+            </tbody>
+          </table>
+          <p class="note">
+            Every renderer reads from <code>st.session_state</code> and <strong>never refetches
+            anything</strong> — that is what makes a Streamlit rerun cheap, since the script
+            re-executes on every widget interaction. <code>render_sidebar</code> is the one function
+            with a return value, because it owns the inputs.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><span class="num">2</span><h2>HTML export</h2>
+        <span class="tag">build_export_html()</span></div>
+      <div class="card">
+        <div class="card-body">
+          <p class="note">
+            Serialises the current analysis into a single self-contained HTML file —
+            <code>(html, filename)</code> — which the sidebar offers through a download button. The
+            filename is derived from <code>strip_exchange_suffix</code> so an Indian ticker produces
+            <code>INFY_REPORT_…</code> rather than <code>INFY.NS_…</code>.
+          </p>
+          <div class="impl">
+            <span class="lbl">Enabled only when</span>
+            <span class="chips">
+              <span class="chip">analysis_complete</span>
+              <span class="chip">cached in session_state.export_html</span>
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════ INTEGRATIONS ══════════════════ -->
+  <section class="panel" id="p-int" style="--pa:var(--violet)">
+    <div class="sec">
+      <div class="sec-head"><span class="num">1</span><h2>Chroma persistence bridge</h2>
+        <span class="tag">4 symbols</span></div>
+      <div class="card">
+        <div class="card-body">
+          <div class="prompt">_build_save_record()        session_state -> flat record dict
+   ├─ _fundamental_commentary()     4 sections by canonical title
+   ├─ recommendation verdict        from parse_analysis, else overall_summary
+   ├─ technology verdict + summary  from tech_parsed
+   └─ persona consensus block       ONLY if its ticker matches the analysed one
+
+_save_current_analysis()    lazy import + save + st.success(id)</div>
+          <p class="note">
+            <code>_build_save_record</code> returns <code>(record, notes)</code> — notes hold
+            non-fatal warnings such as missing sections or a mismatched persona ticker, which are
+            surfaced alongside the success message rather than silently dropped.
+          </p>
+          <p class="note">
+            A <strong>persona result belonging to a different ticker is skipped</strong>, so a stale
+            persona run can never be saved under another company's snapshot. The import of
+            <code>CHROMA_STORE</code> is lazy so the app boot is unaffected, and the record shape
+            matches exactly what that module renders.
+          </p>
+          <div class="impl">
+            <span class="lbl">Feeds</span>
+            <code>CHROMA_STORE.save_analysis_record()</code>
+            <span class="arrow">→</span>
+            <span class="chips"><span class="chip">FUNDAMENTAL_TITLES</span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><span class="num">2</span><h2>crewAI persona bridge</h2>
+        <span class="tag">3 symbols</span></div>
+      <div class="card">
+        <div class="card-body">
+          <div class="prompt">run_persona_valuation(ticker, company)
+   import PERSONA_AGENTS_CREW as pac      # LAZY - crewAI is heavy
+   res = pac.run_persona_crew(ticker, company or ticker)
+   st.session_state.persona_result = res.model_dump()
+   st.rerun()                             # render OUTSIDE the handler</div>
+          <p class="note">
+            The lazy import keeps crewAI out of the boot path and degrades gracefully with an
+            install hint when it is missing. Storing the serialised
+            <code>model_dump()</code> and calling <code>st.rerun()</code> means the long blocking
+            crew run happens inside the handler while rendering happens on the <em>next</em> pass —
+            so the persona section is independent of the standard pipeline and appears even for a
+            persona-only run.
+          </p>
+          <p class="note">
+            <code>render_persona_valuation</code> gates the rule-based comparison on
+            <code>deterministic_usable</code>, so a degenerate rule-based range (where only one rule
+            priced) hides the panel instead of advertising a point estimate as a range.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════ ORCHESTRATION ══════════════════ -->
+  <section class="panel" id="p-orch" style="--pa:var(--rose)">
+    <div class="sec">
+      <div class="sec-head"><span class="num">1</span><h2>main()</h2>
+        <span class="tag">the render pass</span></div>
+      <div class="card">
+        <div class="card-body">
+          <div class="prompt">render_header()
+ticker, company, currency, analyze_btn, persona_btn, save_btn = render_sidebar()
+
+if analyze_btn and ticker and company:   run_analysis(...)
+if persona_btn and ticker:               run_persona_valuation(...)
+if save_btn:                             _save_current_analysis()
+
+if session_state.analysis_complete:      render every result section
+if session_state.persona_result:         render_persona_valuation(...)
+if neither:                              render the welcome screen</div>
+          <p class="note">
+            Streamlit re-executes the whole script on every interaction, so <code>main()</code>
+            simply rebuilds the layout from cached <code>session_state</code>. The heavy work
+            happens only inside the three button guards, and each of those ends in
+            <code>st.rerun()</code> so rendering happens on a clean pass.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><span class="num">2</span><h2>Failure isolation</h2>
+        <span class="tag">what breaks, and what still renders</span></div>
+      <div class="card">
+        <div class="card-body" style="padding:0">
+          <table>
+            <thead><tr><th style="width:34%">Failure</th><th>Consequence</th></tr></thead>
+            <tbody>
+              <tr><td class="mono">Stock data unavailable</td><td><strong>Aborts early</strong> with an error message — nothing else can be built without a price anchor.</td></tr>
+              <tr><td class="mono">News / sentiment failure</td><td>Degrades to empty results; the report still renders with "Unknown" sentiment.</td></tr>
+              <tr><td class="mono">DCF failure</td><td>Stored as an error dict; the DCF section renders its own error state.</td></tr>
+              <tr><td class="mono">Technical indicators fail</td><td><code>tech_df = None</code> → the technical agent is never submitted and the section renders "unavailable".</td></tr>
+              <tr><td class="mono">Either LLM call fails</td><td>Falls back to <code>""</code> / <code>None</code>; the other agent's output still renders.</td></tr>
+              <tr><td class="mono">Chroma / crewAI import fails</td><td>Caught at the call site with a friendly message — the rest of the app is unaffected.</td></tr>
+              <tr><td class="mono">A new analysis starts</td><td>Clears <code>analysis_complete</code>, the cached export, and any persona result belonging to a <em>different</em> ticker.</td></tr>
+            </tbody>
+          </table>
+          <p class="note">
+            The pattern throughout is <strong>degrade the section, never the page</strong> — only the
+            absence of a market price is treated as fatal.
+          </p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════ FUNCTION REFERENCE ══════════════════ -->
+  <section class="panel" id="p-funcs">
+    <div class="toolbar">
+      <label class="search">
+        <span style="color:var(--text-3)">⌕</span>
+        <input id="fnSearch" type="search" placeholder="Filter by name, purpose or aspect…" autocomplete="off">
+      </label>
+      <span class="count" id="fnCount"></span>
+    </div>
+    <div id="fnList"></div>
+  </section>
+
+  <!-- ══════════════════ DEPENDENCY MAP ══════════════════ -->
+  <section class="panel" id="p-deps">
+
+    <div class="sec">
+      <div class="sec-head"><span class="num">⤓</span><h2>Call hierarchy</h2>
+        <span class="tag">entry point → orchestration → data → external modules</span></div>
+      <div class="flow">
+
+        <div class="layer">
+          <div class="layer-h"><span class="layer-idx">L1</span><h4>Entry point</h4></div>
+          <div class="node-grid">
+            <div class="node orch"><b>main()</b><span>render pass driven by session_state</span></div>
+          </div>
+        </div>
+
+        <div class="conn"><span></span></div>
+
+        <div class="layer">
+          <div class="layer-h"><span class="layer-idx">L2</span><h4>Handlers — one per button</h4></div>
+          <div class="node-grid">
+            <div class="node orch"><b>run_analysis()</b><span>the 9-step pipeline</span></div>
+            <div class="node orch"><b>run_persona_valuation()</b><span>crewAI run</span></div>
+            <div class="node orch"><b>_save_current_analysis()</b><span>Chroma save</span></div>
+          </div>
+        </div>
+
+        <div class="conn"><span></span></div>
+
+        <div class="layer">
+          <div class="layer-h"><span class="layer-idx">L3</span><h4>UI rendering — reads session_state, never refetches</h4></div>
+          <div class="node-grid">
+            <div class="node ui"><b>render_header() · render_sidebar()</b><span>chrome + inputs</span></div>
+            <div class="node ui"><b>render_metrics() · render_dcf_valuation()</b><span>price + valuation</span></div>
+            <div class="node ui"><b>render_sentiment() · render_news()</b><span>qualitative</span></div>
+            <div class="node ui"><b>render_document_context()</b><span>RAG audit trail</span></div>
+            <div class="node ui"><b>render_analysis() · _render_recommendation()</b><span>fundamental</span></div>
+            <div class="node ui"><b>render_technical_analysis() · render_overall_summary()</b><span>quantitative</span></div>
+            <div class="node ui"><b>render_persona_valuation() · _stance_badge()</b><span>persona</span></div>
+            <div class="node ui"><b>build_export_html()</b><span>self-contained export</span></div>
+          </div>
+        </div>
+
+        <div class="conn"><span></span></div>
+
+        <div class="layer">
+          <div class="layer-h"><span class="layer-idx">L4</span><h4>Data &amp; analysis</h4></div>
+          <div class="node-grid">
+            <div class="node tl"><b>get_stock_price · get_stock_news</b><span>@tool</span></div>
+            <div class="node tl"><b>analyze_news_sentiment · get_dcf_valuation</b><span>@tool</span></div>
+            <div class="node tl"><b>generate_analysis() · parse_analysis()</b><span>prompt + parser</span></div>
+            <div class="node dt"><b>_cached_stock_price()</b><span>cache + retry</span></div>
+            <div class="node dt"><b>_cached_dcf_valuation()</b><span>cache + retry</span></div>
+            <div class="node dt"><b>_cached_technical_indicators()</b><span>cache + retry</span></div>
+          </div>
+        </div>
+
+        <div class="conn"><span></span></div>
+
+        <div class="layer">
+          <div class="layer-h"><span class="layer-idx">L5</span><h4>Vectorless RAG</h4></div>
+          <div class="node-grid">
+            <div class="node hp"><b>extract_pdf_text() · chunk_text()</b><span>extract + chunk</span></div>
+            <div class="node hp"><b>build_document_corpus()</b><span>the in-memory index</span></div>
+            <div class="node hp"><b>lexical_search() · format_rag_context()</b><span>retrieve + augment</span></div>
+            <div class="node hp"><b>_store_uploaded_files() · _render_uploaded_docs_summary()</b><span>upload state</span></div>
+          </div>
+        </div>
+
+        <div class="conn"><span></span></div>
+
+        <div class="layer">
+          <div class="layer-h"><span class="layer-idx">L6</span><h4>Shared utilities</h4></div>
+          <div class="node-grid">
+            <div class="node hp"><b>_load_secrets_into_env() · _ensure_nltk_data()</b><span>boot</span></div>
+            <div class="node hp"><b>_probe_endpoint() · _verify_api_keys()</b><span>credentials</span></div>
+            <div class="node hp"><b>_retry_on_rate_limit() · _raise_if_error()</b><span>resilience</span></div>
+            <div class="node hp"><b>get_fx_rate() · convert_price() · format_price()</b><span>currency</span></div>
+            <div class="node hp"><b>format_volume() · get_sentiment_*() · get_tech_verdict_style()</b><span>formatting</span></div>
+          </div>
+        </div>
+
+        <div class="conn"><span></span></div>
+
+        <div class="layer">
+          <div class="layer-h"><span class="layer-idx">L7</span><h4>External modules &amp; services</h4></div>
+          <div class="node-grid">
+            <div class="node dt"><b>ALL_DCF_MODELS</b><span>DCF valuation</span></div>
+            <div class="node dt"><b>TECH_ANALYSIS</b><span>indicators</span></div>
+            <div class="node dt"><b>stock_react_agent</b><span>technical agent + parsers</span></div>
+            <div class="node dt"><b>PERSONA_AGENTS_CREW</b><span>lazy · crewAI</span></div>
+            <div class="node dt"><b>CHROMA_STORE</b><span>lazy · persistence</span></div>
+            <div class="node dt"><b>DeepSeek · NewsAPI · Yahoo · TextBlob</b><span>external services</span></div>
+          </div>
+        </div>
+
+      </div>
+      <div class="legend">
+        <span><i class="dot-orch"></i>Orchestration</span>
+        <span><i class="dot-ui"></i>UI rendering</span>
+        <span><i class="dot-tl"></i>Tool / AI</span>
+        <span><i class="dot-dt"></i>Data / external</span>
+        <span><i class="dot-hp"></i>Helper</span>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><span class="num">⇄</span><h2>Linkage matrix</h2>
+        <span class="tag">who calls whom</span></div>
+      <div class="card">
+        <div class="card-body" style="padding:0">
+          <table>
+            <thead><tr><th>Symbol</th><th>Calls</th><th>Called by</th><th style="text-align:center">Layer</th></tr></thead>
+            <tbody id="matrixBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><span class="num">!</span><h2>Notable behaviours</h2>
+        <span class="tag">read before debugging</span></div>
+      <div class="card">
+        <div class="card-body" style="padding:0">
+          <table>
+            <thead><tr><th style="width:30%">Location</th><th>Behaviour</th></tr></thead>
+            <tbody>
+              <tr>
+                <td class="mono">Module top level</td>
+                <td><code>llm</code> and <code>newsapi</code> are built at <strong>import time</strong>. A missing key yields a client with <code>api_key=None</code> instead of an import error — so the app boots and the sidebar reports the key as missing, rather than crashing on load.</td>
+              </tr>
+              <tr>
+                <td class="mono">_load_secrets_into_env()</td>
+                <td>Must run <strong>before</strong> the two clients are constructed, or they capture <code>None</code> from an environment that has not been populated yet.</td>
+              </tr>
+              <tr>
+                <td class="mono">_ensure_nltk_data()</td>
+                <td>Uses <code>@st.cache_resource</code> rather than <code>cache_data</code> — it is a side-effecting setup routine that should run once per process, not a pure data fetch.</td>
+              </tr>
+              <tr>
+                <td class="mono">Cached fetchers</td>
+                <td>They <strong>raise</strong> instead of returning an error value. <code>st.cache_data</code> caches whatever is returned, so returning a transient rate-limit dict would pin that error for the full TTL even after Yahoo recovers.</td>
+              </tr>
+              <tr>
+                <td class="mono">_retry_on_rate_limit()</td>
+                <td>Retries <strong>only</strong> on rate-limit failures — a genuine "no such ticker" raises immediately rather than being retried three times.</td>
+              </tr>
+              <tr>
+                <td class="mono">parse_analysis()</td>
+                <td>Verdict detection is negation-aware with a 45-character window and a clause-break test. Without both, <em>"a SELL rating is not warranted"</em> would classify as SELL.</td>
+              </tr>
+              <tr>
+                <td class="mono">_build_save_record()</td>
+                <td>Skips a persona result whose ticker differs from the analysed one, so a stale persona run can never be saved under another company's snapshot.</td>
+              </tr>
+              <tr>
+                <td class="mono">run_analysis() Step 4.5</td>
+                <td>PDF extraction is guarded by an upload-set key, so an unchanged file set is never re-extracted — but any change invalidates the whole RAG corpus.</td>
+              </tr>
+              <tr>
+                <td class="mono">run_persona_valuation()</td>
+                <td>Stores <code>model_dump()</code> then calls <code>st.rerun()</code> so the multi-minute blocking crew run happens in the handler and rendering happens on the next pass.</td>
+              </tr>
+              <tr>
+                <td class="mono">Renderers</td>
+                <td>They read <code>st.session_state</code> and never refetch — essential because the whole script re-executes on every widget interaction.</td>
+              </tr>
+              <tr>
+                <td class="mono">get_fx_rate()</td>
+                <td>Degrades to <code>1.0</code> on any lookup failure, so the UI shows unconverted prices. A silently wrong magnitude is preferred over a crashed render — worth remembering when a currency conversion looks off by a large factor.</td>
+              </tr>
+              <tr>
+                <td class="mono">get_fx_rate() recursion</td>
+                <td>The triangular path calls itself twice. Both calls are individually cached, so the recursion is shallow and terminates.</td>
+              </tr>
+              <tr>
+                <td class="mono">A new analysis</td>
+                <td>Clears <code>analysis_complete</code>, the cached export, and any persona result for a <em>different</em> ticker — otherwise a stale persona section could masquerade as part of the new analysis.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </section>
+
+</main>
+
+<footer>
+  Generated reference for <code>Home.py</code> · 58 symbols, 10 aspects, 4 <code>@tool</code>
+  functions · Press <kbd>/</kbd> to search the function reference.
+</footer>
+
+<script>
+/* ──────────────────────────────────────────────────────────────────
+   Symbol reference data
+   ────────────────────────────────────────────────────────────────── */
+const FUNCS = [
+  { name: "main", kind: "orch", kindLabel: "Entry point", layer: "L1", aspect: "Orchestration",
+    sig: "main() -> None",
+    purpose: "The render pass. Rebuilds the entire layout from st.session_state on every rerun, running the heavy handlers only inside the three button guards.",
+    returns: "None — renders the page.",
+    calls: ["render_header", "render_sidebar", "run_analysis", "run_persona_valuation", "_save_current_analysis", "render_persona_valuation"],
+    calledBy: ["__main__ (Streamlit)"],
+    notes: "Results render only when analysis_complete is true; the persona section renders independently; the welcome screen shows only when neither exists." },
+
+  { name: "run_analysis", kind: "orch", kindLabel: "Orchestrator", layer: "L2", aspect: "Orchestration",
+    sig: "run_analysis(\n    ticker: str,\n    company_name: str,\n) -> None",
+    purpose: "Executes the full 9-step analysis pipeline with a progress bar, writing each result into session_state and finishing with st.rerun().",
+    returns: "None — mutates session_state.",
+    calls: ["get_stock_price", "get_stock_news", "analyze_news_sentiment", "get_dcf_valuation", "build_document_corpus", "lexical_search", "format_rag_context", "_cached_technical_indicators", "generate_analysis", "sra.generate_technical_analysis", "parse_analysis", "sra.parse_technical_analysis", "sra.build_overall_summary"],
+    calledBy: ["main"],
+    notes: "A stock-data error aborts early with a message; everything else degrades. The fundamental and technical agents run in parallel on two threads, and the technical agent is skipped entirely when tech_df is None." },
+
+  { name: "render_sidebar", kind: "render", kindLabel: "Renderer", layer: "L3", aspect: "UI",
+    sig: "render_sidebar() -> tuple",
+    purpose: "Renders every user input: ticker and company name, the Analyze button, the persona button, the PDF uploader with its document summary, the currency selector, API-key status, the disclaimer, Save Analysis and Export Report.",
+    returns: "6-tuple — (ticker, company_name, currency, analyze_btn, persona_btn, save_btn).",
+    calls: ["_render_uploaded_docs_summary", "_verify_api_keys", "API_KEY_STATUS", "current_selected_currency"],
+    calledBy: ["main"],
+    notes: "The only renderer with a return value, because it owns the inputs. Analyze is disabled until both ticker and company name are filled; Save is enabled after an analysis or a persona run." },
+
+  { name: "render_header", kind: "render", kindLabel: "Renderer", layer: "L3", aspect: "UI",
+    sig: "render_header() -> None",
+    purpose: "Renders the app title, tagline and a live date/time stamp in a two-column layout.",
+    returns: "None.",
+    calls: [],
+    calledBy: ["main"],
+    notes: "Purely presentational — all inputs live in the sidebar." },
+
+  { name: "render_metrics", kind: "render", kindLabel: "Renderer", layer: "L3", aspect: "UI",
+    sig: "render_metrics(\n    stock_data: dict,\n    display_currency: str = \"INR\",\n) -> None",
+    purpose: "Renders the OHLCV metrics strip, converting prices into the chosen display currency.",
+    returns: "None.",
+    calls: ["format_price", "format_volume"],
+    calledBy: ["main results branch"],
+    notes: "Volume goes through format_volume, so large values appear in lakh/crore notation." },
+
+  { name: "render_dcf_valuation", kind: "render", kindLabel: "Renderer", layer: "L3", aspect: "UI",
+    sig: "render_dcf_valuation(\n    dcf_data: dict,\n    stock_data: dict,\n    display_currency: str = \"INR\",\n) -> None",
+    purpose: "Renders the base / bull / bear DCF scenario cards alongside the current price for comparison.",
+    returns: "None.",
+    calls: ["format_price"],
+    calledBy: ["main results branch"],
+    notes: "Receives dcf_data directly from ALL_DCF_MODELS.run_valuation_analysis via the cached fetcher." },
+
+  { name: "render_sentiment", kind: "render", kindLabel: "Renderer", layer: "L3", aspect: "UI",
+    sig: "render_sentiment(\n    sentiment_data: dict,\n) -> None",
+    purpose: "Renders the aggregate sentiment badge and score bar.",
+    returns: "None.",
+    calls: ["get_sentiment_emoji", "get_sentiment_color"],
+    calledBy: ["main results branch"],
+    notes: "Handles the Unknown and Error states as well as the three directional labels." },
+
+  { name: "render_news", kind: "render", kindLabel: "Renderer", layer: "L3", aspect: "UI",
+    sig: "render_news(\n    news: list,\n) -> None",
+    purpose: "Renders the latest headline cards with links to the full articles.",
+    returns: "None.",
+    calls: [],
+    calledBy: ["main results branch"],
+    notes: "Expects the list shape returned by get_stock_news (title, description, url)." },
+
+  { name: "render_document_context", kind: "render", kindLabel: "Renderer", layer: "L3", aspect: "UI",
+    sig: "render_document_context(\n    rag_chunks: list[dict],\n) -> None",
+    purpose: "Renders the filing excerpts that were retrieved and injected into the LLM prompt — the audit trail for vectorless RAG.",
+    returns: "None.",
+    calls: [],
+    calledBy: ["main results branch"],
+    notes: "This is what makes retrieval transparent: you can inspect exactly which text reached the model." },
+
+  { name: "render_analysis", kind: "render", kindLabel: "Renderer", layer: "L3", aspect: "UI",
+    sig: "render_analysis(\n    parsed_sections: list,\n) -> None",
+    purpose: "Renders the four fundamental commentary sections from the parsed LLM output.",
+    returns: "None.",
+    calls: ["_render_recommendation"],
+    calledBy: ["main results branch"],
+    notes: "Delegates the recommendation section to _render_recommendation so its verdict badge logic stays separate." },
+
+  { name: "_render_recommendation", kind: "render", kindLabel: "Renderer", layer: "L3", aspect: "UI",
+    sig: "_render_recommendation(\n    section: dict,\n) -> None",
+    purpose: "Renders the Investment Recommendation card with its colour-coded BUY / HOLD / SELL verdict badge.",
+    returns: "None.",
+    calls: [],
+    calledBy: ["render_analysis"],
+    notes: "The verdict comes from parse_analysis, so the badge reflects the negation-aware detection rather than a naive keyword match." },
+
+  { name: "render_technical_analysis", kind: "render", kindLabel: "Renderer", layer: "L3", aspect: "UI",
+    sig: "render_technical_analysis(\n    tech_parsed: dict,\n) -> None",
+    purpose: "Renders the per-indicator cards grouped by technical category, plus the four-flag technical verdict.",
+    returns: "None.",
+    calls: ["get_tech_verdict_style"],
+    calledBy: ["main results branch"],
+    notes: "Consumes sra.parse_technical_analysis output, so the displayed indicator values come from tech_df rather than from the LLM." },
+
+  { name: "render_overall_summary", kind: "render", kindLabel: "Renderer", layer: "L3", aspect: "UI",
+    sig: "render_overall_summary(\n    overall: dict,\n) -> None",
+    purpose: "Renders the merged fundamental + technical stance produced by the rule-based verdict matrix.",
+    returns: "None.",
+    calls: [],
+    calledBy: ["main results branch"],
+    notes: "The merge is computed by sra.build_overall_summary, where conflicting signals always resolve to HOLD." },
+
+  { name: "render_persona_valuation", kind: "render", kindLabel: "Renderer", layer: "L3", aspect: "UI",
+    sig: "render_persona_valuation(\n    result: dict,\n    display_currency: str = \"INR\",\n) -> None",
+    purpose: "Renders the crewAI persona cards, the lead-analyst consensus range and the side-by-side comparison against the rule-based range.",
+    returns: "None.",
+    calls: ["format_price", "_stance_badge"],
+    calledBy: ["main"],
+    notes: "Gated on deterministic_usable — a degenerate rule-based range (only one rule priced) hides the comparison panel rather than advertising a point estimate as a range. Independent of analysis_complete, so a persona-only run still renders." },
+
+  { name: "_stance_badge", kind: "helper", kindLabel: "Helper", layer: "L3", aspect: "UI",
+    sig: "_stance_badge(\n    stance: str,\n) -> tuple",
+    purpose: "Maps a persona or consensus stance to its (label, colour) pair for badge rendering.",
+    returns: "(label, hex colour) — falls back to a neutral grey badge for unrecognised stances.",
+    calls: [],
+    calledBy: ["render_persona_valuation"],
+    notes: "Covers Undervalued / Fairly valued / Overvalued / No opinion." },
+
+  { name: "build_export_html", kind: "render", kindLabel: "Export", layer: "L3", aspect: "UI",
+    sig: "build_export_html() -> tuple[str, str]",
+    purpose: "Serialises the current analysis into a single self-contained HTML file for download.",
+    returns: "(html, filename) — the filename derives from strip_exchange_suffix so INFY.NS yields INFY_REPORT_….",
+    calls: ["strip_exchange_suffix", "format_price", "highlight helpers"],
+    calledBy: ["render_sidebar Export button"],
+    notes: "Only enabled after an analysis. The rendered result is cached in session_state and cleared whenever a new analysis starts." },
+
+  { name: "_load_secrets_into_env", kind: "helper", kindLabel: "Bootstrap", layer: "L4", aspect: "Foundations",
+    sig: "_load_secrets_into_env() -> None",
+    purpose: "Mirrors top-level st.secrets entries into os.environ so every client that reads os.getenv works on Streamlit Cloud, where no .env file exists.",
+    returns: "None — mutates os.environ.",
+    calls: ["st.secrets.items", "os.environ.setdefault"],
+    calledBy: ["module top level"],
+    notes: "Uses setdefault so a real environment variable or local .env always wins. st.secrets is a LAZY proxy that raises when no secrets.toml exists, so the whole read sits in a try and is materialised with list(). Nested TOML sections are skipped — only scalars map to environment variables." },
+
+  { name: "_ensure_nltk_data", kind: "helper", kindLabel: "Bootstrap", layer: "L4", aspect: "Foundations",
+    sig: "@st.cache_resource(show_spinner=False)\n_ensure_nltk_data() -> bool",
+    purpose: "Downloads the NLTK punkt/punkt_tab tokenizer data that TextBlob needs, once per container.",
+    returns: "bool — True when nltk is importable, False when it is not.",
+    calls: ["nltk.data.find", "nltk.download"],
+    calledBy: ["module top level"],
+    notes: "A fresh Cloud container ships no NLTK data and TextBlob tokenizes with word_tokenize, which raises LookupError without punkt. Both a missing nltk import and a failed download are swallowed so the app still boots. Uses cache_resource (not cache_data) because it is a side-effecting setup routine that must run once per process." },
+
+  { name: "_probe_endpoint", kind: "helper", kindLabel: "Guard", layer: "L4", aspect: "Foundations",
+    sig: "_probe_endpoint(\n    url: str,\n    headers: dict,\n    timeout: float = 6.0,\n) -> str",
+    purpose: "Makes one authenticated GET and classifies the response as valid, invalid or unknown.",
+    returns: "\"valid\" (HTTP 200), \"invalid\" (401/403) or \"unknown\" (anything else). Never raises.",
+    calls: ["urllib.request.urlopen"],
+    calledBy: ["_verify_api_keys"],
+    notes: "401/403 means the provider rejected the key itself. Any other status or a connection failure is 'unknown', so a provider outage or blocked network is never mistaken for a bad key. Stdlib only — adds nothing to requirements.txt." },
+
+  { name: "_verify_api_keys", kind: "helper", kindLabel: "Guard", layer: "L4", aspect: "Foundations",
+    sig: "@st.cache_data(ttl=600, show_spinner=False)\n_verify_api_keys(\n    deepseek_key: str,\n    news_key: str,\n) -> dict",
+    purpose: "Authenticates both API keys against cheap endpoints, caching the verdict for 10 minutes.",
+    returns: "dict of key name to verdict, e.g. {'DEEPSEEK_API_KEY': 'valid'}.",
+    calls: ["_probe_endpoint"],
+    calledBy: ["render_sidebar Verify-keys button"],
+    notes: "Keys are passed as ARGUMENTS rather than read from the environment, so rotating a key produces a different cache entry and is re-checked immediately. Button-driven because the NewsAPI probe consumes one request from the free-tier daily quota." },
+
+  { name: "API_KEY_STATUS", kind: "data", kindLabel: "Constant", layer: "L4", aspect: "Foundations",
+    sig: "API_KEY_STATUS = {\"valid\": (...), \"invalid\": (...), \"unknown\": (...)}",
+    purpose: "The icon and caption rendered for each probe verdict.",
+    returns: "dict of verdict to (emoji, caption).",
+    calls: [],
+    calledBy: ["render_sidebar"],
+    notes: "Keeps the wording in one place so the sidebar and any future status display stay consistent." },
+
+  { name: "strip_exchange_suffix", kind: "helper", kindLabel: "Formatter", layer: "L4", aspect: "Foundations",
+    sig: "strip_exchange_suffix(\n    ticker: str,\n) -> str",
+    purpose: "Removes a trailing .NS (NSE) or .BO (BSE) suffix so the bare symbol can be used in display filenames and news queries.",
+    returns: "str — uppercased ticker without the exchange suffix.",
+    calls: ["re.split"],
+    calledBy: ["build_export_html", "render_sidebar"],
+    notes: "The regex is anchored with $ so only a TRAILING suffix is stripped. Symbols without a suffix pass through unchanged." },
+
+  { name: "format_volume", kind: "helper", kindLabel: "Formatter", layer: "L4", aspect: "Foundations",
+    sig: "format_volume(\n    vol: int,\n) -> str",
+    purpose: "Formats share volume using the Indian numbering system rather than millions/billions.",
+    returns: "str — '3.25 Cr' at ≥10,000,000; '12.50 L' at ≥100,000; comma-grouped otherwise.",
+    calls: [],
+    calledBy: ["render_metrics"],
+    notes: "Indian markets quote large volumes in lakhs and crores, so this reads naturally for NSE/BSE listings." },
+
+  { name: "get_sentiment_emoji", kind: "helper", kindLabel: "Formatter", layer: "L4", aspect: "Foundations",
+    sig: "get_sentiment_emoji(\n    s: str,\n) -> str",
+    purpose: "Maps a sentiment label to a display emoji.",
+    returns: "str — the emoji, with ❓ as the fallback for unrecognised labels.",
+    calls: [],
+    calledBy: ["render_sentiment"],
+    notes: "Handles the full label range produced by analyze_news_sentiment: Positive / Negative / Neutral / Unknown / Error." },
+
+  { name: "get_sentiment_color", kind: "helper", kindLabel: "Formatter", layer: "L4", aspect: "Foundations",
+    sig: "get_sentiment_color(\n    s: str,\n) -> str",
+    purpose: "Maps a sentiment label to a Streamlit theme colour name used for badge and progress-bar styling.",
+    returns: "str — 'green' / 'red' / 'orange' / 'blue', defaulting to 'gray'.",
+    calls: [],
+    calledBy: ["render_sentiment"],
+    notes: "The error state intentionally falls through to neutral gray — an error is not a directional sentiment." },
+
+  { name: "get_tech_verdict_style", kind: "helper", kindLabel: "Formatter", layer: "L4", aspect: "Foundations",
+    sig: "get_tech_verdict_style(\n    verdict: str,\n) -> tuple",
+    purpose: "Maps the four-flag technical verdict to its (colour, emoji) pair for badge rendering.",
+    returns: "(colour, emoji) — e.g. ('green', '🚀'); unrecognised values fall back to ('gray', 'ℹ️').",
+    calls: [],
+    calledBy: ["render_technical_analysis"],
+    notes: "Covers STRONG BUY / BUY / SELL / STRONG SELL plus the NEUTRAL fallback. Case-insensitive." },
+
+  { name: "CURRENCY_SYMBOLS", kind: "data", kindLabel: "Constant", layer: "L4", aspect: "Foundations",
+    sig: "CURRENCY_SYMBOLS = {\"INR\": \"₹\", \"USD\": \"$\", ...}",
+    purpose: "Maps seven ISO currency codes to their display symbols, used by every price formatter and by the sidebar selector.",
+    returns: "dict of ISO code to symbol.",
+    calls: [],
+    calledBy: ["format_price", "currency_display_string", "render_sidebar"],
+    notes: "Also defines the option list for the sidebar's currency selectbox." },
+
+  { name: "_fx_lookup", kind: "data", kindLabel: "Data fn", layer: "L4", aspect: "Foundations",
+    sig: "@st.cache_data(ttl=3600, show_spinner=False)\n_fx_lookup(\n    ticker: str,\n) -> float | None",
+    purpose: "Fetches the latest close for a Yahoo FX ticker such as 'INR=X'.",
+    returns: "float | None — the latest close, or None on any failure.",
+    calls: ["yfinance.Ticker.history"],
+    calledBy: ["get_fx_rate"],
+    notes: "Yahoo exposes pairs as tickers whose close is the value of one unit of the first code in the second. Cached for an hour so repeated conversions don't hammer Yahoo; show_spinner=False keeps it silent." },
+
+  { name: "get_fx_rate", kind: "helper", kindLabel: "Currency", layer: "L4", aspect: "Foundations",
+    sig: "get_fx_rate(\n    from_currency: str,\n    to_currency: str,\n) -> float",
+    purpose: "Returns the value of one unit of from_currency expressed in to_currency, resolving direction and falling back to USD triangulation.",
+    returns: "float — the rate, degrading to 1.0 whenever a lookup fails.",
+    calls: ["_fx_lookup"],
+    calledBy: ["convert_price", "render_* price helpers"],
+    notes: "Identical currencies short-circuit to 1.0. Degrading to 1.0 means the UI shows unconverted prices instead of crashing — so a currency conversion that looks off by a large factor is usually this fallback, not a math error. The triangular path calls itself twice, but both calls are cached so the recursion stays shallow." },
+
+  { name: "convert_price", kind: "helper", kindLabel: "Currency", layer: "L4", aspect: "Foundations",
+    sig: "convert_price(\n    value: float,\n    from_currency: str,\n    to_currency: str,\n) -> float",
+    purpose: "Converts a monetary value between currencies and rounds it for display.",
+    returns: "float — the converted amount, rounded to 2 dp.",
+    calls: ["get_fx_rate"],
+    calledBy: ["format_price"],
+    notes: "" },
+
+  { name: "format_price", kind: "helper", kindLabel: "Currency", layer: "L4", aspect: "Foundations",
+    sig: "format_price(\n    value: float,\n    native_currency: str,\n    display_currency: str,\n) -> str",
+    purpose: "Converts a native-currency price into the display currency and formats it with a symbol and thousands separators.",
+    returns: "str — e.g. '₹1,450.50'.",
+    calls: ["convert_price", "CURRENCY_SYMBOLS"],
+    calledBy: ["render_metrics", "render_dcf_valuation", "render_persona_valuation", "build_export_html"],
+    notes: "The single place prices become user-visible strings — every price in the UI goes through it." },
+
+  { name: "current_selected_currency", kind: "helper", kindLabel: "Currency", layer: "L4", aspect: "Foundations",
+    sig: "current_selected_currency() -> str",
+    purpose: "Returns the display currency currently chosen in the sidebar.",
+    returns: "str — an ISO code, defaulting to 'INR' when the widget has not been touched.",
+    calls: ["st.session_state.get"],
+    calledBy: ["currency_display_string", "render_sidebar"],
+    notes: "Reads the session_state key Streamlit stores for the currency selectbox." },
+
+  { name: "currency_display_string", kind: "helper", kindLabel: "Currency", layer: "L4", aspect: "Foundations",
+    sig: "currency_display_string(\n    currency: str = \"\",\n) -> str",
+    purpose: "Resolves a currency into the '₹ '-style symbol prefix that ALL_DCF_MODELS expects as its label.",
+    returns: "str — the symbol followed by a space.",
+    calls: ["current_selected_currency", "CURRENCY_SYMBOLS"],
+    calledBy: ["get_dcf_valuation"],
+    notes: "Exists because the DCF module wants a display prefix string, not an ISO code." },
+
+  { name: "_is_yahoo_rate_limit", kind: "helper", kindLabel: "Resilience", layer: "L4", aspect: "Data Layer",
+    sig: "_is_yahoo_rate_limit(\n    exc: Exception,\n) -> bool",
+    purpose: "Detects whether an exception is a Yahoo rate-limit (HTTP 429) failure.",
+    returns: "bool.",
+    calls: [],
+    calledBy: ["_yahoo_error_message", "_retry_on_rate_limit"],
+    notes: "String-matches on 'Too Many Requests', 'Rate limited' or '429', because yfinance surfaces the limit in the message rather than a typed error." },
+
+  { name: "_yahoo_error_message", kind: "helper", kindLabel: "Resilience", layer: "L4", aspect: "Data Layer",
+    sig: "_yahoo_error_message(\n    exc: Exception,\n) -> str",
+    purpose: "Rewrites a Yahoo failure into something the user can act on.",
+    returns: "str — a tailored explanation for rate limits, otherwise the raw message.",
+    calls: ["_is_yahoo_rate_limit"],
+    calledBy: ["get_dcf_valuation", "get_stock_price", "get_stock_news", "analyze_news_sentiment"],
+    notes: "Rate limits get a specific explanation because they are the most common failure on Community Cloud and are usually transient, whereas raw 'Too Many Requests' text reads like an app bug." },
+
+  { name: "_retry_on_rate_limit", kind: "helper", kindLabel: "Resilience", layer: "L4", aspect: "Data Layer",
+    sig: "_retry_on_rate_limit(\n    fetch,\n    attempts: int = 3,\n) -> Any",
+    purpose: "Calls fetch(), retrying only while Yahoo keeps rate-limiting, with linear backoff.",
+    returns: "Whatever fetch() returns; the final exception propagates.",
+    calls: ["_is_yahoo_rate_limit", "time.sleep"],
+    calledBy: ["_cached_dcf_valuation", "_cached_stock_price", "_cached_technical_indicators"],
+    notes: "A genuine 'no such ticker' failure is NOT retried — it raises immediately. Backoff is 2 s then 4 s (base × attempt)." },
+
+  { name: "_raise_if_error", kind: "helper", kindLabel: "Resilience", layer: "L4", aspect: "Data Layer",
+    sig: "_raise_if_error(\n    payload,\n    what: str,\n) -> Any",
+    purpose: "Returns the payload, or raises when it is None or carries an 'error' key.",
+    returns: "The payload unchanged, or raises RuntimeError.",
+    calls: [],
+    calledBy: ["_cached_dcf_valuation", "_cached_technical_indicators"],
+    notes: "Exists because cached fetchers must RAISE rather than return an error value. st.cache_data stores whatever comes back, so caching a transient rate-limit dict would keep showing that error for the whole TTL; raising also lets the retry wrapper see the failure." },
+
+  { name: "_cached_dcf_valuation", kind: "data", kindLabel: "Cached fetch", layer: "L4", aspect: "Data Layer",
+    sig: "@st.cache_data(ttl=900, show_spinner=False)\n_cached_dcf_valuation(\n    symbol: str,\n    currency_label: str,\n) -> dict",
+    purpose: "Runs the multi-model DCF valuation, cached 15 minutes to respect Yahoo's limits.",
+    returns: "dict — the run_valuation_analysis result.",
+    calls: ["adm.run_valuation_analysis", "_retry_on_rate_limit", "_raise_if_error"],
+    calledBy: ["get_dcf_valuation"],
+    notes: "One of the most request-hungry calls — run_valuation_analysis creates several Ticker objects. currency_label is part of the cache key because the display currency feeds the model output." },
+
+  { name: "_cached_stock_price", kind: "data", kindLabel: "Cached fetch", layer: "L4", aspect: "Data Layer",
+    sig: "@st.cache_data(ttl=900, show_spinner=False)\n_cached_stock_price(\n    symbol: str,\n) -> dict",
+    purpose: "Fetches the 5-day OHLCV snapshot and derives the exchange label and native currency, cached 15 minutes.",
+    returns: "dict with ticker, exchange, currency, current_price, open, high, low, volume.",
+    calls: ["yfinance.Ticker.history", "_retry_on_rate_limit"],
+    calledBy: ["get_stock_price"],
+    notes: "An empty history RAISES rather than returning, so a 'no data' failure is never cached past the user's retry. Cache staleness is deliberate: an intraday move of a few cents doesn't change any conclusion, while a rate-limited app shows no price at all." },
+
+  { name: "_cached_technical_indicators", kind: "data", kindLabel: "Cached fetch", layer: "L4", aspect: "Data Layer",
+    sig: "@st.cache_data(ttl=900, show_spinner=False)\n_cached_technical_indicators(\n    symbol: str,\n) -> DataFrame",
+    purpose: "Downloads 5 years of daily OHLCV and computes the full indicator DataFrame, cached 15 minutes.",
+    returns: "pandas DataFrame — OHLCV plus SMA/EMA, RSI, MACD, Bollinger, Stochastic and OBV.",
+    calls: ["TECH_ANALYSIS.compute_technical_indicators", "_retry_on_rate_limit", "_raise_if_error"],
+    calledBy: ["run_analysis"],
+    notes: "The single heaviest Yahoo request in the app, so caching matters most here. st.cache_data hands each caller its own copy of the DataFrame." },
+
+  { name: "get_stock_price", kind: "tool", kindLabel: "@tool", layer: "L4", aspect: "Data Layer",
+    sig: "@tool\nget_stock_price(\n    ticker: str,\n) -> dict",
+    purpose: "LLM-callable tool returning the latest OHLCV snapshot for a complete Yahoo symbol.",
+    returns: "dict with ticker, exchange, currency and OHLCV — or {'error': ...}.",
+    calls: ["_cached_stock_price", "_yahoo_error_message"],
+    calledBy: ["run_analysis", "LLM"],
+    notes: "The symbol is fetched EXACTLY as given — no exchange suffix is ever appended or probed. Returns an error dict rather than raising, so the agent can reason about missing data." },
+
+  { name: "get_stock_news", kind: "tool", kindLabel: "@tool", layer: "L4", aspect: "Data Layer",
+    sig: "@tool\nget_stock_news(\n    company_name: str,\n) -> list",
+    purpose: "LLM-callable tool returning the latest financial headlines for a company.",
+    returns: "list of {title, description, url} dicts — empty list when there is no coverage.",
+    calls: ["newsapi.get_everything", "_yahoo_error_message"],
+    calledBy: ["run_analysis", "LLM"],
+    notes: "Takes the full company name rather than the ticker, because NewsAPI searches prose." },
+
+  { name: "analyze_news_sentiment", kind: "tool", kindLabel: "@tool", layer: "L4", aspect: "Data Layer",
+    sig: "@tool\nanalyze_news_sentiment(\n    company_name: str,\n) -> dict",
+    purpose: "LLM-callable tool computing aggregate sentiment by averaging TextBlob polarity across recent articles.",
+    returns: "dict with sentiment, score and articles_analyzed — or an Unknown/Error variant.",
+    calls: ["newsapi.get_everything", "TextBlob"],
+    calledBy: ["run_analysis", "LLM"],
+    notes: "Uses a larger sample than the headline tool so the average is meaningful. TextBlob is lexicon-based, so it is fast and keyless but can miss sarcasm and financial jargon." },
+
+  { name: "get_dcf_valuation", kind: "tool", kindLabel: "@tool", layer: "L4", aspect: "Data Layer",
+    sig: "@tool\nget_dcf_valuation(\n    ticker: str,\n) -> dict",
+    purpose: "LLM-callable tool returning multi-model intrinsic-value estimates.",
+    returns: "dict with base/bull/bear values, average_all, all_values_per_share and RMSE metrics — or {'error': ...}.",
+    calls: ["_cached_dcf_valuation", "currency_display_string", "_yahoo_error_message"],
+    calledBy: ["run_analysis", "LLM"],
+    notes: "Delegates to ALL_DCF_MODELS.run_valuation_analysis. The display currency is passed through as a label so the model's output is labelled in the user's chosen unit." },
+
+  { name: "generate_analysis", kind: "ai", kindLabel: "LLM", layer: "L4", aspect: "AI Analysis",
+    sig: "generate_analysis(\n    ticker: str,\n    stock_data: dict,\n    sentiment_data: dict,\n    news: list,\n    dcf_data: dict,\n    display_currency: str = \"INR\",\n    rag_context: str = \"\",\n) -> str",
+    purpose: "Builds the fundamental prompt from price, sentiment, news, DCF data and the retrieved RAG excerpts, and returns the LLM's markdown analysis.",
+    returns: "str — raw markdown with four labelled sections ending in a bolded verdict.",
+    calls: ["llm.invoke"],
+    calledBy: ["run_analysis (thread 1)"],
+    notes: "The four section headers are fixed so the downstream parser can extract each section reliably. <mark> tags are quarantined to the recommendation section so intentional HTML cannot leak into sections rendered as escaped text." },
+
+  { name: "parse_analysis", kind: "ai", kindLabel: "Parser", layer: "L4", aspect: "AI Analysis",
+    sig: "parse_analysis(\n    analysis: str,\n) -> list",
+    purpose: "Splits the LLM markdown on ## headers, matches the four known sections, extracts paragraphs, and detects a BUY / HOLD / SELL verdict for the recommendation section.",
+    returns: "list of dicts with title, emoji, paragraphs, is_recommendation and verdict.",
+    calls: ["re.split", "detect_verdict", "keyword_is_directional"],
+    calledBy: ["run_analysis", "_build_save_record"],
+    notes: "Verdict detection is two-stage: an explicit leading marker wins immediately; otherwise keywords are scanned with NEGATION AWARENESS — a 45-character window plus a clause-break test stop 'a SELL rating is not warranted' from classifying as SELL. Defaults to HOLD when nothing matches." },
+
+  { name: "extract_pdf_text", kind: "rag", kindLabel: "RAG", layer: "L4", aspect: "Vectorless RAG",
+    sig: "extract_pdf_text(\n    uploaded_file,\n) -> list[dict]",
+    purpose: "Stage 1 of the vectorless pipeline: extracts PDF text page-by-page with pypdf.",
+    returns: "list of {'file', 'page', 'text'} records — only pages that yielded text.",
+    calls: ["PdfReader", "st.warning"],
+    calledBy: ["build_document_corpus"],
+    notes: "Accepts either a Streamlit UploadedFile or a raw {'name','bytes'} dict, because uploads are snapshotted as bytes. Scanned/image-only PDFs yield nothing and are reported by the caller rather than failing." },
+
+  { name: "chunk_text", kind: "rag", kindLabel: "RAG", layer: "L4", aspect: "Vectorless RAG",
+    sig: "chunk_text(\n    text: str,\n    max_chars: int = 1800,\n    overlap: int = 200,\n) -> list[str]",
+    purpose: "Stage 2: splits a page into overlapping chunks, preferring sentence boundaries.",
+    returns: "list[str] — the chunks.",
+    calls: ["re.sub", "str.rfind"],
+    calledBy: ["build_document_corpus"],
+    notes: "The 200-character overlap preserves context spanning a chunk boundary, so a sentence or financial figure cut across two chunks stays fully readable. Whitespace is normalised first." },
+
+  { name: "build_document_corpus", kind: "rag", kindLabel: "RAG", layer: "L4", aspect: "Vectorless RAG",
+    sig: "build_document_corpus(\n    uploaded_files,\n) -> tuple[list[dict], list[dict]]",
+    purpose: "Stage 3: extracts and chunks every uploaded document, tagging each chunk with its source file and page number.",
+    returns: "(corpus, sources) — the in-memory index and a per-file summary for the UI.",
+    calls: ["extract_pdf_text", "chunk_text"],
+    calledBy: ["run_analysis Step 4.5"],
+    notes: "Progress prints to the terminal so extraction is observable. A file with no extractable text is recorded with a '⚠️ No extractable text' status rather than silently contributing nothing." },
+
+  { name: "lexical_search", kind: "rag", kindLabel: "RAG", layer: "L4", aspect: "Vectorless RAG",
+    sig: "lexical_search(\n    query: str,\n    corpus: list[dict],\n    top_k: int = 10,\n) -> list[dict]",
+    purpose: "Stage 4: scores every chunk by how many meaningful query terms it contains and returns the top_k highest.",
+    returns: "list of chunk dicts in descending score order; zero-score chunks are dropped.",
+    calls: ["re.findall"],
+    calledBy: ["run_analysis Step 4.6"],
+    notes: "The stand-in for embedding similarity search — no models, no vectors, no database. Terms are 3+ letter words filtered against a stop-word set that includes domain words (stock, report, filing, regulatory) so they don't dominate. An empty query falls back to the first top_k chunks rather than returning nothing." },
+
+  { name: "format_rag_context", kind: "rag", kindLabel: "RAG", layer: "L4", aspect: "Vectorless RAG",
+    sig: "format_rag_context(\n    rag_chunks: list[dict],\n) -> str",
+    purpose: "Stage 5: serialises the retrieved chunks into one labelled text block for the prompt.",
+    returns: "str — each excerpt prefixed with its source file and page number, or '' when empty.",
+    calls: [],
+    calledBy: ["run_analysis", "generate_analysis (via rag_context)"],
+    notes: "Labelling with file and page lets the model cite which filing a fact came from." },
+
+  { name: "_store_uploaded_files", kind: "rag", kindLabel: "RAG state", layer: "L4", aspect: "Vectorless RAG",
+    sig: "_store_uploaded_files(\n    uploaded_files,\n) -> None",
+    purpose: "Snapshots raw uploaded PDFs into session state WITHOUT extracting text.",
+    returns: "None — mutates session_state.",
+    calls: [],
+    calledBy: ["render_sidebar uploader"],
+    notes: "Streamlit UploadedFile objects are recreated on every rerun and are not guaranteed to stay usable, so the bytes are snapshotted. Skips work when the upload set is unchanged; when it changes, every previously built RAG artifact is invalidated." },
+
+  { name: "_render_uploaded_docs_summary", kind: "rag", kindLabel: "RAG state", layer: "L4", aspect: "Vectorless RAG",
+    sig: "_render_uploaded_docs_summary() -> None",
+    purpose: "Shows uploaded filings and their extraction status in the sidebar, plus a Clear-documents button.",
+    returns: "None.",
+    calls: [],
+    calledBy: ["render_sidebar"],
+    notes: "Two states: documents already processed (per-file page/char/chunk counts with ✓/⚠️ status) and documents only queued (filenames and byte sizes with an 'extracted on Analyze' note)." },
+
+  { name: "_fundamental_commentary", kind: "int", kindLabel: "Bridge", layer: "L4", aspect: "Integrations",
+    sig: "_fundamental_commentary(\n    parsed_sections: list,\n) -> dict",
+    purpose: "Extracts {canonical title: joined commentary} from the parsed sections for persistence.",
+    returns: "dict mapping each of the four canonical titles to its joined paragraph text.",
+    calls: ["FUNDAMENTAL_TITLES"],
+    calledBy: ["_build_save_record"],
+    notes: "Mirrors parse_analysis's substring title matching so all four known sections are captured under their canonical names rather than whatever heading the LLM produced." },
+
+  { name: "_build_save_record", kind: "int", kindLabel: "Bridge", layer: "L4", aspect: "Integrations",
+    sig: "_build_save_record() -> tuple[dict | None, list[str]]",
+    purpose: "Assembles the Chroma snapshot dict from session_state — fundamental sections, both verdicts, and the persona consensus block.",
+    returns: "(record, notes) — record is None when there is nothing to save; notes holds non-fatal warnings.",
+    calls: ["_fundamental_commentary", "FUNDAMENTAL_TITLES"],
+    calledBy: ["_save_current_analysis"],
+    notes: "Skips a persona result whose ticker differs from the analysed one, so a stale persona run can never be saved under another company's snapshot. Falls back to the persona result's ticker when only a persona-only run happened." },
+
+  { name: "_save_current_analysis", kind: "int", kindLabel: "Bridge", layer: "L4", aspect: "Integrations",
+    sig: "_save_current_analysis() -> None",
+    purpose: "Persists the current snapshot to Chroma Cloud via a lazy import of CHROMA_STORE.",
+    returns: "None — reports success or failure in the UI.",
+    calls: ["_build_save_record", "CHROMA_STORE.save_analysis_record"],
+    calledBy: ["main (Save button)"],
+    notes: "The lazy import keeps the app boot unaffected. Non-fatal notes are surfaced alongside the success message rather than dropped. " },
+
+  { name: "FUNDAMENTAL_TITLES", kind: "data", kindLabel: "Constant", layer: "L4", aspect: "Integrations",
+    sig: "FUNDAMENTAL_TITLES = (\n    \"Financial Outlook\",\n    \"Key Risks\",\n    \"Growth Potential\",\n    \"Investment Recommendation\",\n)",
+    purpose: "The canonical fundamental-report sections whose commentary is persisted to Chroma.",
+    returns: "tuple of the four section titles.",
+    calls: [],
+    calledBy: ["_fundamental_commentary", "_build_save_record"],
+    notes: "Must stay aligned with CHROMA_STORE.FUNDAMENTAL_SECTION_ORDER, which drives the stored document layout — the two lists describe the same four sections." },
+
+  { name: "run_persona_valuation", kind: "int", kindLabel: "Bridge", layer: "L2", aspect: "Integrations",
+    sig: "run_persona_valuation(\n    ticker: str,\n    company_name: str,\n) -> None",
+    purpose: "Runs the crewAI multi-persona valuation and stores the serialised result, then reruns.",
+    returns: "None — mutates session_state and calls st.rerun().",
+    calls: ["PERSONA_AGENTS_CREW.run_persona_crew"],
+    calledBy: ["main (persona button)"],
+    notes: "Lazily imports the crew module so crewAI stays out of the boot path, and degrades with an install hint when it is missing. Storing model_dump() and rerunning means the multi-minute blocking run happens in the handler while rendering happens on the next pass." }
+];
+
+/* ── Rendering ────────────────────────────────────────────────────── */
+const esc = s => String(s)
+  .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+function sigHTML(sig){
+  return esc(sig)
+    .replace(/^([ \t]*)([a-z_][a-z0-9_]*)/m, '$1<span class="fn-key">$2</span>')
+    .replace(/(:\s*)([A-Z\[][A-Za-z0-9_\[\], \.]*|float|int|str|dict|bool|Any|list|tuple|None)(?=[,\n\)])/g,
+             '$1<span class="ty">$2</span>');
+}
+
+function chips(arr, cls){
+  if(!arr || !arr.length) return '<span class="chip none">— none —</span>';
+  return arr.map(n => `<span class="chip ${cls}">${esc(n)}</span>`).join('');
+}
+
+function fnCard(f){
+  return `
+  <article class="fn">
+    <div class="fn-head">
+      <span class="fn-name">${esc(f.name)}</span>
+      <span class="badge b-${f.kind}">${esc(f.kindLabel)}</span>
+      <span class="fn-sec">${esc(f.aspect)} · ${esc(f.layer)}</span>
+    </div>
+    <div class="card-body">
+      <pre class="sig">${sigHTML(f.sig)}</pre>
+      <dl class="kv">
+        <dt>Purpose</dt><dd>${esc(f.purpose)}</dd>
+        <dt>Returns</dt><dd>${esc(f.returns)}</dd>
+        <dt>Calls</dt><dd><div class="chips">${chips(f.calls, 'call')}</div></dd>
+        <dt>Called by</dt><dd><div class="chips">${chips(f.calledBy, 'by')}</div></dd>
+        ${f.notes ? `<dt>Notes</dt><dd>${esc(f.notes)}</dd>` : ''}
+      </dl>
+    </div>
+  </article>`;
+}
+
+function renderFns(q){
+  const term = (q || "").trim().toLowerCase();
+  const list = FUNCS.filter(f => !term ||
+    (f.name + " " + f.purpose + " " + f.aspect + " " + f.kindLabel + " " + f.layer)
+      .toLowerCase().includes(term));
+  document.getElementById("fnList").innerHTML =
+    list.length ? list.map(fnCard).join("")
+                : '<p class="note" style="padding:20px">No symbols match that filter.</p>';
+  document.getElementById("fnCount").textContent = list.length + " / " + FUNCS.length + " symbols";
+}
+
+/* ── Linkage matrix ───────────────────────────────────────────────── */
+function renderMatrix(){
+  document.getElementById("matrixBody").innerHTML = FUNCS.map(f => `
+    <tr>
+      <td class="mono">${esc(f.name)}</td>
+      <td><div class="chips">${chips(f.calls, 'call')}</div></td>
+      <td><div class="chips">${chips(f.calledBy, 'by')}</div></td>
+      <td class="c">${esc(f.layer)}</td>
+    </tr>`).join("");
+}
+
+/* ── Tabs ─────────────────────────────────────────────────────────── */
+function activate(panelId){
+  document.querySelectorAll(".tab").forEach(x =>
+    x.classList.toggle("active", x.dataset.panel === panelId));
+  document.querySelectorAll(".panel").forEach(p =>
+    p.classList.toggle("active", p.id === panelId));
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function initTabs(){
+  document.querySelectorAll(".tab").forEach(t =>
+    t.addEventListener("click", () => activate(t.dataset.panel)));
+  document.querySelectorAll("[data-goto]").forEach(card =>
+    card.addEventListener("click", () => activate(card.dataset.goto)));
+}
+
+/* ── Theme ────────────────────────────────────────────────────────── */
+function initTheme(){
+  const root = document.documentElement;
+  const saved = localStorage.getItem("home-theme");
+  if(saved) root.dataset.theme = saved;
+  document.getElementById("themeBtn").addEventListener("click", () => {
+    root.dataset.theme = root.dataset.theme === "dark" ? "light" : "dark";
+    localStorage.setItem("home-theme", root.dataset.theme);
+  });
+}
+
+/* ── Init ─────────────────────────────────────────────────────────── */
+document.addEventListener("DOMContentLoaded", () => {
+  initTabs();
+  initTheme();
+  renderFns("");
+  renderMatrix();
+  document.getElementById("fnSearch").addEventListener("input", e => renderFns(e.target.value));
+
+  document.addEventListener("keydown", e => {
+    if(e.key === "/" && document.activeElement.tagName !== "INPUT"){
+      e.preventDefault();
+      activate("p-funcs");
+      document.getElementById("fnSearch").focus();
+    }
+  });
+});
+
+/* KaTeX: render every \[ … \] block once the DOM and library are ready. */
+window.addEventListener("load", () => {
+  if(window.renderMathInElement){
+    renderMathInElement(document.body, {
+      delimiters: [
+        {left: "\\[", right: "\\]", display: true},
+        {left: "\\(", right: "\\)", display: false}
+      ],
+      throwOnError: false
+    });
+  }
+});
+</script>
+
+</body>
+</html>

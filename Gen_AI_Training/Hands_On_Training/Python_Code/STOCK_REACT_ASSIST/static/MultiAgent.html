@@ -1,0 +1,1562 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Multi-Agent Valuation Crew — PERSONA_AGENTS_CREW.py Reference</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+
+<style>
+/* ── Design tokens ───────────────────────────────────────────────── */
+:root{
+  --bg:#f5f7fb; --surface:#fff; --surface-2:#fafbfe; --border:#e4e8f0;
+  --text:#0f172a; --text-2:#5b6679; --text-3:#8b95a7;
+  --accent:#4f46e5; --accent-soft:#eef0ff; --accent-2:#0284c7;
+  --green:#0f9d58; --green-soft:#e8f7ef;
+  --amber:#b45309; --amber-soft:#fdf3e3;
+  --rose:#be123c; --rose-soft:#fdeaf0;
+  --violet:#7c3aed; --violet-soft:#f3ecfe;
+  --orange:#c2410c; --orange-soft:#fff1e7;
+  --teal:#0f766e; --teal-soft:#e6f6f4;
+  --code-bg:#f3f5fa;
+  --radius:14px; --radius-sm:9px;
+  --shadow:0 1px 2px rgba(15,23,42,.05), 0 10px 28px -14px rgba(15,23,42,.22);
+  --mono:"JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  --p-buffett:#b45309;  --p-buffett-soft:#fdf3e3;
+  --p-munger:#7c3aed;   --p-munger-soft:#f3ecfe;
+  --p-jhunjhunwala:#c2410c; --p-jhunjhunwala-soft:#fff1e7;
+  --p-damodaran:#0f766e; --p-damodaran-soft:#e6f6f4;
+  --p-lead:#be123c;     --p-lead-soft:#fdeaf0;
+}
+[data-theme="dark"]{
+  --bg:#080b13; --surface:#0f1523; --surface-2:#121a2b; --border:#222c42;
+  --text:#e9eefb; --text-2:#9aa6bd; --text-3:#6c7891;
+  --accent:#8f8ff8; --accent-soft:#1a1f3d; --accent-2:#4cc9f0;
+  --green:#3ddc97; --green-soft:#0d2a1f;
+  --amber:#f0b357; --amber-soft:#2a1f0d;
+  --rose:#fb7185; --rose-soft:#2d1119;
+  --violet:#c4b5fd; --violet-soft:#1f1836;
+  --orange:#fdba74; --orange-soft:#2b1608;
+  --teal:#5eead4; --teal-soft:#082522;
+  --code-bg:#0c1220;
+  --shadow:0 1px 2px rgba(0,0,0,.6), 0 14px 36px -18px rgba(0,0,0,.9);
+
+  --p-buffett:#f0b357;  --p-buffett-soft:#2a1f0d;
+  --p-munger:#c4b5fd;   --p-munger-soft:#1f1836;
+  --p-jhunjhunwala:#fdba74; --p-jhunjhunwala-soft:#2b1608;
+  --p-damodaran:#5eead4; --p-damodaran-soft:#082522;
+  --p-lead:#fb7185;     --p-lead-soft:#2d1119;
+}
+
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0; background:var(--bg); color:var(--text);
+  font-family:Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size:15px; line-height:1.65; -webkit-font-smoothing:antialiased}
+
+/* ── Header ──────────────────────────────────────────────────────── */
+header{position:sticky; top:0; z-index:40;
+  background:color-mix(in srgb, var(--surface) 88%, transparent);
+  backdrop-filter:blur(12px); border-bottom:1px solid var(--border)}
+.hdr-inner{max-width:1180px; margin:0 auto; padding:14px 26px;
+  display:flex; align-items:center; gap:16px}
+.brand{display:flex; align-items:center; gap:13px; min-width:0}
+.logo{width:40px; height:40px; flex:none; border-radius:11px;
+  background:linear-gradient(135deg, var(--accent), var(--accent-2));
+  display:grid; place-items:center; color:#fff; font-weight:700; font-size:12px;
+  box-shadow:0 6px 16px -6px var(--accent)}
+.brand h1{margin:0; font-size:16.5px; font-weight:650; letter-spacing:-.01em; white-space:nowrap}
+.brand p{margin:0; font-size:12.5px; color:var(--text-2)}
+.hdr-actions{margin-left:auto; display:flex; align-items:center; gap:10px}
+.src-chip{font-family:var(--mono); font-size:11.5px; padding:5px 11px; border-radius:99px;
+  background:var(--code-bg); border:1px solid var(--border); color:var(--text-2); white-space:nowrap}
+.icon-btn{width:36px; height:36px; border-radius:10px; border:1px solid var(--border);
+  background:var(--surface); color:var(--text-2); cursor:pointer;
+  display:grid; place-items:center; font-size:15px; transition:.15s}
+.icon-btn:hover{color:var(--accent); border-color:var(--accent)}
+
+main{max-width:1180px; margin:0 auto; padding:26px 26px 90px}
+
+/* ── Tabs ────────────────────────────────────────────────────────── */
+.tabs{display:flex; gap:5px; padding:6px; margin-bottom:26px;
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:13px; box-shadow:var(--shadow); overflow-x:auto}
+.tab{flex:1 1 auto; min-width:92px; border:0; cursor:pointer; background:transparent;
+  color:var(--text-2); font:inherit; font-weight:550; font-size:13px;
+  padding:9px 12px; border-radius:9px; transition:.15s; white-space:nowrap}
+.tab:hover{color:var(--text); background:var(--surface-2)}
+.tab img{width:16px; height:16px; border-radius:5px; object-fit:cover;
+  vertical-align:-3px; margin-right:5px; display:inline-block}
+.tab.active{background:linear-gradient(135deg, var(--accent), var(--accent-2));
+  color:#fff; box-shadow:0 6px 18px -8px var(--accent)}
+.tab.active[data-persona="buffett"]{background:linear-gradient(135deg,#d97706,#b45309); box-shadow:0 6px 18px -8px #b45309}
+.tab.active[data-persona="munger"]{background:linear-gradient(135deg,#8b5cf6,#6d28d9); box-shadow:0 6px 18px -8px #7c3aed}
+.tab.active[data-persona="jhunjhunwala"]{background:linear-gradient(135deg,#f97316,#c2410c); box-shadow:0 6px 18px -8px #c2410c}
+.tab.active[data-persona="damodaran"]{background:linear-gradient(135deg,#14b8a6,#0f766e); box-shadow:0 6px 18px -8px #0f766e}
+.tab.active[data-persona="lead"]{background:linear-gradient(135deg,#f43f5e,#be123c); box-shadow:0 6px 18px -8px #be123c}
+
+.panel{display:none}
+.panel.active{display:block; animation:fade .22s ease}
+@keyframes fade{from{opacity:0; transform:translateY(4px)}to{opacity:1;transform:none}}
+
+/* ── Hero ────────────────────────────────────────────────────────── */
+.hero{border:1px solid var(--border); border-left:4px solid var(--pa, var(--accent));
+  border-radius:var(--radius); background:var(--surface);
+  box-shadow:var(--shadow); padding:20px 22px; margin-bottom:22px}
+.hero-top{display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:6px}
+.hero-top h2{margin:0; font-size:22px; font-weight:680; letter-spacing:-.02em}
+.hero .philosophy{margin:0; font-size:14.5px; color:var(--text-2); font-style:italic}
+.pa-chip{font-family:var(--mono); font-size:11px; font-weight:600; padding:3px 9px;
+  border-radius:99px; background:var(--pa-soft, var(--accent-soft)); color:var(--pa, var(--accent))}
+.avatar{width:56px; height:56px; border-radius:14px; flex:none; object-fit:cover;
+  display:block; border:1px solid var(--border);
+  background:var(--pa-soft, var(--accent-soft))}
+.avatar-mono{display:grid; place-items:center; font-family:var(--mono);
+  font-size:16px; font-weight:700; letter-spacing:.02em; color:var(--pa, var(--accent))}
+
+/* ── Sections & cards ────────────────────────────────────────────── */
+.sec{margin-bottom:28px}
+.sec-head{display:flex; align-items:baseline; gap:12px; margin:0 0 14px}
+.sec-head .num{font-family:var(--mono); font-size:12px; font-weight:600;
+  color:var(--accent); background:var(--accent-soft); padding:3px 9px; border-radius:7px; flex:none}
+.sec-head h2{margin:0; font-size:19px; font-weight:650; letter-spacing:-.015em}
+.sec-head .tag{margin-left:auto; font-size:11.5px; color:var(--text-3);
+  font-family:var(--mono); white-space:nowrap}
+
+.card{background:var(--surface); border:1px solid var(--border);
+  border-radius:var(--radius); box-shadow:var(--shadow); margin-bottom:14px; overflow:hidden}
+.card-top{padding:14px 18px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+  border-bottom:1px solid var(--border); background:var(--surface-2)}
+.card-top h3{margin:0; font-size:14.5px; font-weight:625; letter-spacing:-.01em}
+.card-body{padding:16px 18px}
+
+.badge{font-size:10.5px; font-weight:650; letter-spacing:.03em; text-transform:uppercase;
+  padding:3.5px 9px; border-radius:99px; white-space:nowrap}
+.b-persona{background:var(--accent-soft); color:var(--accent)}
+.b-lead{background:var(--rose-soft); color:var(--rose)}
+.b-orch{background:var(--rose-soft); color:var(--rose)}
+.b-tool{background:var(--amber-soft); color:var(--amber)}
+.b-helper{background:var(--violet-soft); color:var(--violet)}
+.b-parse{background:var(--teal-soft); color:var(--teal)}
+.b-model{background:var(--green-soft); color:var(--green)}
+.b-data{background:var(--green-soft); color:var(--green)}
+
+/* ── Prompt / code blocks ────────────────────────────────────────── */
+.prompt,.sig{font-family:var(--mono); font-size:12.2px; line-height:1.7;
+  background:var(--code-bg); border:1px solid var(--border);
+  border-left:3px solid var(--pa, var(--accent));
+  border-radius:var(--radius-sm); padding:13px 15px; margin:2px 0 12px;
+  white-space:pre-wrap; word-break:break-word; color:var(--text); overflow-x:auto}
+.formula{background:var(--code-bg); border:1px solid var(--border);
+  border-left:3px solid var(--pa, var(--accent));
+  border-radius:var(--radius-sm); padding:14px 16px; margin:2px 0 12px;
+  overflow-x:auto; overflow-y:hidden}
+.formula .katex-display{margin:.25em 0}
+.formula .katex{font-size:1.05em}
+
+.note{font-size:13px; color:var(--text-2); margin:8px 0 0}
+.note strong{color:var(--text); font-weight:600}
+.impl{display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+  font-size:12.5px; color:var(--text-2); margin-top:10px;
+  padding-top:10px; border-top:1px dashed var(--border)}
+.impl .lbl{font-weight:600; color:var(--text)}
+
+code, .mono{font-family:var(--mono)}
+code{font-size:12.3px; background:var(--code-bg); border:1px solid var(--border);
+  padding:1.5px 6px; border-radius:5px; color:var(--text); white-space:nowrap}
+.chips{display:flex; flex-wrap:wrap; gap:6px}
+.chip{font-family:var(--mono); font-size:11.3px; padding:3px 9px; border-radius:7px;
+  background:var(--code-bg); border:1px solid var(--border); color:var(--text-2)}
+.chip.call{color:var(--accent-2); border-color:color-mix(in srgb, var(--accent-2) 30%, var(--border))}
+.chip.by{color:var(--violet); border-color:color-mix(in srgb, var(--violet) 30%, var(--border))}
+.chip.none{opacity:.55}
+
+/* ── Overview grid ───────────────────────────────────────────────── */
+.pgrid{display:grid; grid-template-columns:repeat(auto-fill,minmax(215px,1fr)); gap:12px}
+.pcard{border:1px solid var(--border); border-top:3px solid var(--pc);
+  border-radius:var(--radius); background:var(--surface);
+  box-shadow:var(--shadow); padding:15px 16px; cursor:pointer; transition:.15s}
+.pcard:hover{transform:translateY(-2px); border-color:color-mix(in srgb, var(--pc) 45%, var(--border))}
+.pcard img.em{width:48px; height:48px; border-radius:12px; object-fit:cover;
+  display:block; border:1px solid var(--border)}
+.pcard h4{margin:6px 0 2px; font-size:14.5px; font-weight:660; color:var(--pc)}
+.pcard .kind{font-size:10.5px; text-transform:uppercase; letter-spacing:.05em;
+  color:var(--text-3); font-weight:650}
+.pcard p{margin:8px 0 0; font-size:12.4px; color:var(--text-2)}
+
+.lgrid{display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:11px}
+.lcard{border:1px solid var(--border); border-radius:var(--radius);
+  background:var(--surface); box-shadow:var(--shadow); padding:14px 16px;
+  border-left:3px solid var(--lc)}
+.lcard .n{font-family:var(--mono); font-size:11px; font-weight:600; color:var(--lc)}
+.lcard h4{margin:4px 0 6px; font-size:14px; font-weight:640}
+.lcard p{margin:0; font-size:12.5px; color:var(--text-2)}
+.lcard .fn{font-family:var(--mono); font-size:11.3px; color:var(--text-3); margin-top:7px}
+
+/* ── Function reference ──────────────────────────────────────────── */
+.toolbar{display:flex; align-items:center; gap:12px; margin-bottom:16px; flex-wrap:wrap}
+.search{flex:1; min-width:230px; display:flex; align-items:center; gap:9px;
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:11px; padding:9px 13px; box-shadow:var(--shadow)}
+.search input{border:0; outline:0; background:transparent; color:var(--text);
+  font:inherit; font-size:14px; width:100%}
+.search input::placeholder{color:var(--text-3)}
+.count{font-size:12.5px; color:var(--text-2); font-family:var(--mono); white-space:nowrap}
+
+.fn{background:var(--surface); border:1px solid var(--border);
+  border-radius:var(--radius); box-shadow:var(--shadow); margin-bottom:12px;
+  overflow:hidden; transition:.15s}
+.fn:hover{border-color:color-mix(in srgb, var(--accent) 40%, var(--border))}
+.fn-head{padding:14px 18px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+  border-bottom:1px solid var(--border); background:var(--surface-2)}
+.fn-name{font-family:var(--mono); font-size:13.5px; font-weight:600; color:var(--accent)}
+.fn-sec{font-size:11.5px; color:var(--text-3); margin-left:auto; white-space:nowrap}
+.fn .sig{border-left:0; margin-bottom:12px}
+.sig .fn-key{color:var(--accent); font-weight:600}
+.sig .ty{color:var(--text-3)}
+.kv{display:grid; grid-template-columns:96px 1fr; gap:5px 14px; font-size:13.2px}
+.kv dt{color:var(--text-3); font-weight:600; font-size:11.5px; text-transform:uppercase;
+  letter-spacing:.03em; padding-top:2px}
+.kv dd{margin:0; color:var(--text-2)}
+
+/* ── Dependency map ──────────────────────────────────────────────── */
+.flow{display:flex; flex-direction:column; gap:0}
+.layer{background:var(--surface); border:1px solid var(--border);
+  border-radius:var(--radius); box-shadow:var(--shadow); padding:16px 18px}
+.layer-h{display:flex; align-items:center; gap:10px; margin-bottom:12px; flex-wrap:wrap}
+.layer-h h4{margin:0; font-size:13px; font-weight:650; text-transform:uppercase;
+  letter-spacing:.06em; color:var(--text-2)}
+.layer-idx{font-family:var(--mono); font-size:11px; font-weight:600; color:var(--accent);
+  background:var(--accent-soft); padding:2px 8px; border-radius:6px}
+.conn{display:grid; place-items:center; padding:5px 0}
+.conn span{width:2px; height:26px;
+  background:linear-gradient(var(--accent), color-mix(in srgb, var(--accent) 25%, transparent));
+  border-radius:2px; position:relative}
+.conn span::after{content:""; position:absolute; bottom:-1px; left:50%; transform:translateX(-50%);
+  border-left:4.5px solid transparent; border-right:4.5px solid transparent; border-top:7px solid var(--accent)}
+.node-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(210px,1fr)); gap:8px}
+.node{border:1px solid var(--border); border-radius:10px; padding:9px 12px;
+  background:var(--surface-2); font-size:12.4px}
+.node b{font-family:var(--mono); font-size:11.8px; font-weight:600; color:var(--text); display:block}
+.node span{color:var(--text-3); font-size:11.4px}
+.node.orch{border-left:3px solid var(--rose)}
+.node.per{border-left:3px solid var(--accent)}
+.node.tl{border-left:3px solid var(--amber)}
+.node.hp{border-left:3px solid var(--violet)}
+.node.bg{border-left:3px solid var(--green)}
+
+table{width:100%; border-collapse:collapse; font-size:13px; margin-top:4px}
+th,td{padding:9px 11px; text-align:left; border-bottom:1px solid var(--border)}
+th{font-size:11px; text-transform:uppercase; letter-spacing:.05em;
+  color:var(--text-3); font-weight:650; background:var(--surface-2)}
+tbody tr:last-child td{border-bottom:0}
+td.mono{font-family:var(--mono); font-size:11.8px; color:var(--accent)}
+td.c{text-align:center; font-family:var(--mono); color:var(--text-2)}
+
+.legend{display:flex; gap:14px; flex-wrap:wrap; font-size:12px; color:var(--text-2);
+  margin-top:12px; padding-top:12px; border-top:1px solid var(--border)}
+.legend i{display:inline-block; width:9px; height:9px; border-radius:3px; margin-right:6px}
+.dot-orch{background:var(--rose)} .dot-per{background:var(--accent)}
+.dot-tl{background:var(--amber)} .dot-hp{background:var(--violet)} .dot-bg{background:var(--green)}
+
+.callout{display:flex; gap:11px; padding:13px 15px; border-radius:var(--radius-sm);
+  background:var(--amber-soft); border:1px solid color-mix(in srgb, var(--amber) 25%, var(--border));
+  font-size:13px; color:var(--text-2); margin-bottom:14px}
+.callout b{color:var(--text)}
+.callout .ico{flex:none; font-size:14px}
+
+footer{max-width:1180px; margin:0 auto; padding:22px 26px 40px;
+  border-top:1px solid var(--border); color:var(--text-3); font-size:12.5px}
+footer code{font-size:11.5px}
+kbd{font-family:var(--mono); font-size:11px; background:var(--surface-2);
+  border:1px solid var(--border); border-bottom-width:2px; border-radius:5px;
+  padding:1px 6px; color:var(--text-2)}
+
+@media (max-width:820px){
+  .hdr-inner, main, footer{padding-left:16px; padding-right:16px}
+  .src-chip{display:none}
+  .kv{grid-template-columns:1fr; gap:2px}
+  .kv dt{padding-top:8px}
+  .brand p{display:none}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="hdr-inner">
+    <div class="brand">
+      <div class="logo">CREW</div>
+      <div>
+        <h1>Multi-Agent Valuation Crew</h1>
+        <p>Every persona, agent and function in <code style="font-size:11.5px">PERSONA_AGENTS_CREW.py</code></p>
+      </div>
+    </div>
+    <div class="hdr-actions">
+      <span class="src-chip">5 agents · 3 tools · 36 symbols</span>
+      <button class="icon-btn" id="themeBtn" title="Toggle light / dark" aria-label="Toggle theme">◐</button>
+    </div>
+  </div>
+</header>
+
+<main>
+
+  <nav class="tabs" role="tablist">
+    <button class="tab active" role="tab" data-panel="p-overview">Overview</button>
+    <button class="tab" role="tab" data-panel="p-buffett" data-persona="buffett"><img src="personas/warren_buffett.png" alt="">Buffett</button>
+    <button class="tab" role="tab" data-panel="p-munger" data-persona="munger"><img src="personas/charlie_munger.png" alt="">Munger</button>
+    <button class="tab" role="tab" data-panel="p-jhunjhunwala" data-persona="jhunjhunwala"><img src="personas/jhunjhunwala.png" alt="">Jhunjhunwala</button>
+    <button class="tab" role="tab" data-panel="p-damodaran" data-persona="damodaran"><img src="personas/damodaran.png" alt="">Damodaran</button>
+    <button class="tab" role="tab" data-panel="p-lead" data-persona="lead"><img src="personas/lead_analyst.png" alt="">Lead Analyst</button>
+    <button class="tab" role="tab" data-panel="p-funcs">Function Reference</button>
+    <button class="tab" role="tab" data-panel="p-deps">Dependency Map</button>
+  </nav>
+
+  <!-- ══════════════════ OVERVIEW ══════════════════ -->
+  <section class="panel active" id="p-overview">
+
+    <div class="callout">
+      <span class="ico">◆</span>
+      <div>
+        A standalone <strong>crewAI</strong> crew that runs four <em>investor-persona</em> agents
+        — each dedicated to a famous investor — plus a <strong>lead-analyst</strong> agent that
+        reconciles them. Every persona researches autonomously (ReAct-style tool calling over
+        DeepSeek), emits one JSON fair-value judgement, and the lead produces a consensus range.
+        The rule-based range from <code>PERSONA_BASED_VALUATION.py</code> is computed alongside so
+        the two methodologies can be compared.
+      </div>
+    </div>
+
+    <!-- Roster -->
+    <div class="sec">
+      <div class="sec-head"><span class="num">A</span><h2>The crew roster</h2>
+        <span class="tag">click a card to open its tab</span></div>
+      <div class="pgrid">
+        <div class="pcard" style="--pc:var(--p-buffett)" data-goto="p-buffett">
+          <img class="em" src="personas/warren_buffett.png" alt="Warren Buffett"><h4>Warren Buffett</h4>
+          <div class="kind">Value / Owner-Earnings</div>
+          <p>Moat, stable ROE, low leverage, owner earnings — and a 20–30% margin of safety.</p>
+        </div>
+        <div class="pcard" style="--pc:var(--p-munger)" data-goto="p-munger">
+          <img class="em" src="personas/charlie_munger.png" alt="Charlie Munger"><h4>Charlie Munger</h4>
+          <div class="kind">Quality / Moat</div>
+          <p>ROIC versus cost of capital, durability of the moat, pricing power — and inversion.</p>
+        </div>
+        <div class="pcard" style="--pc:var(--p-jhunjhunwala)" data-goto="p-jhunjhunwala">
+          <img class="em" src="personas/jhunjhunwala.png" alt="Rakesh Jhunjhunwala"><h4>Rakesh Jhunjhunwala</h4>
+          <div class="kind">Growth / India</div>
+          <p>Revenue and earnings growth, scalable models, and the Indian domestic tailwind.</p>
+        </div>
+        <div class="pcard" style="--pc:var(--p-damodaran)" data-goto="p-damodaran">
+          <img class="em" src="personas/damodaran.png" alt="Aswath Damodaran"><h4>Aswath Damodaran</h4>
+          <div class="kind">Valuation / DCF</div>
+          <p>Explicit DCF assumptions, base / bull / bear scenarios, uncertainty made visible.</p>
+        </div>
+        <div class="pcard" style="--pc:var(--p-lead)" data-goto="p-lead">
+          <img class="em" src="personas/lead_analyst.png" alt="Lead Analyst"><h4>Lead Analyst</h4>
+          <div class="kind">Reconciliation</div>
+          <p>Chairs the committee. No tools — reasons only over the four submitted values.</p>
+        </div>
+      </div>
+      <p class="note">
+        Personas mirror the deterministic rules in <code>PERSONA_BASED_VALUATION.py</code>, but let
+        the LLM <em>reason like that investor</em> rather than apply a fixed formula. Each persona's
+        <code>det_key</code> links it to its rule-based counterpart for the blended average.
+      </p>
+    </div>
+
+    <!-- Crew pattern -->
+    <div class="sec">
+      <div class="sec-head"><span class="num">B</span><h2>The crewAI pattern</h2>
+        <span class="tag">parallel experts, then a lead</span></div>
+      <div class="card">
+        <div class="card-body">
+          <div class="prompt">Crew(
+    agents = [persona_1, persona_2, persona_3, persona_4, lead_agent],
+    tasks  = [persona_1_task, ..., persona_4_task, lead_task],
+    process = Process.sequential,
+)
+
+# the four persona tasks run CONCURRENTLY:
+Task(name=f"persona_{key}", agent=..., async_execution=True)
+
+# the lead task receives all four as CONTEXT:
+Task(name="aggregator_task", agent=lead_agent, context=persona_tasks)</div>
+          <p class="note">
+            <code>Process.sequential</code> combined with <code>async_execution=True</code> on the
+            persona tasks is crewAI's idiom for <strong>"run N experts in parallel, then have a lead
+            reconcile them"</strong>. The lead agent is built with <strong>no tools at all</strong>
+            and gets the four answers purely through <code>Task.context</code> — so it cannot fetch
+            anything that would contradict the committee it is summarising.
+          </p>
+          <p class="note">
+            Outputs are mapped back by <code>Task.name</code> (<code>persona_warren_buffett</code>,
+            <code>persona_charlie_munger</code>, …, <code>aggregator_task</code>) via
+            <code>result.tasks_output[i].raw</code>.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Data flow -->
+    <div class="sec">
+      <div class="sec-head"><span class="num">C</span><h2>Data flow</h2>
+        <span class="tag">run_persona_crew</span></div>
+      <div class="card">
+        <div class="card-body">
+          <div class="prompt">run_persona_crew(ticker, company_name)
+    │
+    ├─ get_price_snapshot() ────────► price + native currency  (market anchor)
+    ├─ reporting_currency() ────────► e.g. USD financials vs INR price
+    ├─ get_fx_rate() ──────────────► FX note injected into every prompt
+    ├─ deterministic_persona_values() ► rule-based min/max/mid for comparison
+    │
+    ├─ Crew.kickoff()
+    │     ├─ Task persona_warren_buffett   (async) ─┐
+    │     ├─ Task persona_charlie_munger   (async)  │ each agent owns
+    │     ├─ Task persona_jhunjhunwala     (async)  │ PERSONA_TOOLS and
+    │     ├─ Task persona_damodaran        (async) ─┘ returns ONE JSON object
+    │     └─ Task aggregator_task   (context = the four tasks above)
+    │
+    └─ parse outputs by Task.name ──► PersonaCrewResult
+          ├─ persona_from_raw()   ×4    tolerant JSON + regex fallback
+          ├─ aggregate_from_raw()       or _compute_fallback_aggregate()
+          ├─ _apply_deterministic_blend()  per-persona crew/rule average
+          └─ errors[]                   never raises on a single bad persona</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Design notes -->
+    <div class="sec">
+      <div class="sec-head"><span class="num">D</span><h2>Design principles</h2>
+        <span class="tag">why it is built this way</span></div>
+      <div class="lgrid">
+        <div class="lcard" style="--lc:var(--rose)">
+          <div class="n">01</div><h4>Error isolation</h4>
+          <p>A failing persona yields an empty card plus a line in <code>errors</code>; the other three
+             still render. Only an unresolvable ticker raises.</p>
+          <div class="fn">_snapshot_or_raise · errors[]</div>
+        </div>
+        <div class="lcard" style="--lc:var(--violet)">
+          <div class="n">02</div><h4>No LangChain</h4>
+          <p>Every data path is a thin wrapper over a plain function in this module, so there are no
+             <code>langchain_*</code> imports to keep in sync.</p>
+          <div class="fn">PERSONA_TOOLS</div>
+        </div>
+        <div class="lcard" style="--lc:var(--amber)">
+          <div class="n">03</div><h4>Low variance</h4>
+          <p><code>temperature=0</code> plus "work silently, emit JSON only" prompts keep token cost
+             and output shape stable.</p>
+          <div class="fn">get_llm · RESPONSE CONTRACT</div>
+        </div>
+        <div class="lcard" style="--lc:var(--green)">
+          <div class="n">04</div><h4>Yahoo rate-limit shield</h4>
+          <p>One run would otherwise fire 15+ Yahoo requests (all four personas fetch the same
+             statements). A TTL cache collapses them to one fetch per ticker.</p>
+          <div class="fn">_memoise · _CACHE_TTL_SECONDS</div>
+        </div>
+        <div class="lcard" style="--lc:var(--accent)">
+          <div class="n">05</div><h4>Headless-friendly</h4>
+          <p>Never imports the Streamlit entrypoint, and the cache is deliberately not
+             <code>st.cache_data</code>, so it runs under pytest and the CLI.</p>
+          <div class="fn">_cache_get · _memoise</div>
+        </div>
+        <div class="lcard" style="--lc:var(--teal)">
+          <div class="n">06</div><h4>Plausibility guard</h4>
+          <p>A persona reporting revenue or market cap instead of a per-share value is caught: any
+             figure outside 0.1×–8× the live price is discarded.</p>
+          <div class="fn">persona_from_raw</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Config + gotchas -->
+    <div class="sec">
+      <div class="sec-head"><span class="num">E</span><h2>Configuration &amp; gotchas</h2>
+        <span class="tag">read once at import time</span></div>
+      <div class="card">
+        <div class="card-body" style="padding:0">
+          <table>
+            <thead><tr><th style="width:30%">Variable</th><th>Default</th><th>Effect</th></tr></thead>
+            <tbody>
+              <tr><td class="mono">DEEPSEEK_API_KEY</td><td>— (required)</td><td>Read by LiteLLM for every agent.</td></tr>
+              <tr><td class="mono">NEWS_API_KEY</td><td>— (required)</td><td>Used by the news/sentiment tool.</td></tr>
+              <tr><td class="mono">CREWAI_MODEL</td><td><code>deepseek/deepseek-chat</code></td><td>LiteLLM model string for all five agents.</td></tr>
+              <tr><td class="mono">CREWAI_MAX_ITER</td><td><code>8</code></td><td>ReAct iterations per persona agent.</td></tr>
+              <tr><td class="mono">CREWAI_CACHE_TTL</td><td><code>900</code></td><td>Seconds a fetched value stays fresh.</td></tr>
+              <tr><td class="mono">OTEL_SDK_DISABLED</td><td>set to <code>true</code></td><td>Set before importing crewAI to silence local telemetry.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-body" style="padding:0">
+          <table>
+            <thead><tr><th style="width:30%">Gotcha</th><th>Detail</th></tr></thead>
+            <tbody>
+              <tr><td class="mono">Windows consoles</td><td>crewAI's event bus prints emoji/₹/≈ and crashes a cp1252 console. This module reconfigures stdout/stderr to UTF-8 at import — and that <strong>must run before <code>import crewai</code></strong>, so the top-of-file ordering is load-bearing.</td></tr>
+              <tr><td class="mono">Chain-of-thought blowups</td><td>Without the "work silently" clause DeepSeek writes a 400-line DCF into its final answer, breaking the JSON parse and multiplying token cost.</td></tr>
+              <tr><td class="mono">Currency mismatch</td><td>Dual-listed Indian names report financials in USD but trade in INR. Personas are told to answer in the market-price currency, and an FX note carries the rate.</td></tr>
+              <tr><td class="mono">Yahoo beta</td><td>Frequently wrong for non-US large caps (INFY ≈ 0.11); the prompts tell the persona to substitute a sensible industry beta rather than spiral.</td></tr>
+              <tr><td class="mono">Agents are Pydantic</td><td>In crewAI 1.x, <code>Agent</code> / <code>Task</code> / <code>Crew</code> / <code>LLM</code> are Pydantic v2 models — pass keyword arguments only.</td></tr>
+              <tr><td class="mono">Degenerate rule range</td><td>For some symbols the rule-based model returns <code>min == max == mid</code> (a pre-existing issue in <code>PERSONA_BASED_VALUATION</code>, not here). <code>MIN_DETERMINISTIC_PERSONAS = 1</code> keeps the comparison visible when only one rule prices.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- ══════════════════ BUFFETT ══════════════════ -->
+  <section class="panel" id="p-buffett" style="--pa:var(--p-buffett); --pa-soft:var(--p-buffett-soft)">
+    <div class="hero">
+      <div class="hero-top">
+        <img class="avatar" src="personas/warren_buffett.png" alt="Warren Buffett">
+        <h2>Warren Buffett</h2>
+        <span class="pa-chip">key: warren_buffett</span>
+        <span class="pa-chip">det_key: Buffett</span>
+      </div>
+      <p class="philosophy">"You are Warren Buffett, the Oracle of Omaha. You buy wonderful
+        businesses at a fair price, stay inside your circle of competence, prize predictable cash
+        flows and pricing power, and are happy to walk away if the price offers no margin of
+        safety."</p>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><span class="num">1</span><h2>Agent configuration</h2>
+        <span class="tag">PERSONAS[0]</span></div>
+      <div class="card">
+        <div class="card-body" style="padding:0">
+          <table>
+            <thead><tr><th style="width:16%">Field</th><th>Value</th></tr></thead>
+            <tbody>
+              <tr><td class="mono">role</td><td>Warren Buffett — Value / Owner-Earnings Persona</td></tr>
+              <tr><td class="mono">goal</td><td>Focus on durable competitive advantage (moat), high and stable returns on equity, low leverage, consistent owner earnings, and demand a <strong>margin of safety (~20–30%)</strong> below intrinsic value before calling it Undervalued. Base the fair value strictly on tool output.</td></tr>
+              <tr><td class="mono">backstory</td><td>See the quote above — sets voice and biases.</td></tr>
+              <tr><td class="mono">emoji</td><td>🧸 (fallback glyph when no portrait resolves)</td></tr>
+              <tr><td class="mono">image</td><td><code>WARREN_BUFFET.png</code> in <code>./images</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <p class="note">
+        <code>role</code>, <code>goal</code> and <code>backstory</code> are the <strong>only</strong>
+        things that differ between the four persona agents. They share the same LLM instance and the
+        same tool list — which is exactly what makes four genuinely different outputs possible from
+        identical inputs.
+      </p>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><span class="num">2</span><h2>Output contract</h2>
+        <span class="tag">_persona_task_description</span></div>
+      <div class="card">
+        <div class="card-body">
+          <div class="prompt">{
+  "persona": "Warren Buffett",
+  "fair_value_per_share": &lt;number in INR|USD or null&gt;,
+  "currency": "&lt;market-price currency&gt;",
+  "stance": "Undervalued | Fairly valued | Overvalued | No opinion",
+  "conviction": &lt;0.0 to 1.0&gt;,
+  "one_line_thesis": "&lt;one sentence&gt;",
+  "rationale": "&lt;1-2 sentences, tied strictly to the tool data&gt;",
+  "sources": ["&lt;tool/figures you relied on&gt;"]
+}</div>
+          <p class="note">
+            The prompt encodes three separate contracts: <strong>grounding</strong> (market anchor,
+            tool menu, "never invent figures"), <strong>working discipline</strong> (work silently,
+            one pass, ignore implausible betas) and the <strong>response contract</strong> (a single
+            JSON object and nothing else).
+          </p>
+          <div class="impl">
+            <span class="lbl">Agent built by</span>
+            <code>build_persona_agent()</code>
+            <span class="arrow">→</span>
+            <span class="chips">
+              <span class="chip">allow_delegation=False</span>
+              <span class="chip">max_iter=MAX_ITER</span>
+              <span class="chip">max_retry_limit=1</span>
+              <span class="chip">tools=PERSONA_TOOLS</span>
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════ MUNGER ══════════════════ -->
+  <section class="panel" id="p-munger" style="--pa:var(--p-munger); --pa-soft:var(--p-munger-soft)">
+    <div class="hero">
+      <div class="hero-top">
+        <img class="avatar" src="personas/charlie_munger.png" alt="Charlie Munger">
+        <h2>Charlie Munger</h2>
+        <span class="pa-chip">key: charlie_munger</span>
+        <span class="pa-chip">det_key: Munger</span>
+      </div>
+      <p class="philosophy">"You are Charlie Munger, Warren Buffett's partner. You think in mental
+        models, favour wonderful businesses that need little capital to grow, and would rather pay a
+        fair price for a great company than a great price for a fair one."</p>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><span class="num">1</span><h2>Agent configuration</h2>
+        <span class="tag">PERSONAS[1]</span></div>
+      <div class="card">
+        <div class="card-body" style="padding:0">
+          <table>
+            <thead><tr><th style="width:16%">Field</th><th>Value</th></tr></thead>
+            <tbody>
+              <tr><td class="mono">role</td><td>Charlie Munger — Quality / Moat Persona</td></tr>
+              <tr><td class="mono">goal</td><td>Judge business quality by <strong>return on invested capital (ROIC) relative to its cost of capital</strong>, moat durability, pricing power and management integrity. <em>Invert</em> — ask what could destroy the franchise — and set a fair value a long-term holder could compound through.</td></tr>
+              <tr><td class="mono">emoji</td><td>🧠</td></tr>
+              <tr><td class="mono">image</td><td><code>CHARLIE_MUNGER.png</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <p class="note">
+        This is the only persona whose mandate explicitly includes <strong>inversion</strong> — a
+        deliberate counterweight to the growth-oriented Jhunjhunwala mandate.
+      </p>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><span class="num">2</span><h2>Output contract</h2>
+        <span class="tag">identical skeleton for all four</span></div>
+      <div class="card">
+        <div class="card-body">
+          <p class="note">
+            Every persona receives the <strong>same JSON skeleton</strong> from
+            <code>_persona_task_description()</code>, with only the persona name and its
+            <code>goal</code> interpolated. Adding a fifth investor means appending one dict to
+            <code>PERSONAS</code> — the agents, tasks and parser all iterate that list.
+          </p>
+          <div class="prompt">Research the stock {ticker} ({company}) exactly as Charlie Munger would,
+using the provided tools. {goal}
+
+Market anchor: current price is {currency} {price} ...
+{fx_note}
+Working discipline:
+- Work SILENTLY. Do NOT show calculations, scenario tables, internal debate ...
+- Yahoo's beta for non-US listings is frequently unreliable ...
+- Do one pass and commit.
+- Keep any news/fundamental figures you cite to what the tools returned.
+
+RESPONSE CONTRACT (very important):
+Your FINAL message must contain ONLY the single JSON object ...</div>
+          <div class="impl">
+            <span class="lbl">Parsed by</span>
+            <code>persona_from_raw()</code>
+            <span class="arrow">→</span>
+            <span class="chips">
+              <span class="chip">_extract_json</span>
+              <span class="chip">_num</span>
+              <span class="chip">plausibility band 0.1×–8×</span>
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════ JHUNJHUNWALA ══════════════════ -->
+  <section class="panel" id="p-jhunjhunwala" style="--pa:var(--p-jhunjhunwala); --pa-soft:var(--p-jhunjhunwala-soft)">
+    <div class="hero">
+      <div class="hero-top">
+        <img class="avatar" src="personas/jhunjhunwala.png" alt="Rakesh Jhunjhunwala">
+        <h2>Rakesh Jhunjhunwala</h2>
+        <span class="pa-chip">key: jhunjhunwala</span>
+        <span class="pa-chip">det_key: Jhunjhunwala</span>
+      </div>
+      <p class="philosophy">"You are Rakesh Jhunjhunwala, 'the Big Bull' of Dalal Street. You built
+        your fortune by identifying high-growth Indian businesses early and holding patiently,
+        combining deep fundamental study with an aggressive appetite for growth and scale."</p>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><span class="num">1</span><h2>Agent configuration</h2>
+        <span class="tag">PERSONAS[2]</span></div>
+      <div class="card">
+        <div class="card-body" style="padding:0">
+          <table>
+            <thead><tr><th style="width:16%">Field</th><th>Value</th></tr></thead>
+            <tbody>
+              <tr><td class="mono">role</td><td>Rakesh Jhunjhunwala — Growth / India Persona</td></tr>
+              <tr><td class="mono">goal</td><td>Overweight revenue and earnings growth, scalable business models and (for Indian companies) the <strong>domestic growth tailwind</strong>. Use a <strong>multi-stage growth mindset</strong> — high growth fading to a stable rate — and be willing to pay up for genuine growth, but not for low-quality earnings.</td></tr>
+              <tr><td class="mono">emoji</td><td>🦁</td></tr>
+              <tr><td class="mono">image</td><td><code>RAKESH.png</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <p class="note">
+        The only persona whose mandate is geographically conditioned. Its rule-based counterpart in
+        <code>PERSONA_BASED_VALUATION.py</code> is likewise the only rule that applies a different
+        stable-growth rate for Indian listings (7% vs 5%).
+      </p>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><span class="num">2</span><h2>Shared toolset</h2>
+        <span class="tag">PERSONA_TOOLS</span></div>
+      <div class="card">
+        <div class="card-body">
+          <p class="note">All four personas own the same three crewAI tools. crewAI tools return
+            <strong>plain strings</strong>, so they are trivially assertable in tests.</p>
+          <table>
+            <thead><tr><th style="width:32%">Tool</th><th>Returns</th></tr></thead>
+            <tbody>
+              <tr><td class="mono">get_stock_price</td><td>Compact JSON string — ticker, exchange, currency, current price.</td></tr>
+              <tr><td class="mono">get_stock_fundamentals</td><td><code>build_fundamentals_text()</code> — the financial-statement block.</td></tr>
+              <tr><td class="mono">get_stock_news_and_sentiment</td><td><code>build_news_and_sentiment_text()</code> — headlines plus TextBlob sentiment.</td></tr>
+            </tbody>
+          </table>
+          <div class="impl">
+            <span class="lbl">Defined at</span>
+            <code>PERSONA_TOOLS</code>
+            <span class="arrow">→</span>
+            <span class="chips">
+              <span class="chip">@tool("get_stock_price")</span>
+              <span class="chip">@tool("get_stock_fundamentals")</span>
+              <span class="chip">@tool("get_stock_news_and_sentiment")</span>
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════ DAMODARAN ══════════════════ -->
+  <section class="panel" id="p-damodaran" style="--pa:var(--p-damodaran); --pa-soft:var(--p-damodaran-soft)">
+    <div class="hero">
+      <div class="hero-top">
+        <img class="avatar" src="personas/damodaran.png" alt="Aswath Damodaran">
+        <h2>Aswath Damodaran</h2>
+        <span class="pa-chip">key: damodaran</span>
+        <span class="pa-chip">det_key: Damodaran</span>
+      </div>
+      <p class="philosophy">"You are Aswath Damodaran, the Dean of Valuation. You believe every asset
+        has an intrinsic value you can estimate with discipline, that stories must be tied to
+        numbers, and that uncertainty should be revealed, not hidden, in every estimate."</p>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><span class="num">1</span><h2>Agent configuration</h2>
+        <span class="tag">PERSONAS[3]</span></div>
+      <div class="card">
+        <div class="card-body" style="padding:0">
+          <table>
+            <thead><tr><th style="width:16%">Field</th><th>Value</th></tr></thead>
+            <tbody>
+              <tr><td class="mono">role</td><td>Aswath Damodaran — Valuation / DCF Persona</td></tr>
+              <tr><td class="mono">goal</td><td>Lay out explicit DCF assumptions (growth, margins, reinvestment, cost of capital), value the company under <strong>base / bull / bear scenarios</strong> and probability-weight them, then report a point fair value <strong>with the uncertainty explicitly acknowledged</strong>. Never let the market price drive the value.</td></tr>
+              <tr><td class="mono">emoji</td><td>📐</td></tr>
+              <tr><td class="mono">image</td><td><code>ASWATH.png</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <p class="note">
+        The only persona told explicitly <strong>not to let the market price drive the value</strong> —
+        every other persona uses the live price as its anchor and expresses <code>stance</code>
+        relative to it.
+      </p>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><span class="num">2</span><h2>Post-processing guard</h2>
+        <span class="tag">persona_from_raw</span></div>
+      <div class="card">
+        <div class="card-body">
+          <div class="formula">
+            \[ \text{keep } fv \iff 0.1 \cdot P_{market} \;\le\; fv \;\le\; 8 \cdot P_{market} \]
+          </div>
+          <p class="note">
+            A persona that reports revenue (<code>"$20,158M"</code>) or market capitalisation instead
+            of a per-share value would otherwise poison the consensus range. Any figure outside this
+            band is discarded and the card falls back to
+            <code>fair_value_per_share = None</code>.
+          </p>
+          <p class="note">
+            When no JSON is found at all, a <strong>regex fallback</strong> scans the raw prose for
+            currency-prefixed numbers, a stance keyword and a thesis sentence — rescuing a persona
+            that answered narratively from producing an empty card.
+          </p>
+          <div class="impl">
+            <span class="lbl">Also used by</span>
+            <code>_apply_deterministic_blend()</code>
+            <span class="arrow">→</span>
+            <span class="chips">
+              <span class="chip">mean of crew + rule value</span>
+              <span class="chip">None unless BOTH exist</span>
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════ LEAD ANALYST ══════════════════ -->
+  <section class="panel" id="p-lead" style="--pa:var(--p-lead); --pa-soft:var(--p-lead-soft)">
+    <div class="hero">
+      <div class="hero-top">
+        <img class="avatar" src="personas/lead_analyst.png" alt="Lead Analyst">
+        <h2>Lead Analyst / Portfolio Strategist</h2>
+        <span class="pa-chip">task: aggregator_task</span>
+        <span class="pa-chip">no tools</span>
+      </div>
+      <p class="philosophy">"You are a seasoned portfolio strategist who chairs an investment
+        committee. Four specialist investors have each submitted a fair value. You summarise the
+        range, the midpoint, and the areas of agreement and disagreement without inventing
+        numbers."</p>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><span class="num">1</span><h2>Agent configuration</h2>
+        <span class="tag">build_lead_agent</span></div>
+      <div class="card">
+        <div class="card-body" style="padding:0">
+          <table>
+            <thead><tr><th style="width:20%">Field</th><th>Value</th></tr></thead>
+            <tbody>
+              <tr><td class="mono">role</td><td>Lead Analyst / Portfolio Strategist</td></tr>
+              <tr><td class="mono">goal</td><td>Reconcile the four persona fair values into one consensus range and a blended stance, explaining where the personas agree and why they diverge.</td></tr>
+              <tr><td class="mono">tools</td><td><strong>None.</strong> It reasons only over the four outputs injected via <code>Task.context</code>.</td></tr>
+              <tr><td class="mono">max_iter</td><td><code>6</code> (lower than the personas' <code>MAX_ITER</code>) — reconciliation is a single pass, not an investigation.</td></tr>
+              <tr><td class="mono">allow_delegation</td><td><code>False</code></td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <p class="note">
+        Giving the lead <strong>no tools</strong> is a deliberate constraint: it cannot fetch anything
+        that would contradict the committee it is summarising.
+      </p>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><span class="num">2</span><h2>Output contract</h2>
+        <span class="tag">_lead_task_description</span></div>
+      <div class="card">
+        <div class="card-body">
+          <div class="prompt">{
+  "min_fair_value": &lt;number&gt;,
+  "max_fair_value": &lt;number&gt;,
+  "avg_fair_value": &lt;number&gt;,
+  "blended_stance": "&lt;Undervalued | Fairly valued | Overvalued | No opinion&gt;",
+  "note": "&lt;2-4 sentences: where personas agree, why they diverge, your conclusion&gt;"
+}
+
+Use ONLY the persona fair values provided in context — never invent numbers.</div>
+          <p class="note">
+            The prompt is deliberately short because the four persona answers arrive as
+            <strong>task context</strong> — the payload is already there.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><span class="num">3</span><h2>Fallback path</h2>
+        <span class="tag">_compute_fallback_aggregate</span></div>
+      <div class="card">
+        <div class="card-body">
+          <p class="note">
+            Under <code>Process.sequential</code>, a persona task that burns its retry budget can take
+            the aggregator down with it. When the lead's output is missing or unparseable, the range
+            is computed directly from the persona cards instead — and
+            <code>errors</code> records that the fallback was used:
+          </p>
+          <div class="prompt">"Lead-analyst task produced no output; used a computed range."</div>
+          <p class="note">
+            <code>AggregateResult.participating</code> counts how many personas actually contributed a
+            number. A low count means the range is thin, so the UI should surface it rather than
+            advertising "4 of 4 investors agree". Note <code>avg_fair_value</code> is an
+            <strong>unweighted mean</strong> — <code>conviction</code> is not used as a weight.
+          </p>
+          <div class="impl">
+            <span class="lbl">Implemented by</span>
+            <code>aggregate_from_raw()</code>
+            <span class="arrow">or</span>
+            <code>_compute_fallback_aggregate()</code>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════ FUNCTION REFERENCE ══════════════════ -->
+  <section class="panel" id="p-funcs">
+    <div class="toolbar">
+      <label class="search">
+        <span style="color:var(--text-3)">⌕</span>
+        <input id="fnSearch" type="search" placeholder="Filter by name, purpose or layer…" autocomplete="off">
+      </label>
+      <span class="count" id="fnCount"></span>
+    </div>
+    <div id="fnList"></div>
+  </section>
+
+  <!-- ══════════════════ DEPENDENCY MAP ══════════════════ -->
+  <section class="panel" id="p-deps">
+
+    <div class="sec">
+      <div class="sec-head"><span class="num">⤓</span><h2>Call hierarchy</h2>
+        <span class="tag">entry point → agents → crew → parsers → models</span></div>
+      <div class="flow">
+
+        <div class="layer">
+          <div class="layer-h"><span class="layer-idx">L1</span><h4>Entry point</h4></div>
+          <div class="node-grid">
+            <div class="node orch"><b>run_persona_crew()</b>
+              <span>snapshot → FX note → rules → build crew → kickoff → parse → blend</span></div>
+          </div>
+        </div>
+
+        <div class="conn"><span></span></div>
+
+        <div class="layer">
+          <div class="layer-h"><span class="layer-idx">L2</span><h4>Context resolution</h4></div>
+          <div class="node-grid">
+            <div class="node bg"><b>_snapshot_or_raise()</b><span>the only hard failure</span></div>
+            <div class="node bg"><b>get_price_snapshot()</b><span>price + currency</span></div>
+            <div class="node bg"><b>reporting_currency()</b><span>financial-statement currency</span></div>
+            <div class="node bg"><b>get_fx_rate()</b><span>FX note when they differ</span></div>
+            <div class="node bg"><b>deterministic_persona_values()</b><span>rule-based per persona</span></div>
+            <div class="node bg"><b>_range_from_persona_values()</b><span>min / max / mid</span></div>
+          </div>
+        </div>
+
+        <div class="conn"><span></span></div>
+
+        <div class="layer">
+          <div class="layer-h"><span class="layer-idx">L3</span><h4>Agent &amp; task construction</h4></div>
+          <div class="node-grid">
+            <div class="node per"><b>build_persona_agent()</b><span>×4, one per PERSONAS entry</span></div>
+            <div class="node per"><b>build_lead_agent()</b><span>no tools, context-driven</span></div>
+            <div class="node per"><b>get_llm()</b><span>one shared LLM instance</span></div>
+            <div class="node per"><b>_persona_task_description()</b><span>persona prompt + JSON contract</span></div>
+            <div class="node per"><b>_lead_task_description()</b><span>aggregator prompt</span></div>
+          </div>
+        </div>
+
+        <div class="conn"><span></span></div>
+
+        <div class="layer">
+          <div class="layer-h"><span class="layer-idx">L4</span><h4>Tools the personas call — thin wrappers over data helpers</h4></div>
+          <div class="node-grid">
+            <div class="node tl"><b>get_stock_price</b><span>@tool → get_price_snapshot</span></div>
+            <div class="node tl"><b>get_stock_fundamentals</b><span>@tool → build_fundamentals_text</span></div>
+            <div class="node tl"><b>get_stock_news_and_sentiment</b><span>@tool → build_news_and_sentiment_text</span></div>
+            <div class="node hp"><b>_safe_fin()</b><span>label-drift-tolerant extraction</span></div>
+            <div class="node hp"><b>_fx_lookup()</b><span>Yahoo FX primitive</span></div>
+            <div class="node hp"><b>_memoise() · _cache_get()</b><span>TTL cache vs Yahoo rate limits</span></div>
+          </div>
+        </div>
+
+        <div class="conn"><span></span></div>
+
+        <div class="layer">
+          <div class="layer-h"><span class="layer-idx">L5</span><h4>Parsing — tolerant, never fatal</h4></div>
+          <div class="node-grid">
+            <div class="node hp"><b>persona_from_raw()</b><span>JSON → card, regex fallback</span></div>
+            <div class="node hp"><b>_extract_json()</b><span>fences → raw_decode → give up</span></div>
+            <div class="node hp"><b>_num()</b><span>currency/comma coercion</span></div>
+            <div class="node hp"><b>aggregate_from_raw()</b><span>lead JSON → consensus</span></div>
+            <div class="node hp"><b>_compute_fallback_aggregate()</b><span>consensus from cards</span></div>
+            <div class="node hp"><b>_apply_deterministic_blend()</b><span>crew/rule average</span></div>
+            <div class="node hp"><b>_convert_money()</b><span>currency conversion</span></div>
+            <div class="node hp"><b>_summarise_usage()</b><span>token metrics</span></div>
+          </div>
+        </div>
+
+        <div class="conn"><span></span></div>
+
+        <div class="layer">
+          <div class="layer-h"><span class="layer-idx">L6</span><h4>Output models (Pydantic)</h4></div>
+          <div class="node-grid">
+            <div class="node per"><b>PersonaCrewResult</b><span>the returned object</span></div>
+            <div class="node per"><b>PersonaValuation</b><span>one card per persona</span></div>
+            <div class="node per"><b>AggregateResult</b><span>consensus + participating count</span></div>
+          </div>
+        </div>
+
+      </div>
+      <div class="legend">
+        <span><i class="dot-orch"></i>Entry point</span>
+        <span><i class="dot-bg"></i>Context / data</span>
+        <span><i class="dot-per"></i>Agent / model</span>
+        <span><i class="dot-tl"></i>Tool</span>
+        <span><i class="dot-hp"></i>Helper / parser</span>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><span class="num">⇄</span><h2>Linkage matrix</h2>
+        <span class="tag">who calls whom</span></div>
+      <div class="card">
+        <div class="card-body" style="padding:0">
+          <table>
+            <thead><tr><th>Symbol</th><th>Calls</th><th>Called by</th><th style="text-align:center">Layer</th></tr></thead>
+            <tbody id="matrixBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><span class="num">!</span><h2>Notable behaviours</h2>
+        <span class="tag">read before trusting output</span></div>
+      <div class="card">
+        <div class="card-body" style="padding:0">
+          <table>
+            <thead><tr><th style="width:30%">Location</th><th>Behaviour</th></tr></thead>
+            <tbody>
+              <tr>
+                <td class="mono">run_persona_crew()</td>
+                <td>Task outputs are mapped back by <code>Task.name</code>. A persona whose name does not appear in <code>tasks_output</code> is treated as "produced no output" and gets an empty card — the mapping is name-based, not positional.</td>
+              </tr>
+              <tr>
+                <td class="mono">_apply_deterministic_blend()</td>
+                <td>Cards are matched to <code>PERSONAS</code> <strong>positionally</strong>. That is safe only because <code>run_persona_crew</code> appends exactly one card per persona on every path (success, missing output, or parse failure).</td>
+              </tr>
+              <tr>
+                <td class="mono">_apply_deterministic_blend()</td>
+                <td><code>blended_fair_value</code> is the mean of crew and rule values, and is <code>None</code> <strong>unless both exist</strong> — a missing rule value must not silently drag the average toward zero.</td>
+              </tr>
+              <tr>
+                <td class="mono">_range_from_persona_values()</td>
+                <td><code>mid</code> is the <strong>midpoint of min and max</strong>, not the mean of the persona values. This replicates <code>persona_super_valuation</code> exactly so the two cannot drift apart.</td>
+              </tr>
+              <tr>
+                <td class="mono">aggregate_from_raw()</td>
+                <td><code>avg_fair_value</code> is an <strong>unweighted</strong> mean — <code>conviction</code> is collected per persona but never used as a weight.</td>
+              </tr>
+              <tr>
+                <td class="mono">deterministic_persona_values()</td>
+                <td>Values come back in the company's <em>reporting</em> currency and are converted to the market-price currency via the <code>to_currency</code> argument. Without that conversion an INFY.NS comparison would be USD values against an INR price.</td>
+              </tr>
+              <tr>
+                <td class="mono">_memoise()</td>
+                <td>Keys are built from <code>repr(args)</code> and <code>sorted(kwargs.items())</code>, which is only safe because every wrapped function takes plain strings. Results survive across <code>run_persona_crew</code> calls for the TTL window (default 900s).</td>
+              </tr>
+              <tr>
+                <td class="mono">persona_from_raw()</td>
+                <td><code>emoji</code> and <code>image</code> always come from <code>PERSONAS</code>, never from the LLM — so a persona cannot rebrand itself, and the card identity stays consistent.</td>
+              </tr>
+              <tr>
+                <td class="mono">Top-of-file ordering</td>
+                <td>The UTF-8 stdout/stderr reconfiguration and <code>OTEL_SDK_DISABLED</code> must both run <em>before</em> <code>import crewai</code>. Moving the import block breaks Windows consoles with a <code>'charmap' codec</code> error.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </section>
+
+</main>
+
+<footer>
+  Generated reference for <code>PERSONA_AGENTS_CREW.py</code> · 5 agents, 3 crewAI tools,
+  36 symbols · Press <kbd>/</kbd> to search the function reference.
+</footer>
+
+<script>
+/* ──────────────────────────────────────────────────────────────────
+   Symbol reference data
+   ────────────────────────────────────────────────────────────────── */
+const FUNCS = [
+  {
+    name: "run_persona_crew", kind: "orch", kindLabel: "Entry point", layer: "L1",
+    section: "Orchestration",
+    sig: "run_persona_crew(\n    ticker: str,\n    company_name: str = \"\",\n    verbose: bool = False,\n) -> PersonaCrewResult",
+    purpose: "The module's entry point. Resolves a market snapshot, builds the FX note and the deterministic range, then kicks off ONE crew of four async persona tasks plus a lead aggregator, and parses the outputs into a typed result with per-persona error isolation.",
+    returns: "PersonaCrewResult — always renderable. personas has one entry per PERSONAS item in order (empty cards on failure), aggregate is the consensus or a computed fallback, and every partial failure lands in errors.",
+    calls: ["_snapshot_or_raise", "reporting_currency", "get_fx_rate", "deterministic_persona_values", "_range_from_persona_values", "get_llm", "build_persona_agent", "build_lead_agent", "_persona_task_description", "_lead_task_description", "persona_from_raw", "aggregate_from_raw", "_compute_fallback_aggregate", "_apply_deterministic_blend", "_summarise_usage", "Crew.kickoff"],
+    calledBy: ["Home.py (lazy import)", "__main__ (CLI)"],
+    notes: "Raises ValueError ONLY when the ticker cannot be priced. Process.sequential plus async_execution=True on the persona tasks is crewAI's idiom for 'run N experts in parallel, then a lead reconciles them'."
+  },
+  {
+    name: "PersonaCrewResult", kind: "model", kindLabel: "Model", layer: "L6",
+    section: "Output models",
+    sig: "class PersonaCrewResult(BaseModel)",
+    purpose: "Everything the UI needs to render the persona section — the single object returned by run_persona_crew. JSON-safe via .model_dump(), so it round-trips through st.session_state or an API response.",
+    returns: "Fields: ticker, company_name, market_price, currency, exchange, generated_at, personas[], aggregate, deterministic_range, deterministic_personas, deterministic_participating, deterministic_usable, blended_fair_value, errors[], usage{}.",
+    calls: [],
+    calledBy: ["run_persona_crew"],
+    notes: "deterministic_usable is True when at least MIN_DETERMINISTIC_PERSONAS rule-based personas priced — the UI hides the comparison panel when it is False. Individual personas with a missing rule value are dropped silently: their CrewAI value is shown with no average."
+  },
+  {
+    name: "PersonaValuation", kind: "model", kindLabel: "Model", layer: "L6",
+    section: "Output models",
+    sig: "class PersonaValuation(BaseModel)",
+    purpose: "One persona's structured judgement — the card the UI renders. Built by persona_from_raw from the raw JSON a persona agent returns, so every field except persona is optional: a persona that fails to parse still produces a (mostly empty) card.",
+    returns: "Fields: persona, emoji, image, fair_value_per_share, deterministic_fair_value, blended_fair_value, currency, stance, conviction, one_line_thesis, rationale, sources[].",
+    calls: [],
+    calledBy: ["persona_from_raw", "run_persona_crew"],
+    notes: "conviction is validated to [0.0, 1.0] by Pydantic, so conviction=1.5 raises ValidationError rather than rendering a 150% confidence bar. currency is always the MARKET-PRICE currency, never the reporting currency."
+  },
+  {
+    name: "AggregateResult", kind: "model", kindLabel: "Model", layer: "L6",
+    section: "Output models",
+    sig: "class AggregateResult(BaseModel)",
+    purpose: "Lead-analyst consensus over all personas. Produced by aggregate_from_raw from the aggregator task's JSON, or by _compute_fallback_aggregate when that task fails — in which case note says so explicitly.",
+    returns: "Fields: min_fair_value, max_fair_value, avg_fair_value, blended_stance, note, participating.",
+    calls: [],
+    calledBy: ["aggregate_from_raw", "_compute_fallback_aggregate", "run_persona_crew"],
+    notes: "avg_fair_value is a simple UNWEIGHTED mean; conviction is not used as a weight. participating counts how many personas contributed a number — a low count means the range is thin and should be surfaced in the UI."
+  },
+  {
+    name: "PERSONAS", kind: "data", kindLabel: "Data", layer: "L3",
+    section: "Roster data",
+    sig: "PERSONAS: list[dict[str, str]]",
+    purpose: "The single source of truth for the crew. run_persona_crew builds one agent and one async task per entry, and the parser and UI iterate it in order. Appending a dict here is all it takes to add an investor.",
+    returns: "4 dicts, each with keys: key, det_key, persona, emoji, image, role, goal, backstory.",
+    calls: [],
+    calledBy: ["build_persona_agent", "run_persona_crew", "_apply_deterministic_blend", "deterministic_persona_values"],
+    notes: "key names the crewAI task (persona_<key>) and is how raw output maps back. det_key links the LLM persona to its rule-based twin in PERSONA_BASED_VALUATION (Buffett / Munger / Jhunjhunwala / Damodaran). Keep goal behavioural and backstory voice-y."
+  },
+  {
+    name: "PERSONA_TOOLS", kind: "data", kindLabel: "Data", layer: "L4",
+    section: "Tools",
+    sig: "PERSONA_TOOLS = [get_stock_price, get_stock_fundamentals, get_stock_news_and_sentiment]",
+    purpose: "The three crewAI @tool objects every persona agent owns. Shared by reference across all four agents, so there is exactly one tool definition to maintain per data source.",
+    returns: "list of 3 crewAI tool objects.",
+    calls: [],
+    calledBy: ["build_persona_agent"],
+    notes: "crewAI tools return plain strings, which makes them trivially assertable in tests. The lead agent deliberately gets NO tools."
+  },
+  {
+    name: "build_persona_agent", kind: "persona", kindLabel: "Factory", layer: "L3",
+    section: "Agent builders",
+    sig: "build_persona_agent(\n    meta: dict[str, str],\n    persona_llm: LLM,\n) -> Agent",
+    purpose: "Instantiates one persona agent from a PERSONAS entry. All four agents share the same LLM instance and the same tool list; only role, goal and backstory differ — which is what makes four outputs meaningfully different from identical inputs.",
+    returns: "Agent — non-delegating, max_iter=MAX_ITER, max_retry_limit=1.",
+    calls: ["Agent"],
+    calledBy: ["run_persona_crew"],
+    notes: "allow_delegation=False matters: without it crewAI may route a persona's question to another agent, blurring the four independent opinions the reconciliation depends on. max_retry_limit=1 caps cost if the model emits unparseable output."
+  },
+  {
+    name: "build_lead_agent", kind: "lead", kindLabel: "Factory", layer: "L3",
+    section: "Agent builders",
+    sig: "build_lead_agent(\n    persona_llm: LLM,\n) -> Agent",
+    purpose: "Instantiates the lead-analyst agent that chairs the committee. It has NO tools and must reason only over the four persona outputs injected through the aggregator task's context.",
+    returns: "Agent — the non-delegating lead analyst with max_iter=6.",
+    calls: ["Agent"],
+    calledBy: ["run_persona_crew"],
+    notes: "max_iter is 6 rather than MAX_ITER because reconciliation is a single pass, not an investigation. No tools is a deliberate constraint: it cannot fetch anything that would contradict the committee it is summarising."
+  },
+  {
+    name: "get_llm", kind: "helper", kindLabel: "Factory", layer: "L3",
+    section: "Agent builders",
+    sig: "get_llm() -> LLM",
+    purpose: "Returns the shared DeepSeek LLM (LiteLLM deepseek provider). One instance is reused by all five agents in a run.",
+    returns: "LLM — a crewAI handle bound to DEEPSEEK_MODEL, temperature=0, timeout=120.",
+    calls: ["LLM"],
+    calledBy: ["run_persona_crew"],
+    notes: "temperature=0 is deliberate: output feeds a JSON parser and a side-by-side comparison against a deterministic model, so reproducibility beats creativity. LiteLLM reads DEEPSEEK_API_KEY from the environment, so no key is passed."
+  },
+  {
+    name: "get_price_snapshot", kind: "data", kindLabel: "Data fn", layer: "L4",
+    section: "Data helpers",
+    sig: "@_memoise(\"price\")\nget_price_snapshot(\n    ticker: str,\n) -> dict[str, Any]",
+    purpose: "Small price snapshot for a COMPLETE Yahoo symbol: current price plus native market currency and exchange label. The market anchor for every prompt.",
+    returns: "dict with current_price, currency (INR for .NS/.BO else USD), exchange, ticker — or {'error': ...} on failure.",
+    calls: ["yfinance.Ticker"],
+    calledBy: ["_snapshot_or_raise", "get_stock_price (tool)"],
+    notes: "The symbol is consumed EXACTLY as supplied — no .NS/.BO suffix is appended or probed. Returns an error dict rather than raising, so the get_stock_price tool can let the agent reason about missing data; _snapshot_or_raise is what converts that into an exception."
+  },
+  {
+    name: "reporting_currency", kind: "data", kindLabel: "Data fn", layer: "L4",
+    section: "Data helpers",
+    sig: "@_memoise(\"rep_currency\")\nreporting_currency(\n    ticker: str,\n) -> str",
+    purpose: "Returns the currency the company's financial statements are reported in — which for dual-listed names differs from the trading currency (INFY.NS reports in USD but trades in INR).",
+    returns: "str — ISO currency code of the financial statements.",
+    calls: ["yfinance.Ticker"],
+    calledBy: ["run_persona_crew", "deterministic_persona_values"],
+    notes: "Drives the FX note: when this differs from the market-price currency, a conversion rate is injected into every persona prompt so answers land in the right units."
+  },
+  {
+    name: "get_fx_rate", kind: "helper", kindLabel: "Helper", layer: "L4",
+    section: "Data helpers",
+    sig: "get_fx_rate(\n    from_currency: str,\n    to_currency: str,\n) -> float",
+    purpose: "Value of one unit of from_currency expressed in to_currency. Used for the prompt FX note and for converting rule-based values into the market-price currency.",
+    returns: "float — the conversion rate, degrading to 1.0 when the lookup fails.",
+    calls: ["_fx_lookup"],
+    calledBy: ["run_persona_crew", "_convert_money"],
+    notes: "Yahoo quotes FX as the base currency priced in USD, so the direction is flipped here when needed. Degrading to 1.0 is intentional: a slightly wrong magnitude beats a crashed valuation."
+  },
+  {
+    name: "_fx_lookup", kind: "helper", kindLabel: "Primitive", layer: "L4",
+    section: "Data helpers",
+    sig: "_fx_lookup(\n    pair: str,\n) -> Optional[float]",
+    purpose: "Low-level primitive: returns the latest close for a Yahoo FX ticker such as \"INR=X\". Treat as internal — get_fx_rate handles direction and caching.",
+    returns: "float | None — the last close of the 5-day window, or None on unknown symbol or network failure. Never raises.",
+    calls: ["yfinance.Ticker.history"],
+    calledBy: ["get_fx_rate"],
+    notes: "Yahoo quotes INR=X as the INR-to-USD rate (~0.012), so callers wanting the opposite direction must invert it."
+  },
+  {
+    name: "build_fundamentals_text", kind: "data", kindLabel: "Data fn", layer: "L4",
+    section: "Data helpers",
+    sig: "@_memoise(\"fundamentals\")\nbuild_fundamentals_text(\n    ticker: str,\n) -> str",
+    purpose: "Builds the financial-statement block injected into the fundamentals tool: revenue, margins, returns, leverage and the key line items the personas reason over.",
+    returns: "str — a labelled multi-line fundamentals report, starting with 'Company: <name> (<ticker>)'.",
+    calls: ["_safe_fin", "yfinance.Ticker"],
+    calledBy: ["get_stock_fundamentals (tool)"],
+    notes: "Missing figures are rendered as 'n/a' rather than omitted, so the LLM can see that data is absent instead of assuming zero. Uses the same label-drift-tolerant extraction strategy as PERSONA_BASED_VALUATION.py."
+  },
+  {
+    name: "build_news_and_sentiment_text", kind: "data", kindLabel: "Data fn", layer: "L4",
+    section: "Data helpers",
+    sig: "@_memoise(\"news\")\nbuild_news_and_sentiment_text(\n    company_name: str,\n) -> str",
+    purpose: "Builds the qualitative block for the news tool: recent headlines plus an aggregate TextBlob sentiment reading.",
+    returns: "str — headlines and a sentiment summary for the LLM to reason over.",
+    calls: ["newsapi.get_everything", "TextBlob"],
+    calledBy: ["get_stock_news_and_sentiment (tool)"],
+    notes: "Takes the full company name, not the ticker, because NewsAPI searches prose."
+  },
+  {
+    name: "get_stock_price", kind: "tool", kindLabel: "@tool", layer: "L4",
+    section: "Tools",
+    sig: "@tool(\"get_stock_price\")\nget_stock_price(\n    ticker: str,\n) -> str",
+    purpose: "Persona-callable tool returning a compact price snapshot as a JSON string.",
+    returns: "str — e.g. '{\"ticker\": \"AAPL\", \"exchange\": \"Global\", \"currency\": \"USD\", \"current_price\": 232.14}'.",
+    calls: ["get_price_snapshot"],
+    calledBy: ["each persona agent (LLM-invoked)"],
+    notes: "crewAI tools return plain strings so they are easy to assert on in tests."
+  },
+  {
+    name: "get_stock_fundamentals", kind: "tool", kindLabel: "@tool", layer: "L4",
+    section: "Tools",
+    sig: "@tool(\"get_stock_fundamentals\")\nget_stock_fundamentals(\n    ticker: str,\n) -> str",
+    purpose: "Persona-callable tool returning the financial-statement block. This is the tool every persona leans on for its valuation basis.",
+    returns: "str — the output of build_fundamentals_text.",
+    calls: ["build_fundamentals_text"],
+    calledBy: ["each persona agent (LLM-invoked)"],
+    notes: "All four personas call this against the SAME ticker, which is exactly why the TTL cache exists — without it a single run fires four identical statement fetches."
+  },
+  {
+    name: "get_stock_news_and_sentiment", kind: "tool", kindLabel: "@tool", layer: "L4",
+    section: "Tools",
+    sig: "@tool(\"get_stock_news_and_sentiment\")\nget_stock_news_and_sentiment(\n    company_name: str,\n) -> str",
+    purpose: "Persona-callable tool returning recent headlines plus aggregate sentiment, giving each persona qualitative context.",
+    returns: "str — the output of build_news_and_sentiment_text.",
+    calls: ["build_news_and_sentiment_text"],
+    calledBy: ["each persona agent (LLM-invoked)"],
+    notes: "This is why company_name matters: pass it whenever available, because news relevance depends on the prose name rather than the symbol."
+  },
+  {
+    name: "persona_from_raw", kind: "parse", kindLabel: "Parser", layer: "L5",
+    section: "Parsers",
+    sig: "persona_from_raw(\n    meta: dict[str, str],\n    raw: str,\n    market_price: Optional[float] = None,\n) -> PersonaValuation",
+    purpose: "Parses one persona task's raw output into a PersonaValuation card. JSON path first (via _extract_json), then a regex fallback that rescues narrative answers.",
+    returns: "PersonaValuation — always a usable card; fair_value_per_share is None when nothing plausible was found.",
+    calls: ["_extract_json", "_num", "persona_image", "PersonaValuation"],
+    calledBy: ["run_persona_crew"],
+    notes: "The plausibility guard is the key safety net: a figure outside [0.1x, 8x] of the live price is discarded, so a persona reporting revenue or market cap cannot poison the consensus range. emoji and image always come from PERSONAS, never the LLM."
+  },
+  {
+    name: "aggregate_from_raw", kind: "parse", kindLabel: "Parser", layer: "L5",
+    section: "Parsers",
+    sig: "aggregate_from_raw(\n    raw: str,\n    personas: list[PersonaValuation],\n    currency: str,\n) -> AggregateResult",
+    purpose: "Parses the aggregator task's JSON into an AggregateResult consensus, falling back to computed values for any field the lead omitted.",
+    returns: "AggregateResult — min / max / avg fair value, blended stance, note, participating.",
+    calls: ["_extract_json", "_num", "AggregateResult"],
+    calledBy: ["run_persona_crew"],
+    notes: "Because _num returns None rather than raising, every field can be read without a try/except. participating is computed from the persona cards, not taken from the LLM."
+  },
+  {
+    name: "_compute_fallback_aggregate", kind: "parse", kindLabel: "Fallback", layer: "L5",
+    section: "Parsers",
+    sig: "_compute_fallback_aggregate(\n    personas: list[PersonaValuation],\n    currency: str,\n) -> AggregateResult",
+    purpose: "Derives min / max / avg directly from the persona cards when the lead task's output is lost. The safety net behind aggregate_from_raw.",
+    returns: "AggregateResult computed from the cards, with participating set from how many produced a number.",
+    calls: ["AggregateResult"],
+    calledBy: ["run_persona_crew"],
+    notes: "Needed because Process.sequential means a persona task that burns its retry budget can take the aggregator down with it. When this path runs, errors records 'Lead-analyst task produced no output; used a computed range.'"
+  },
+  {
+    name: "_apply_deterministic_blend", kind: "parse", kindLabel: "Blend", layer: "L5",
+    section: "Rule-based bridge",
+    sig: "_apply_deterministic_blend(\n    result: PersonaCrewResult,\n) -> None",
+    purpose: "Mutates the result in place: attaches the matching rule-based value and the crew/rule average to each card, then derives the overall blended value.",
+    returns: "None — mutates result.personas[*].deterministic_fair_value, .blended_fair_value and result.blended_fair_value.",
+    calls: [],
+    calledBy: ["run_persona_crew"],
+    notes: "blended_fair_value is None unless BOTH the crew and rule values exist — a missing rule value must not silently drag the average toward zero. Cards are matched to PERSONAS positionally, which is safe only because run_persona_crew always appends exactly one card per persona."
+  },
+  {
+    name: "deterministic_persona_values", kind: "data", kindLabel: "Bridge", layer: "L5",
+    section: "Rule-based bridge",
+    sig: "@_memoise(\"deterministic_personas\")\ndeterministic_persona_values(\n    ticker: str,\n    to_currency: Optional[str] = None,\n) -> dict[str, Optional[float]]",
+    purpose: "Bridges PERSONA_BASED_VALUATION.persona_valuations (labelled Buffett / Munger / Jhunjhunwala / Damodaran) to the crew's PERSONAS keys via each entry's det_key, converting into the market-price currency.",
+    returns: "dict — one entry per PERSONAS key, None where the rule produced no value. Never raises; an unexpected failure yields all-None.",
+    calls: ["pv.persona_valuations", "reporting_currency", "_convert_money"],
+    calledBy: ["run_persona_crew", "deterministic_range"],
+    notes: "Every persona key is always present, so callers can count participants without special-casing a missing key. The to_currency conversion is what makes an INFY.NS comparison valid (USD rule values vs INR price)."
+  },
+  {
+    name: "_range_from_persona_values", kind: "helper", kindLabel: "Helper", layer: "L5",
+    section: "Rule-based bridge",
+    sig: "_range_from_persona_values(\n    values: dict[str, Optional[float]],\n) -> dict[str, Optional[float]]",
+    purpose: "Collapses per-persona values into a min / max / midpoint range, replicating persona_super_valuation exactly so the range and the per-persona figures always derive from the same numbers.",
+    returns: "dict — {'min', 'max', 'mid'}, all None when nothing priced.",
+    calls: [],
+    calledBy: ["run_persona_crew", "deterministic_range"],
+    notes: "mid is the midpoint of min and max, NOT the mean of the values. A single participant collapses to a point (min == max == mid) — the degenerate case the UI hides."
+  },
+  {
+    name: "deterministic_range", kind: "data", kindLabel: "Public", layer: "L5",
+    section: "Rule-based bridge",
+    sig: "deterministic_range(\n    ticker: str,\n    to_currency: Optional[str] = None,\n) -> dict[str, Optional[float]]",
+    purpose: "Public helper for callers who want the rule-based range without running the crew. Derived from deterministic_persona_values using the same arithmetic as persona_super_valuation.",
+    returns: "dict — {'min', 'max', 'mid'} in to_currency, or {'error': str} if the model failed.",
+    calls: ["deterministic_persona_values", "_range_from_persona_values"],
+    calledBy: ["external callers"],
+    notes: "Always check for an 'error' key before formatting the numbers. Known quirk: for some symbols persona_super_valuation returns a degenerate min == max == mid — a pre-existing issue in that module, rendered honestly rather than hidden."
+  },
+  {
+    name: "_snapshot_or_raise", kind: "helper", kindLabel: "Guard", layer: "L2",
+    section: "Context resolution",
+    sig: "_snapshot_or_raise(\n    ticker: str,\n) -> dict[str, Any]",
+    purpose: "Returns a usable price snapshot or raises — the single hard failure mode in the module.",
+    returns: "dict — the snapshot from get_price_snapshot, guaranteed to contain current_price.",
+    calls: ["get_price_snapshot"],
+    calledBy: ["run_persona_crew"],
+    notes: "Everything else is fail-soft, but without a market price there is no prompt anchor, no answer currency and no basis for the plausibility filter — so the run stops rather than producing four meaningless cards. Lives here rather than in get_price_snapshot because that function is also used by the tool, where returning an error object lets the agent reason about missing data. The ValueError message embeds the underlying Yahoo error so the UI can show it verbatim."
+  },
+  {
+    name: "_extract_json", kind: "parse", kindLabel: "Parser", layer: "L5",
+    section: "Parsers",
+    sig: "_extract_json(\n    text: str,\n) -> Optional[dict]",
+    purpose: "Tolerantly extracts the first valid JSON object from a raw LLM response, with three recovery layers cheapest-first.",
+    returns: "dict | None — the first value that parses as a JSON object; None when nothing does.",
+    calls: ["json.loads", "json.JSONDecoder.raw_decode", "re.sub"],
+    calledBy: ["persona_from_raw", "aggregate_from_raw"],
+    notes: "Layer 1 strips markdown fences and tries a straight parse; layer 2 scans every '{' and tries raw_decode, which handles 'Sure! Here is the JSON: {...} Hope that helps.' without greedy trailing-prose capture; layer 3 gives up. Arrays and bare scalars are rejected — every contract asks for an object."
+  },
+  {
+    name: "_num", kind: "parse", kindLabel: "Coercion", layer: "L5",
+    section: "Parsers",
+    sig: "_num(\n    value: Any,\n) -> Optional[float]",
+    purpose: "Coerces a parsed JSON value to float, stripping currency symbols, thousands separators and trailing text. Models obey the schema loosely — '₹1,280.50', '1280 INR', 'n/a'.",
+    returns: "float | None — the numeric value, or None when it cannot be coerced. bool is explicitly rejected.",
+    calls: ["re.sub"],
+    calledBy: ["persona_from_raw", "aggregate_from_raw"],
+    notes: "Returning None rather than raising or yielding NaN is what lets callers decide whether to drop the value, and is why aggregate_from_raw can read every field without a try/except."
+  },
+  {
+    name: "_persona_task_description", kind: "persona", kindLabel: "Prompt", layer: "L3",
+    section: "Task prompts",
+    sig: "_persona_task_description(\n    meta: dict[str, str],\n    ticker: str,\n    company: str,\n    price: float,\n    currency: str,\n    fx_note: str = \"\",\n) -> str",
+    purpose: "Renders the full prompt for one persona task, encoding three separate contracts: grounding (market anchor, tool menu, never invent figures), working discipline (work silently, one pass, ignore implausible betas) and the response contract (a single JSON object).",
+    returns: "str — a ready-to-use Task description ending in the JSON contract.",
+    calls: [],
+    calledBy: ["run_persona_crew"],
+    notes: "The only differing payload across the four personas is their own goal and backstory — which is what makes four independent opinions possible from identical tools. The silence clause is load-bearing: without it DeepSeek emits a multi-hundred-line DCF into its final message, breaking the parse and inflating cost."
+  },
+  {
+    name: "_lead_task_description", kind: "lead", kindLabel: "Prompt", layer: "L3",
+    section: "Task prompts",
+    sig: "_lead_task_description(\n    ticker: str,\n    company: str,\n    price: float,\n    currency: str,\n) -> str",
+    purpose: "Renders the reconciliation prompt for the aggregator task. Deliberately short, because the four persona answers arrive as task context rather than being restated.",
+    returns: "str — the aggregator Task description, ending in its JSON contract.",
+    calls: [],
+    calledBy: ["run_persona_crew"],
+    notes: "States only the goal, the ban on invented numbers, and the output contract — the payload is already in context. This is why the lead agent needs no tools."
+  },
+  {
+    name: "_memoise", kind: "helper", kindLabel: "Decorator", layer: "L4",
+    section: "Caching",
+    sig: "_memoise(\n    prefix: str,\n) -> Callable",
+    purpose: "Caches a function's result per-arguments for _CACHE_TTL_SECONDS. A tiny decorator rather than a Streamlit cache so the module keeps working from the CLI.",
+    returns: "Callable — the decorator.",
+    calls: ["_cache_get", "functools.wraps"],
+    calledBy: ["decorates 5 functions"],
+    notes: "Keyed on repr(args) and sorted(kwargs.items()), which is safe only because every wrapped function takes plain strings. Wraps: get_price_snapshot, build_fundamentals_text, build_news_and_sentiment_text, reporting_currency, deterministic_persona_values — the five functions that hit Yahoo."
+  },
+  {
+    name: "_cache_get", kind: "helper", kindLabel: "Helper", layer: "L4",
+    section: "Caching",
+    sig: "_cache_get(\n    key: str,\n) -> object",
+    purpose: "Returns the cached value for a key, or the _MISS sentinel when the entry is absent or expired. Expired entries are evicted on read.",
+    returns: "object — the cached value, or _MISS.",
+    calls: ["time.monotonic"],
+    calledBy: ["_memoise"],
+    notes: "The _MISS sentinel exists to distinguish 'not cached' from a legitimately cached None."
+  },
+  {
+    name: "_safe_fin", kind: "helper", kindLabel: "Helper", layer: "L4",
+    section: "Data helpers",
+    sig: "_safe_fin(\n    df: pd.DataFrame,\n    names: list[str],\n    idx: int = 0,\n) -> float",
+    purpose: "Returns the first present column value from a yfinance table, tolerating label drift between releases and issuers (\"Total Revenue\" vs \"Revenue\" vs \"Operating Revenue\").",
+    returns: "float — the first numeric value found, else NaN.",
+    calls: [],
+    calledBy: ["build_fundamentals_text"],
+    notes: "Returning NaN rather than raising lets callers hand the literal 'n/a' to the LLM. idx selects the period column; 0 is the latest annual period after the .T transpose."
+  },
+  {
+    name: "persona_image", kind: "helper", kindLabel: "Helper", layer: "L3",
+    section: "Data helpers",
+    sig: "persona_image(\n    filename: str,\n) -> str",
+    purpose: "Resolves a persona portrait filename to an absolute path inside ./images, or returns an empty string when no image is configured.",
+    returns: "str — absolute portrait path, or \"\" to fall back to the emoji.",
+    calls: ["pathlib.Path"],
+    calledBy: ["persona_from_raw", "run_persona_crew"],
+    notes: "The image field in PERSONAS is deliberately optional — an empty string means the card always uses the emoji glyph."
+  },
+  {
+    name: "_summarise_usage", kind: "helper", kindLabel: "Helper", layer: "L5",
+    section: "Reporting",
+    sig: "_summarise_usage(\n    metrics: Any,\n) -> dict[str, Any]",
+    purpose: "Flattens crewAI usage metrics into a small dict for the UI caption.",
+    returns: "dict — total_tokens, prompt_tokens, completion_tokens; individual values may be None, or {} if the whole read fails.",
+    calls: ["getattr"],
+    calledBy: ["run_persona_crew"],
+    notes: "Defensive by construction: crewAI's metrics object is not part of its documented API, so every read is getattr-guarded and the whole body is wrapped in try — a missing field must never take down a valuation that already succeeded. _summarise_usage(None) returns all-None rather than raising."
+  },
+  {
+    name: "_convert_money", kind: "helper", kindLabel: "Helper", layer: "L5",
+    section: "Rule-based bridge",
+    sig: "_convert_money(\n    value: Optional[float],\n    from_currency: str,\n    to_currency: Optional[str],\n) -> Optional[float]",
+    purpose: "Converts one money value between currencies, returning it unchanged when conversion is not possible.",
+    returns: "float | None — the converted amount, or value unchanged.",
+    calls: ["get_fx_rate"],
+    calledBy: ["deterministic_persona_values"],
+    notes: "No-ops on None value, missing target, matching currencies, or an FX lookup that degraded to 1.0 — a slightly wrong magnitude beats a crashed valuation."
+  }
+];
+
+/* ── Rendering ────────────────────────────────────────────────────── */
+const esc = s => String(s)
+  .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+function sigHTML(sig){
+  return esc(sig)
+    .replace(/^(\s*)([a-z_][a-z0-9_]*)/, '$1<span class="fn-key">$2</span>')
+    .replace(/(:\s*)([A-Z\[][A-Za-z0-9_\[\], \.]*|float|int|str|dict|bool|Any|object|Callable|None)(?=[,\n\)])/g,
+             '$1<span class="ty">$2</span>');
+}
+
+function chips(arr, cls){
+  if(!arr || !arr.length) return '<span class="chip none">— none —</span>';
+  return arr.map(n => `<span class="chip ${cls}">${esc(n)}</span>`).join('');
+}
+
+function fnCard(f){
+  return `
+  <article class="fn">
+    <div class="fn-head">
+      <span class="fn-name">${esc(f.name)}</span>
+      <span class="badge b-${f.kind}">${esc(f.kindLabel)}</span>
+      <span class="fn-sec">${esc(f.section)} · ${esc(f.layer)}</span>
+    </div>
+    <div class="card-body">
+      <pre class="sig">${sigHTML(f.sig)}</pre>
+      <dl class="kv">
+        <dt>Purpose</dt><dd>${esc(f.purpose)}</dd>
+        <dt>Returns</dt><dd>${esc(f.returns)}</dd>
+        <dt>Calls</dt><dd><div class="chips">${chips(f.calls, 'call')}</div></dd>
+        <dt>Called by</dt><dd><div class="chips">${chips(f.calledBy, 'by')}</div></dd>
+        ${f.notes ? `<dt>Notes</dt><dd>${esc(f.notes)}</dd>` : ''}
+      </dl>
+    </div>
+  </article>`;
+}
+
+function renderFns(q){
+  const term = (q || "").trim().toLowerCase();
+  const list = FUNCS.filter(f => !term ||
+    (f.name + " " + f.purpose + " " + f.section + " " + f.kindLabel + " " + f.layer)
+      .toLowerCase().includes(term));
+  document.getElementById("fnList").innerHTML =
+    list.length ? list.map(fnCard).join("")
+                : '<p class="note" style="padding:20px">No symbols match that filter.</p>';
+  document.getElementById("fnCount").textContent = list.length + " / " + FUNCS.length + " symbols";
+}
+
+/* ── Linkage matrix ───────────────────────────────────────────────── */
+function renderMatrix(){
+  document.getElementById("matrixBody").innerHTML = FUNCS.map(f => `
+    <tr>
+      <td class="mono">${esc(f.name)}</td>
+      <td><div class="chips">${chips(f.calls, 'call')}</div></td>
+      <td><div class="chips">${chips(f.calledBy, 'by')}</div></td>
+      <td class="c">${esc(f.layer)}</td>
+    </tr>`).join("");
+}
+
+/* ── Tabs ─────────────────────────────────────────────────────────── */
+function activate(panelId){
+  document.querySelectorAll(".tab").forEach(x =>
+    x.classList.toggle("active", x.dataset.panel === panelId));
+  document.querySelectorAll(".panel").forEach(p =>
+    p.classList.toggle("active", p.id === panelId));
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function initTabs(){
+  document.querySelectorAll(".tab").forEach(t =>
+    t.addEventListener("click", () => activate(t.dataset.panel)));
+  document.querySelectorAll("[data-goto]").forEach(card =>
+    card.addEventListener("click", () => activate(card.dataset.goto)));
+}
+
+/* ── Theme ────────────────────────────────────────────────────────── */
+function initTheme(){
+  const root = document.documentElement;
+  const saved = localStorage.getItem("crew-theme");
+  if(saved) root.dataset.theme = saved;
+  document.getElementById("themeBtn").addEventListener("click", () => {
+    root.dataset.theme = root.dataset.theme === "dark" ? "light" : "dark";
+    localStorage.setItem("crew-theme", root.dataset.theme);
+  });
+}
+
+/* ── Init ─────────────────────────────────────────────────────────── */
+document.addEventListener("DOMContentLoaded", () => {
+  initTabs();
+  initTheme();
+  renderFns("");
+  renderMatrix();
+  document.getElementById("fnSearch").addEventListener("input", e => renderFns(e.target.value));
+
+  document.addEventListener("keydown", e => {
+    if(e.key === "/" && document.activeElement.tagName !== "INPUT"){
+      e.preventDefault();
+      activate("p-funcs");
+      document.getElementById("fnSearch").focus();
+    }
+  });
+});
+
+/* KaTeX: render every \[ … \] block once the DOM and library are ready. */
+window.addEventListener("load", () => {
+  if(window.renderMathInElement){
+    renderMathInElement(document.body, {
+      delimiters: [
+        {left: "\\[", right: "\\]", display: true},
+        {left: "\\(", right: "\\)", display: false}
+      ],
+      throwOnError: false
+    });
+  }
+});
+</script>
+
+</body>
+</html>

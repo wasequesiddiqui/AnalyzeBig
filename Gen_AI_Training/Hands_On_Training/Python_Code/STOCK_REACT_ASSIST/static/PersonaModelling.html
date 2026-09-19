@@ -1,0 +1,1286 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Persona Valuation Models — PERSONA_BASED_VALUATION.py Reference</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+
+<style>
+/* ── Design tokens ───────────────────────────────────────────────── */
+:root{
+  --bg:#f5f7fb; --surface:#fff; --surface-2:#fafbfe; --border:#e4e8f0;
+  --text:#0f172a; --text-2:#5b6679; --text-3:#8b95a7;
+  --accent:#4f46e5; --accent-soft:#eef0ff; --accent-2:#0284c7;
+  --green:#0f9d58; --green-soft:#e8f7ef;
+  --amber:#b45309; --amber-soft:#fdf3e3;
+  --rose:#be123c; --rose-soft:#fdeaf0;
+  --violet:#7c3aed; --violet-soft:#f3ecfe;
+  --orange:#c2410c; --orange-soft:#fff1e7;
+  --teal:#0f766e; --teal-soft:#e6f6f4;
+  --code-bg:#f3f5fa;
+  --radius:14px; --radius-sm:9px;
+  --shadow:0 1px 2px rgba(15,23,42,.05), 0 10px 28px -14px rgba(15,23,42,.22);
+  --mono:"JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* persona accents */
+  --p-buffett:#b45309;  --p-buffett-soft:#fdf3e3;
+  --p-munger:#7c3aed;   --p-munger-soft:#f3ecfe;
+  --p-jhunjhunwala:#c2410c; --p-jhunjhunwala-soft:#fff1e7;
+  --p-damodaran:#0f766e; --p-damodaran-soft:#e6f6f4;
+}
+[data-theme="dark"]{
+  --bg:#080b13; --surface:#0f1523; --surface-2:#121a2b; --border:#222c42;
+  --text:#e9eefb; --text-2:#9aa6bd; --text-3:#6c7891;
+  --accent:#8f8ff8; --accent-soft:#1a1f3d; --accent-2:#4cc9f0;
+  --green:#3ddc97; --green-soft:#0d2a1f;
+  --amber:#f0b357; --amber-soft:#2a1f0d;
+  --rose:#fb7185; --rose-soft:#2d1119;
+  --violet:#c4b5fd; --violet-soft:#1f1836;
+  --orange:#fdba74; --orange-soft:#2b1608;
+  --teal:#5eead4; --teal-soft:#082522;
+  --code-bg:#0c1220;
+  --shadow:0 1px 2px rgba(0,0,0,.6), 0 14px 36px -18px rgba(0,0,0,.9);
+
+  --p-buffett:#f0b357;  --p-buffett-soft:#2a1f0d;
+  --p-munger:#c4b5fd;   --p-munger-soft:#1f1836;
+  --p-jhunjhunwala:#fdba74; --p-jhunjhunwala-soft:#2b1608;
+  --p-damodaran:#5eead4; --p-damodaran-soft:#082522;
+}
+
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0; background:var(--bg); color:var(--text);
+  font-family:Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size:15px; line-height:1.65;
+  -webkit-font-smoothing:antialiased;
+}
+
+/* ── Header ──────────────────────────────────────────────────────── */
+header{
+  position:sticky; top:0; z-index:40;
+  background:color-mix(in srgb, var(--surface) 88%, transparent);
+  backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--border);
+}
+.hdr-inner{
+  max-width:1180px; margin:0 auto; padding:14px 26px;
+  display:flex; align-items:center; gap:16px;
+}
+.brand{display:flex; align-items:center; gap:13px; min-width:0}
+.logo{
+  width:40px; height:40px; flex:none; border-radius:11px;
+  background:linear-gradient(135deg, var(--accent), var(--accent-2));
+  display:grid; place-items:center; color:#fff; font-weight:700; font-size:15px;
+  box-shadow:0 6px 16px -6px var(--accent);
+}
+.brand h1{margin:0; font-size:16.5px; font-weight:650; letter-spacing:-.01em; white-space:nowrap}
+.brand p{margin:0; font-size:12.5px; color:var(--text-2)}
+.hdr-actions{margin-left:auto; display:flex; align-items:center; gap:10px}
+.src-chip{
+  font-family:var(--mono); font-size:11.5px; padding:5px 11px; border-radius:99px;
+  background:var(--code-bg); border:1px solid var(--border); color:var(--text-2);
+  white-space:nowrap;
+}
+.icon-btn{
+  width:36px; height:36px; border-radius:10px; border:1px solid var(--border);
+  background:var(--surface); color:var(--text-2); cursor:pointer;
+  display:grid; place-items:center; font-size:15px; transition:.15s;
+}
+.icon-btn:hover{color:var(--accent); border-color:var(--accent)}
+
+main{max-width:1180px; margin:0 auto; padding:26px 26px 90px}
+
+/* ── Tabs ────────────────────────────────────────────────────────── */
+.tabs{display:flex; gap:6px; padding:6px; margin-bottom:26px;
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:13px; box-shadow:var(--shadow); overflow-x:auto;}
+.tab{
+  flex:1 1 auto; min-width:104px; border:0; cursor:pointer; background:transparent;
+  color:var(--text-2); font:inherit; font-weight:550; font-size:13.5px;
+  padding:10px 14px; border-radius:9px; transition:.15s; white-space:nowrap;
+}
+.tab:hover{color:var(--text); background:var(--surface-2)}
+.tab.active{
+  background:linear-gradient(135deg, var(--accent), var(--accent-2));
+  color:#fff; box-shadow:0 6px 18px -8px var(--accent);
+}
+.tab.active[data-persona="buffett"]{background:linear-gradient(135deg,#d97706,#b45309); box-shadow:0 6px 18px -8px #b45309}
+.tab.active[data-persona="munger"]{background:linear-gradient(135deg,#8b5cf6,#6d28d9); box-shadow:0 6px 18px -8px #7c3aed}
+.tab.active[data-persona="jhunjhunwala"]{background:linear-gradient(135deg,#f97316,#c2410c); box-shadow:0 6px 18px -8px #c2410c}
+.tab.active[data-persona="damodaran"]{background:linear-gradient(135deg,#14b8a6,#0f766e); box-shadow:0 6px 18px -8px #0f766e}
+
+.panel{display:none}
+.panel.active{display:block; animation:fade .22s ease}
+@keyframes fade{from{opacity:0; transform:translateY(4px)}to{opacity:1;transform:none}}
+
+/* ── Persona hero ────────────────────────────────────────────────── */
+.hero{
+  border:1px solid var(--border); border-left:4px solid var(--pa, var(--accent));
+  border-radius:var(--radius); background:var(--surface);
+  box-shadow:var(--shadow); padding:20px 22px; margin-bottom:22px;
+}
+.hero-top{display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:6px}
+.hero-top h2{margin:0; font-size:22px; font-weight:680; letter-spacing:-.02em}
+.hero .philosophy{margin:0; font-size:14.5px; color:var(--text-2); font-style:italic}
+.pa-chip{
+  font-family:var(--mono); font-size:11px; font-weight:600; padding:3px 9px;
+  border-radius:99px; background:var(--pa-soft, var(--accent-soft)); color:var(--pa, var(--accent));
+}
+
+/* ── Sections & cards ────────────────────────────────────────────── */
+.sec{margin-bottom:28px}
+.sec-head{display:flex; align-items:baseline; gap:12px; margin:0 0 14px}
+.sec-head .num{
+  font-family:var(--mono); font-size:12px; font-weight:600;
+  color:var(--accent); background:var(--accent-soft);
+  padding:3px 9px; border-radius:7px; flex:none;
+}
+.sec-head h2{margin:0; font-size:19px; font-weight:650; letter-spacing:-.015em}
+.sec-head .tag{margin-left:auto; font-size:11.5px; color:var(--text-3);
+  font-family:var(--mono); white-space:nowrap}
+
+.card{
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:var(--radius); box-shadow:var(--shadow);
+  margin-bottom:14px; overflow:hidden;
+}
+.card-top{
+  padding:14px 18px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+  border-bottom:1px solid var(--border); background:var(--surface-2);
+}
+.card-top h3{margin:0; font-size:14.5px; font-weight:625; letter-spacing:-.01em}
+.card-body{padding:16px 18px}
+
+.badge{
+  font-size:10.5px; font-weight:650; letter-spacing:.03em; text-transform:uppercase;
+  padding:3.5px 9px; border-radius:99px; white-space:nowrap;
+}
+.b-public{background:var(--rose-soft); color:var(--rose)}
+.b-engine{background:var(--accent-soft); color:var(--accent)}
+.b-nested{background:var(--violet-soft); color:var(--violet)}
+.b-helper{background:var(--amber-soft); color:var(--amber)}
+.b-rule{background:var(--teal-soft); color:var(--teal)}
+
+/* ── Formula ─────────────────────────────────────────────────────── */
+.formula{
+  background:var(--code-bg); border:1px solid var(--border);
+  border-left:3px solid var(--pa, var(--accent));
+  border-radius:var(--radius-sm); padding:14px 16px; margin:2px 0 12px;
+  overflow-x:auto; overflow-y:hidden;
+}
+.formula .katex-display{margin:.25em 0}
+.formula .katex{font-size:1.05em}
+
+.note{font-size:13px; color:var(--text-2); margin:8px 0 0}
+.note strong{color:var(--text); font-weight:600}
+.impl{
+  display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+  font-size:12.5px; color:var(--text-2); margin-top:10px;
+  padding-top:10px; border-top:1px dashed var(--border);
+}
+.impl .lbl{font-weight:600; color:var(--text)}
+
+code, .mono{font-family:var(--mono)}
+code{
+  font-size:12.3px; background:var(--code-bg); border:1px solid var(--border);
+  padding:1.5px 6px; border-radius:5px; color:var(--text); white-space:nowrap;
+}
+.chips{display:flex; flex-wrap:wrap; gap:6px}
+.chip{
+  font-family:var(--mono); font-size:11.3px; padding:3px 9px; border-radius:7px;
+  background:var(--code-bg); border:1px solid var(--border); color:var(--text-2);
+}
+.chip.call{color:var(--accent-2); border-color:color-mix(in srgb, var(--accent-2) 30%, var(--border))}
+.chip.by{color:var(--violet); border-color:color-mix(in srgb, var(--violet) 30%, var(--border))}
+.chip.none{opacity:.55}
+
+/* ── PCI factor grid ─────────────────────────────────────────────── */
+.factors{display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:9px; margin-top:4px}
+.factor{
+  border:1px solid var(--border); border-radius:10px; padding:10px 12px;
+  background:var(--surface-2);
+}
+.factor b{display:block; font-family:var(--mono); font-size:11.8px; color:var(--pa, var(--accent))}
+.factor .expr{font-family:var(--mono); font-size:11.5px; color:var(--text); margin:3px 0}
+.factor span{font-size:11.5px; color:var(--text-3)}
+
+/* ── Overview grid ───────────────────────────────────────────────── */
+.pgrid{display:grid; grid-template-columns:repeat(auto-fill,minmax(255px,1fr)); gap:12px}
+.pcard{
+  border:1px solid var(--border); border-top:3px solid var(--pc);
+  border-radius:var(--radius); background:var(--surface);
+  box-shadow:var(--shadow); padding:15px 16px; cursor:pointer; transition:.15s;
+}
+.pcard:hover{transform:translateY(-2px); border-color:color-mix(in srgb, var(--pc) 45%, var(--border))}
+.pcard h4{margin:0 0 2px; font-size:15px; font-weight:660; color:var(--pc)}
+.pcard .kind{font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--text-3); font-weight:650}
+.pcard p{margin:8px 0 0; font-size:12.6px; color:var(--text-2)}
+
+/* ── Function reference ──────────────────────────────────────────── */
+.toolbar{display:flex; align-items:center; gap:12px; margin-bottom:16px; flex-wrap:wrap}
+.search{
+  flex:1; min-width:230px; display:flex; align-items:center; gap:9px;
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:11px; padding:9px 13px; box-shadow:var(--shadow);
+}
+.search input{border:0; outline:0; background:transparent; color:var(--text);
+  font:inherit; font-size:14px; width:100%}
+.search input::placeholder{color:var(--text-3)}
+.count{font-size:12.5px; color:var(--text-2); font-family:var(--mono); white-space:nowrap}
+
+.fn{background:var(--surface); border:1px solid var(--border);
+  border-radius:var(--radius); box-shadow:var(--shadow); margin-bottom:12px; overflow:hidden; transition:.15s}
+.fn:hover{border-color:color-mix(in srgb, var(--accent) 40%, var(--border))}
+.fn-head{padding:14px 18px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+  border-bottom:1px solid var(--border); background:var(--surface-2)}
+.fn-name{font-family:var(--mono); font-size:13.5px; font-weight:600; color:var(--accent)}
+.fn-sec{font-size:11.5px; color:var(--text-3); margin-left:auto; white-space:nowrap}
+.sig{
+  font-family:var(--mono); font-size:12.2px; line-height:1.72;
+  background:var(--code-bg); border:1px solid var(--border);
+  border-radius:var(--radius-sm); padding:12px 14px; margin:0 0 12px;
+  white-space:pre-wrap; word-break:break-word; color:var(--text);
+}
+.sig .fn-key{color:var(--accent); font-weight:600}
+.sig .ty{color:var(--text-3)}
+.kv{display:grid; grid-template-columns:96px 1fr; gap:5px 14px; font-size:13.2px}
+.kv dt{color:var(--text-3); font-weight:600; font-size:11.5px; text-transform:uppercase;
+  letter-spacing:.03em; padding-top:2px}
+.kv dd{margin:0; color:var(--text-2)}
+
+/* ── Dependency map ──────────────────────────────────────────────── */
+.flow{display:flex; flex-direction:column; gap:0}
+.layer{background:var(--surface); border:1px solid var(--border);
+  border-radius:var(--radius); box-shadow:var(--shadow); padding:16px 18px}
+.layer-h{display:flex; align-items:center; gap:10px; margin-bottom:12px; flex-wrap:wrap}
+.layer-h h4{margin:0; font-size:13px; font-weight:650; text-transform:uppercase;
+  letter-spacing:.06em; color:var(--text-2)}
+.layer-idx{font-family:var(--mono); font-size:11px; font-weight:600; color:var(--accent);
+  background:var(--accent-soft); padding:2px 8px; border-radius:6px}
+.conn{display:grid; place-items:center; padding:5px 0}
+.conn span{width:2px; height:26px;
+  background:linear-gradient(var(--accent), color-mix(in srgb, var(--accent) 25%, transparent));
+  border-radius:2px; position:relative}
+.conn span::after{content:""; position:absolute; bottom:-1px; left:50%; transform:translateX(-50%);
+  border-left:4.5px solid transparent; border-right:4.5px solid transparent; border-top:7px solid var(--accent)}
+.node-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(215px,1fr)); gap:8px}
+.node{border:1px solid var(--border); border-radius:10px; padding:9px 12px;
+  background:var(--surface-2); font-size:12.4px}
+.node b{font-family:var(--mono); font-size:11.8px; font-weight:600; color:var(--text); display:block}
+.node span{color:var(--text-3); font-size:11.4px}
+.node.pub{border-left:3px solid var(--rose)}
+.node.eng{border-left:3px solid var(--accent)}
+.node.nst{border-left:3px solid var(--violet)}
+.node.hlp{border-left:3px solid var(--amber)}
+.node.ext{border-left:3px solid var(--green)}
+
+table{width:100%; border-collapse:collapse; font-size:13px; margin-top:4px}
+th,td{padding:9px 11px; text-align:left; border-bottom:1px solid var(--border)}
+th{font-size:11px; text-transform:uppercase; letter-spacing:.05em;
+  color:var(--text-3); font-weight:650; background:var(--surface-2)}
+tbody tr:last-child td{border-bottom:0}
+td.mono{font-family:var(--mono); font-size:11.8px; color:var(--accent)}
+td.c{text-align:center; font-family:var(--mono); color:var(--text-2)}
+
+.legend{display:flex; gap:14px; flex-wrap:wrap; font-size:12px; color:var(--text-2);
+  margin-top:12px; padding-top:12px; border-top:1px solid var(--border)}
+.legend i{display:inline-block; width:9px; height:9px; border-radius:3px; margin-right:6px}
+.dot-pub{background:var(--rose)} .dot-eng{background:var(--accent)}
+.dot-nst{background:var(--violet)} .dot-hlp{background:var(--amber)} .dot-ext{background:var(--green)}
+
+.callout{display:flex; gap:11px; padding:13px 15px; border-radius:var(--radius-sm);
+  background:var(--amber-soft); border:1px solid color-mix(in srgb, var(--amber) 25%, var(--border));
+  font-size:13px; color:var(--text-2); margin-bottom:14px}
+.callout b{color:var(--text)}
+.callout .ico{flex:none; font-size:14px}
+
+footer{max-width:1180px; margin:0 auto; padding:22px 26px 40px;
+  border-top:1px solid var(--border); color:var(--text-3); font-size:12.5px}
+footer code{font-size:11.5px}
+kbd{font-family:var(--mono); font-size:11px; background:var(--surface-2);
+  border:1px solid var(--border); border-bottom-width:2px; border-radius:5px;
+  padding:1px 6px; color:var(--text-2)}
+
+@media (max-width:820px){
+  .hdr-inner, main, footer{padding-left:16px; padding-right:16px}
+  .src-chip{display:none}
+  .kv{grid-template-columns:1fr; gap:2px}
+  .kv dt{padding-top:8px}
+  .brand p{display:none}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="hdr-inner">
+    <div class="brand">
+      <div class="logo">PV</div>
+      <div>
+        <h1>Persona Valuation Models</h1>
+        <p>Every persona rule, formula and function in <code style="font-size:11.5px">PERSONA_BASED_VALUATION.py</code></p>
+      </div>
+    </div>
+    <div class="hdr-actions">
+      <span class="src-chip">4 personas · 9 functions · 1 engine</span>
+      <button class="icon-btn" id="themeBtn" title="Toggle light / dark" aria-label="Toggle theme">◐</button>
+    </div>
+  </div>
+</header>
+
+<main>
+
+  <nav class="tabs" role="tablist">
+    <button class="tab active" role="tab" data-panel="p-overview">Overview</button>
+    <button class="tab" role="tab" data-panel="p-buffett" data-persona="buffett">Buffett</button>
+    <button class="tab" role="tab" data-panel="p-munger" data-persona="munger">Munger</button>
+    <button class="tab" role="tab" data-panel="p-jhunjhunwala" data-persona="jhunjhunwala">Jhunjhunwala</button>
+    <button class="tab" role="tab" data-panel="p-damodaran" data-persona="damodaran">Damodaran</button>
+    <button class="tab" role="tab" data-panel="p-funcs">Function Reference</button>
+    <button class="tab" role="tab" data-panel="p-deps">Dependency Map</button>
+  </nav>
+
+  <!-- ══════════════════ OVERVIEW ══════════════════ -->
+  <section class="panel active" id="p-overview">
+
+    <div class="callout">
+      <span class="ico">◆</span>
+      <div>
+        This module is the <strong>deterministic, rule-based</strong> counterpart to the
+        agentic crewAI personas. Each persona is a closed-form valuation rule computed from
+        the same yfinance financial statements — no LLM, no network calls beyond the data
+        fetch, fully reproducible. All values are returned in the company's
+        <strong>reporting currency</strong>, which may differ from its trading currency.
+      </div>
+    </div>
+
+    <!-- The four personas -->
+    <div class="sec">
+      <div class="sec-head">
+        <span class="num">A</span>
+        <h2>The four personas</h2>
+        <span class="tag">click a card to open its tab</span>
+      </div>
+      <div class="pgrid">
+        <div class="pcard" style="--pc:var(--p-buffett)" data-goto="p-buffett">
+          <h4>Warren Buffett</h4>
+          <div class="kind">Owner Earnings · 10-year DCF</div>
+          <p>Discounts owner earnings for 10 explicit years plus a terminal value, then applies a
+             25% margin of safety.</p>
+        </div>
+        <div class="pcard" style="--pc:var(--p-munger)" data-goto="p-munger">
+          <h4>Charlie Munger</h4>
+          <div class="kind">Residual Income · moat-truncated</div>
+          <p>Book value plus the present value of residual income, truncated at the estimated
+             moat duration.</p>
+        </div>
+        <div class="pcard" style="--pc:var(--p-jhunjhunwala)" data-goto="p-jhunjhunwala">
+          <h4>Rakesh Jhunjhunwala</h4>
+          <div class="kind">Three-stage FCFF</div>
+          <p>Hyper-growth for 5 years, a 5-year linear transition, then a stable perpetuity —
+             India gets a higher stable rate.</p>
+        </div>
+        <div class="pcard" style="--pc:var(--p-damodaran)" data-goto="p-damodaran">
+          <h4>Aswath Damodaran</h4>
+          <div class="kind">Scenario FCFF · ROIC fade</div>
+          <p>Probability-weighted average of three growth scenarios, with the terminal value
+             faded toward WACC via a reinvestment rate.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Shared pipeline -->
+    <div class="sec">
+      <div class="sec-head">
+        <span class="num">B</span>
+        <h2>Shared input pipeline</h2>
+        <span class="tag">computed once, used by all four rules</span>
+      </div>
+
+      <div class="card">
+        <div class="card-top"><h3>Statement extraction</h3><span class="badge b-helper">Shared</span></div>
+        <div class="card-body">
+          <div class="formula">
+            \[ \text{NWC} = \big(\text{Current Assets} - \text{Cash}\big) - \big(\text{Current Liabilities} - \text{Short-Term Debt}\big) \]
+          </div>
+          <div class="formula">
+            \[ D_{total} = D_{short} + D_{long}, \qquad B_0 = \text{Total Stockholder Equity} \]
+          </div>
+          <p class="note">
+            Fetched through <code>_get_fin()</code>, which walks a list of candidate row labels
+            and returns the first non-NaN value. yfinance labels vary widely by listing, so
+            D&amp;A is looked up on the income statement first
+            (<code>Reconciled Depreciation</code>) then the cash flow statement.
+            Missing debt rows fall back to <code>0.0</code>; CapEx is normalised with
+            <code>abs()</code> because Yahoo signs it negative.
+          </p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-top"><h3>Normalised ratios</h3><span class="badge b-helper">Shared</span></div>
+        <div class="card-body">
+          <div class="formula">
+            \[ \text{ebit\_margin} = \frac{EBIT}{Rev},\quad \text{depr\_ratio} = \frac{Dep}{Rev},\quad \text{capex\_ratio} = \frac{CapEx}{Rev},\quad \text{nwc\_ratio} = \frac{NWC}{Rev} \]
+          </div>
+          <p class="note">
+            Every ratio goes through the NaN-aware <code>_ratio()</code> helper, which returns a
+            default when either input is missing or the denominator is zero — defaults are
+            <code>0.15 · 0.03 · 0.03 · 0.10</code> respectively.
+          </p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-top"><h3>Cost of capital</h3><span class="badge b-helper">Shared</span></div>
+        <div class="card-body">
+          <div class="formula">
+            \[ k_e = r_f + \beta \cdot MRP, \qquad k_d = \frac{\text{Interest Expense}}{D_{total}} \quad(\text{fallback } 0.045) \]
+          </div>
+          <div class="formula">
+            \[ WACC = \frac{E}{E + D}\,k_e \;+\; \frac{D}{E + D}\,k_d\,(1 - t) \]
+          </div>
+          <div class="formula">
+            \[ \beta_u = \frac{\beta}{1 + (1-t)\,\frac{D}{E}}, \qquad k_u = r_f + \beta_u \cdot MRP \]
+          </div>
+          <p class="note">
+            Country-aware inputs: <code>r_f = 0.04</code> and <code>MRP = 0.05</code> by default,
+            but <code>r_f = 0.065</code> and <code>MRP = 0.06</code> when
+            <code>info['country']</code> contains "india". Note the canonical WACC is computed
+            with <strong>book equity</strong> here (not market cap, unlike
+            <code>ALL_DCF_MODELS</code>), and it is never used by the Buffett rule — only by
+            Munger, Jhunjhunwala and Damodaran.
+          </p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-top"><h3>Tax, growth &amp; returns</h3><span class="badge b-helper">Shared</span></div>
+        <div class="card-body">
+          <div class="formula">
+            \[ t = \frac{\text{Tax Provision}}{NI + \text{Tax Provision}} \quad(\text{fallback } 0.21) \]
+          </div>
+          <div class="formula">
+            \[ ROE = \frac{NI}{B_{prev}}, \qquad ROIC = \frac{EBIT\,(1-t)}{\text{Total Assets} - \text{Cash} + NWC} \]
+          </div>
+          <div class="formula">
+            \[ g_{term} = \min(r_f,\; 0.025), \qquad g_{rev} = \text{clamp}\big(\text{revenueGrowth},\; 0,\; 0.30\big) \]
+          </div>
+          <p class="note">
+            <code>revenueGrowth</code> is a quarterly year-over-year figure used as a long-run
+            proxy; it falls back to <code>0.05</code> when NaN or below −50%, then is clamped to
+            the 0–30% band. <code>B_prev</code> is the prior year's equity, reconstructed as
+            <code>equity − NI + dividends paid</code> when unavailable.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Public API -->
+    <div class="sec">
+      <div class="sec-head">
+        <span class="num">C</span>
+        <h2>Public API</h2>
+        <span class="tag">two thin wrappers over one engine</span>
+      </div>
+      <div class="card">
+        <div class="card-body">
+          <table>
+            <thead><tr><th>Function</th><th>Returns</th><th>Use when</th></tr></thead>
+            <tbody>
+              <tr>
+                <td class="mono">persona_super_valuation()</td>
+                <td><code>(min, max, midpoint)</code> or <code>(None, None, None)</code></td>
+                <td>You want the collapsed range. Note <strong>midpoint is (min+max)/2</strong>, not the mean of the four values.</td>
+              </tr>
+              <tr>
+                <td class="mono">persona_valuations()</td>
+                <td><code>dict</code> with all four names, values or <code>None</code></td>
+                <td>You want each persona separately — e.g. to compare or blend against the crewAI result.</td>
+              </tr>
+            </tbody>
+          </table>
+          <p class="note">
+            Both call the same <code>_persona_prices()</code> engine, so the range and the
+            per-persona figures can never disagree. Per-persona keys are ordered by
+            <code>PERSONA_RULE_NAMES</code> and are <strong>always present</strong> — a rule that
+            didn't price maps to <code>None</code> rather than being omitted.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Design notes -->
+    <div class="sec">
+      <div class="sec-head">
+        <span class="num">D</span>
+        <h2>Behaviour worth knowing</h2>
+        <span class="tag">shapes the output you see</span>
+      </div>
+      <div class="card">
+        <div class="card-body" style="padding:0">
+          <table>
+            <thead><tr><th style="width:34%">Mechanism</th><th>Effect</th></tr></thead>
+            <tbody>
+              <tr>
+                <td class="mono">if val &gt; 0 filter</td>
+                <td>A persona is only reported when its per-share value is <strong>positive</strong>. A rule that computes zero or a negative value is silently dropped from the list — which is why the range can be built from fewer than four personas.</td>
+              </tr>
+              <tr>
+                <td class="mono">Degenerate range</td>
+                <td>When only one rule survives, <code>min == max == midpoint</code>. The UI treats fewer than two priced personas as degenerate and hides the comparison panel.</td>
+              </tr>
+              <tr>
+                <td class="mono">Reporting currency</td>
+                <td>Values are in the company's reporting currency (USD for <code>INFY.NS</code>), which can differ from its trading currency. Convert before comparing with a market price.</td>
+              </tr>
+              <tr>
+                <td class="mono">Never raises</td>
+                <td>Any failure — including all four rules failing — is caught, printed as <code>Error for &lt;ticker&gt;</code>, and returned as an empty list. Callers always get a usable value.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- ══════════════════ BUFFETT ══════════════════ -->
+  <section class="panel" id="p-buffett" style="--pa:var(--p-buffett); --pa-soft:var(--p-buffett-soft)">
+    <div class="hero">
+      <div class="hero-top">
+        <h2>Warren Buffett</h2>
+        <span class="pa-chip">Owner Earnings</span>
+        <span class="pa-chip">10-year DCF</span>
+      </div>
+      <p class="philosophy">"A wonderful business at a fair price" — value the owner's cash,
+        demand a margin of safety, and refuse to pay for perfection.</p>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><span class="num">1</span><h2>The rule</h2><span class="tag">buffett_price()</span></div>
+      <div class="card">
+        <div class="card-body">
+          <div class="formula">
+            \[ OE_0 \;=\; NI \;+\; \text{Dep} \;-\; 0.8 \cdot \text{CapEx} \;-\; 0.01 \cdot \text{nwc\_ratio} \cdot \text{Rev} \]
+          </div>
+          <div class="formula">
+            \[ OE_t = OE_0\,(1+g_B)^t \qquad\text{and}\qquad PV_{OE} = \sum_{t=1}^{10} \frac{OE_t}{(1+r_B)^t} \]
+          </div>
+          <div class="formula">
+            \[ TV = \frac{OE_{10}\,(1+g_B)}{(r_B - g_B)\,(1+r_B)^{10}} \qquad V_0 = \frac{\big(PV_{OE} + TV\big)\,(1 - MoS)}{N} \]
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><span class="num">2</span><h2>Constants &amp; assumptions</h2><span class="tag">hard-coded</span></div>
+      <div class="card">
+        <div class="card-body">
+          <div class="formula">
+            \[ r_B = r_f + 0.02 \qquad g_B = \min(r_f,\; 0.02) \qquad MoS = 0.25 \qquad T_{explicit} = 10 \]
+          </div>
+          <table>
+            <thead><tr><th style="width:22%">Symbol</th><th>Meaning</th></tr></thead>
+            <tbody>
+              <tr><td class="mono">r_B</td><td>Discount rate — the risk-free rate plus a flat <strong>2% moat premium</strong>. Note this ignores the computed WACC and beta entirely.</td></tr>
+              <tr><td class="mono">g_B</td><td>Perpetual growth, capped at the risk-free rate and at 2%.</td></tr>
+              <tr><td class="mono">MoS</td><td>25% margin of safety, applied to the <em>whole</em> intrinsic value before dividing by shares.</td></tr>
+              <tr><td class="mono">0.8 · CapEx</td><td>Only 80% of capital expenditure is charged against earnings — a proxy for growth capex being discretionary.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><span class="num">3</span><h2>Confidence index</h2><span class="tag">buffett_pci</span></div>
+      <div class="card">
+        <div class="card-body">
+          <div class="formula">
+            \[ PCI_{Buffett} \;=\; \text{moat} \cdot \text{stability} \cdot \text{mgmt} \cdot \text{leverage} \]
+          </div>
+          <div class="factors">
+            <div class="factor"><b>moat</b>
+              <div class="expr">1.0 / 0.6</div>
+              <span>1.0 when EBIT margin &gt; 20%, ROE &gt; 15% <em>and</em> D/E &lt; 0.5; else 0.6.</span></div>
+            <div class="factor"><b>stability</b>
+              <div class="expr">0.8</div>
+              <span>Fixed placeholder — free-cash-flow stability is not actually measured.</span></div>
+            <div class="factor"><b>mgmt</b>
+              <div class="expr">0.9 / 0.7</div>
+              <span>0.9 when ROE &gt; 12%, else 0.7. A crude management-quality proxy.</span></div>
+            <div class="factor"><b>leverage</b>
+              <div class="expr">1.0 / 0.5</div>
+              <span>1.0 when total debt / equity &lt; 0.5, else 0.5.</span></div>
+          </div>
+          <p class="note">
+            The PCI is computed but <strong>not used</strong> in the price formula above — it is
+            reported alongside the value as a qualitative confidence score.
+          </p>
+          <div class="impl">
+            <span class="lbl">Implemented by</span>
+            <code>buffett_price()</code>
+            <span class="arrow">·</span>
+            <span class="chips">
+              <span class="chip">reads enclosing scope</span>
+              <span class="chip">NI</span><span class="chip">Dep</span>
+              <span class="chip">CapEx</span><span class="chip">nwc_ratio</span>
+              <span class="chip">shares</span><span class="chip">r_f</span>
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════ MUNGER ══════════════════ -->
+  <section class="panel" id="p-munger" style="--pa:var(--p-munger); --pa-soft:var(--p-munger-soft)">
+    <div class="hero">
+      <div class="hero-top">
+        <h2>Charlie Munger</h2>
+        <span class="pa-chip">Residual Income</span>
+        <span class="pa-chip">Moat-truncated</span>
+      </div>
+      <p class="philosophy">"The big money is not in the buying and selling, but in the waiting" —
+        pay for quality that compounds above its cost of capital, and only for as long as the
+        moat lasts.</p>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><span class="num">1</span><h2>The rule</h2><span class="tag">munger_price()</span></div>
+      <div class="card">
+        <div class="card-body">
+          <div class="formula">
+            \[ NI_t = NI_1\,(1+g_{term})^{\,t-1}, \qquad RI_t = NI_t - r_M \cdot B_{t-1} \]
+          </div>
+          <div class="formula">
+            \[ B_t = B_{t-1} + NI_t\,(1 - 0.20) \qquad\text{(20\% assumed payout)} \]
+          </div>
+          <div class="formula">
+            \[ V_0 = \frac{1}{N}\left( B_{prev} + \sum_{t=1}^{T} \frac{RI_t}{(1+r_M)^t} \right) \]
+          </div>
+          <div class="formula">
+            \[ T = \begin{cases} \min\!\big(20,\; \max(5,\; \lfloor (ROIC - WACC)\cdot 10 \rfloor)\big) & ROIC > WACC \\[4pt] 5 & \text{otherwise}\end{cases} \]
+          </div>
+          <p class="note">
+            The horizon <code>T</code> is the <strong>estimated moat duration</strong>: the wider
+            the excess return over WACC, the longer residual income is assumed to persist. There
+            is no terminal value beyond <code>T</code> — the model simply stops.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><span class="num">2</span><h2>Constants &amp; assumptions</h2><span class="tag">hard-coded</span></div>
+      <div class="card">
+        <div class="card-body">
+          <div class="formula">
+            \[ r_M = 0.12 \qquad \text{payout} = 0.20 \qquad T \in [5, 20] \]
+          </div>
+          <table>
+            <thead><tr><th style="width:22%">Symbol</th><th>Meaning</th></tr></thead>
+            <tbody>
+              <tr><td class="mono">r_M</td><td>A flat <strong>12% equity charge</strong> — deliberately fixed and independent of the computed cost of equity.</td></tr>
+              <tr><td class="mono">B_prev</td><td>Opening book value. Reconstructed as <code>equity − NI + dividends paid</code> when the prior-year column is missing or non-positive.</td></tr>
+              <tr><td class="mono">payout</td><td>20% of net income distributed, so 80% compounds into book value.</td></tr>
+              <tr><td class="mono">D&amp;A</td><td><strong>Not used at all.</strong> This is the only one of the four rules that never reads <code>depr</code> — which is why it historically kept working when the others were dropped by NaN propagation.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><span class="num">3</span><h2>Confidence index</h2><span class="tag">munger_pci</span></div>
+      <div class="card">
+        <div class="card-body">
+          <div class="formula">
+            \[ PCI_{Munger} \;=\; \max\Big(0.1,\;\; \text{premium} \cdot \text{duration} \cdot \text{assetLight} \cdot \text{pessimism} \Big) \]
+          </div>
+          <div class="factors">
+            <div class="factor"><b>premium</b>
+              <div class="expr">max(0, (ROIC − WACC) / WACC)</div>
+              <span>How large the excess return is, scaled by WACC.</span></div>
+            <div class="factor"><b>duration</b>
+              <div class="expr">min(1, (ROIC − WACC) × 3) → 0.1</div>
+              <span>Proxy for how long the moat persists; 0.1 when ROIC ≤ WACC.</span></div>
+            <div class="factor"><b>assetLight</b>
+              <div class="expr">1.0 / 0.6</div>
+              <span>1.0 when depreciation is under 5% of revenue, else 0.6.</span></div>
+            <div class="factor"><b>pessimism</b>
+              <div class="expr">0.8</div>
+              <span>Fixed placeholder.</span></div>
+          </div>
+          <p class="note">
+            Unlike the other three, this PCI is <strong>floored at 0.1</strong> so it can never
+            collapse to zero. As with Buffett, it is reported rather than fed into the price.
+          </p>
+          <div class="impl">
+            <span class="lbl">Implemented by</span>
+            <code>munger_price()</code>
+            <span class="arrow">·</span>
+            <span class="chips">
+              <span class="chip">NI</span><span class="chip">equity_prev</span>
+              <span class="chip">g_term</span><span class="chip">ROIC</span>
+              <span class="chip">WACC</span><span class="chip">shares</span>
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════ JHUNJHUNWALA ══════════════════ -->
+  <section class="panel" id="p-jhunjhunwala" style="--pa:var(--p-jhunjhunwala); --pa-soft:var(--p-jhunjhunwala-soft)">
+    <div class="hero">
+      <div class="hero-top">
+        <h2>Rakesh Jhunjhunwala</h2>
+        <span class="pa-chip">Three-stage FCFF</span>
+        <span class="pa-chip">India tailwind</span>
+      </div>
+      <p class="philosophy">"Invest in growth" — buy the compounding runway, and accept that the
+        terminal state of a high-growth business is still a growing one.</p>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><span class="num">1</span><h2>The rule</h2><span class="tag">jhunjhun_price()</span></div>
+      <div class="card">
+        <div class="card-body">
+          <div class="formula">
+            \[ FCFF_0 \;=\; EBIT\,(1-t) \;+\; \text{Dep} \;-\; \text{CapEx} \;-\; 0.05 \cdot \text{nwc\_ratio} \cdot \text{Rev} \]
+          </div>
+          <div class="formula">
+            \[ \text{Stage 1 } (t = 1 \dots 5): \quad FCFF_t = FCFF_{t-1}(1+g_H) \]
+          </div>
+          <div class="formula">
+            \[ \text{Stage 2 } (t = 6 \dots 10): \quad \phi_t = \frac{t - 5}{10 - 5}, \qquad g_t = g_H\,(1 - \phi_t) + g_S\,\phi_t \]
+          </div>
+          <div class="formula">
+            \[ PV = \sum_{t=1}^{10} \frac{FCFF_t}{(1+WACC)^t}, \qquad TV = \frac{FCFF_{10}\,(1+g_S)}{(WACC - g_S)(1+WACC)^{10}} \]
+          </div>
+          <div class="formula">
+            \[ V_0 = \frac{PV + TV - \big(D_{total} - \text{Cash}\big)}{N} \]
+          </div>
+          <p class="note">
+            This is the only rule with a genuine <strong>three-stage</strong> structure: 5 years at
+            a constant hyper-growth rate, a 5-year linear glide path, then a stable perpetuity.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><span class="num">2</span><h2>Constants &amp; assumptions</h2><span class="tag">country-aware</span></div>
+      <div class="card">
+        <div class="card-body">
+          <div class="formula">
+            \[ g_H = \min(0.30,\; g_{rev} + 0.05) \qquad g_S = \begin{cases} 0.07 & \text{India} \\ 0.05 & \text{otherwise}\end{cases} \]
+          </div>
+          <table>
+            <thead><tr><th style="width:22%">Symbol</th><th>Meaning</th></tr></thead>
+            <tbody>
+              <tr><td class="mono">g_H</td><td>Hyper-growth: observed revenue growth plus a flat 5 percentage-point optimism adder, capped at 30%.</td></tr>
+              <tr><td class="mono">g_S</td><td>Stable growth — 7% for Indian listings, 5% elsewhere. Detected from <code>info['country']</code>.</td></tr>
+              <tr><td class="mono">WACC</td><td>The only multi-stage rule that discounts at the <strong>computed WACC</strong> from book equity and beta.</td></tr>
+              <tr><td class="mono">0.05 · NWC</td><td>Working-capital drag is scaled by 5% — higher than Damodaran's 3%, reflecting a growth-company reinvestment view.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><span class="num">3</span><h2>Confidence index</h2><span class="tag">jhunjhun_pci</span></div>
+      <div class="card">
+        <div class="card-body">
+          <div class="formula">
+            \[ PCI_{Jhunjhunwala} \;=\; \text{growth} \cdot \text{india} \cdot \text{TAM} \cdot \text{founder} \]
+          </div>
+          <div class="factors">
+            <div class="factor"><b>growth</b>
+              <div class="expr">1.0 / 0.5 / 0.2</div>
+              <span>1.0 above 20% revenue growth, 0.5 above 10%, else 0.2.</span></div>
+            <div class="factor"><b>india</b>
+              <div class="expr">1.0 / 0.5</div>
+              <span>1.0 for Indian listings — the India tailwind thesis.</span></div>
+            <div class="factor"><b>TAM</b>
+              <div class="expr">0.7</div>
+              <span>Fixed; the total addressable market explicitly "cannot be measured".</span></div>
+            <div class="factor"><b>founder</b>
+              <div class="expr">0.8</div>
+              <span>Fixed placeholder for promoter-led management.</span></div>
+          </div>
+          <div class="impl">
+            <span class="lbl">Implemented by</span>
+            <code>jhunjhun_price()</code>
+            <span class="arrow">·</span>
+            <span class="chips">
+              <span class="chip">EBIT</span><span class="chip">tax_rate</span>
+              <span class="chip">WACC</span><span class="chip">rev_growth</span>
+              <span class="chip">tot_debt</span><span class="chip">cash</span>
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════ DAMODARAN ══════════════════ -->
+  <section class="panel" id="p-damodaran" style="--pa:var(--p-damodaran); --pa-soft:var(--p-damodaran-soft)">
+    <div class="hero">
+      <div class="hero-top">
+        <h2>Aswath Damodaran</h2>
+        <span class="pa-chip">Scenario FCFF</span>
+        <span class="pa-chip">ROIC fade</span>
+      </div>
+      <p class="philosophy">"Valuation is a story, but the story must be quantified" — value the
+        distribution of outcomes, and let excess returns fade toward the cost of capital.</p>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><span class="num">1</span><h2>The rule</h2><span class="tag">damodaran_price()</span></div>
+      <div class="card">
+        <div class="card-body">
+          <div class="formula">
+            \[ FCFF_0 \;=\; EBIT\,(1-t) \;+\; \text{Dep} \;-\; \text{CapEx} \;-\; 0.03 \cdot \text{nwc\_ratio} \cdot \text{Rev} \]
+          </div>
+          <div class="formula">
+            \[ \text{Scenario } i:\;\; g_i = \bar{g} + s_i\,\sigma_g, \qquad s_i \in \{-0.5,\;0,\;+0.5\}, \qquad p_i = \{0.25,\;0.50,\;0.25\} \]
+          </div>
+          <div class="formula">
+            \[ PV_i = \sum_{t=1}^{10} \frac{FCFF_0 \prod_{k=1}^{t}(1+g_i)}{(1+WACC)^t} \]
+          </div>
+          <div class="formula">
+            \[ ROIC_{term} = WACC + 0.02, \qquad RR = \frac{g_{term}}{ROIC_{term}}, \qquad TV_i = \frac{FCFF_{10}\,(1+g_{term})\,(1 - RR)}{WACC - g_{term}} \]
+          </div>
+          <div class="formula">
+            \[ V_0 \;=\; \sum_{i=1}^{3} p_i \cdot \max\!\left(0,\;\; \frac{PV_i + \dfrac{TV_i}{(1+WACC)^{10}} - \big(D_{total} - \text{Cash}\big)}{N}\right) \]
+          </div>
+          <p class="note">
+            The terminal value uses a <strong>reinvestment-rate fade</strong>: as ROIC converges
+            toward WACC plus a 2-point residual, the fraction of cash flow that must be
+            reinvested (<code>RR</code>) rises, cutting the terminal cash flow. Growth is then
+            probability-weighted rather than assumed.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><span class="num">2</span><h2>Constants &amp; assumptions</h2><span class="tag">hard-coded</span></div>
+      <div class="card">
+        <div class="card-body">
+          <div class="formula">
+            \[ \sigma_g = 0.08 \qquad n_{scenarios} = 3 \qquad ROIC_{term} = WACC + 0.02 \qquad T_{explicit} = 10 \]
+          </div>
+          <table>
+            <thead><tr><th style="width:22%">Symbol</th><th>Meaning</th></tr></thead>
+            <tbody>
+              <tr><td class="mono">σ_g</td><td>Growth dispersion. Only ±0.5σ is sampled, so the scenarios span just ±4 percentage points of growth.</td></tr>
+              <tr><td class="mono">WACC</td><td>Computed from book equity and beta, as in the Jhunjhunwala and Munger rules.</td></tr>
+              <tr><td class="mono">0.03 · NWC</td><td>Working-capital drag at 3% — lower than Jhunjhunwala's 5%.</td></tr>
+              <tr><td class="mono">max(0, …)</td><td>Each scenario is floored at zero <em>before</em> weighting, so a deeply negative scenario cannot pull the expected value below zero.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><span class="num">3</span><h2>Confidence index</h2><span class="tag">damodaran_pci</span></div>
+      <div class="card">
+        <div class="card-body">
+          <div class="formula">
+            \[ PCI_{Damodaran} = 0.9 \qquad\text{(constant)} \]
+          </div>
+          <p class="note">
+            The only persona whose confidence is a flat value for any real company — no
+            conditioning on margins, returns or leverage.
+          </p>
+          <div class="impl">
+            <span class="lbl">Implemented by</span>
+            <code>damodaran_price()</code>
+            <span class="arrow">·</span>
+            <span class="chips">
+              <span class="chip">EBIT</span><span class="chip">ebit_margin</span>
+              <span class="chip">WACC</span><span class="chip">g_term</span>
+              <span class="chip">rev_growth</span><span class="chip">shares</span>
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════ FUNCTION REFERENCE ══════════════════ -->
+  <section class="panel" id="p-funcs">
+    <div class="toolbar">
+      <label class="search">
+        <span style="color:var(--text-3)">⌕</span>
+        <input id="fnSearch" type="search" placeholder="Filter by function name, purpose or layer…" autocomplete="off">
+      </label>
+      <span class="count" id="fnCount"></span>
+    </div>
+    <div id="fnList"></div>
+  </section>
+
+  <!-- ══════════════════ DEPENDENCY MAP ══════════════════ -->
+  <section class="panel" id="p-deps">
+
+    <div class="sec">
+      <div class="sec-head"><span class="num">⤓</span><h2>Call hierarchy</h2><span class="tag">inside-out: rules → engine → API</span></div>
+      <div class="flow">
+
+        <div class="layer">
+          <div class="layer-h"><span class="layer-idx">L1</span><h4>External consumer</h4></div>
+          <div class="node-grid">
+            <div class="node ext"><b>PERSONA_AGENTS_CREW.py</b>
+              <span>imports PERSONA_BASED_VALUATION as pv · calls pv.persona_valuations()</span></div>
+          </div>
+        </div>
+
+        <div class="conn"><span></span></div>
+
+        <div class="layer">
+          <div class="layer-h"><span class="layer-idx">L2</span><h4>Public API — two thin wrappers</h4></div>
+          <div class="node-grid">
+            <div class="node pub"><b>persona_super_valuation()</b><span>→ (min, max, midpoint)</span></div>
+            <div class="node pub"><b>persona_valuations()</b><span>→ dict, all four keys</span></div>
+          </div>
+        </div>
+
+        <div class="conn"><span></span></div>
+
+        <div class="layer">
+          <div class="layer-h"><span class="layer-idx">L3</span><h4>The single engine</h4></div>
+          <div class="node-grid">
+            <div class="node eng"><b>_persona_prices()</b>
+              <span>fetch → derive ratios &amp; cost of capital → build PCI → run 4 rules → filter val &gt; 0</span></div>
+          </div>
+        </div>
+
+        <div class="conn"><span></span></div>
+
+        <div class="layer">
+          <div class="layer-h"><span class="layer-idx">L4</span><h4>Helpers used by the engine</h4></div>
+          <div class="node-grid">
+            <div class="node hlp"><b>_get_fin()</b><span>module-level · ~20 calls, first non-NaN label wins</span></div>
+            <div class="node hlp"><b>_ratio()</b><span>nested closure · NaN-safe division with defaults</span></div>
+          </div>
+        </div>
+
+        <div class="conn"><span></span></div>
+
+        <div class="layer">
+          <div class="layer-h"><span class="layer-idx">L5</span><h4>The four persona rules — nested closures</h4></div>
+          <div class="node-grid">
+            <div class="node nst" style="border-left-color:var(--p-buffett)"><b>buffett_price()</b><span>owner earnings + MoS</span></div>
+            <div class="node nst" style="border-left-color:var(--p-munger)"><b>munger_price()</b><span>residual income</span></div>
+            <div class="node nst" style="border-left-color:var(--p-jhunjhunwala)"><b>jhunjhun_price()</b><span>three-stage FCFF</span></div>
+            <div class="node nst" style="border-left-color:var(--p-damodaran)"><b>damodaran_price()</b><span>scenario FCFF</span></div>
+          </div>
+        </div>
+
+      </div>
+      <div class="legend">
+        <span><i class="dot-ext"></i>External consumer</span>
+        <span><i class="dot-pub"></i>Public API</span>
+        <span><i class="dot-eng"></i>Engine</span>
+        <span><i class="dot-hlp"></i>Helper</span>
+        <span><i class="dot-nst"></i>Persona rule (nested)</span>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><span class="num">⇄</span><h2>Linkage matrix</h2><span class="tag">who calls whom</span></div>
+      <div class="card">
+        <div class="card-body" style="padding:0">
+          <table>
+            <thead><tr><th>Function</th><th>Calls</th><th>Called by</th><th style="text-align:center">Layer</th></tr></thead>
+            <tbody id="matrixBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><span class="num">!</span><h2>Notable behaviours</h2><span class="tag">read before trusting output</span></div>
+      <div class="card">
+        <div class="card-body" style="padding:0">
+          <table>
+            <thead><tr><th style="width:34%">Location</th><th>Behaviour</th></tr></thead>
+            <tbody>
+              <tr>
+                <td class="mono">damodaran_price()</td>
+                <td>Each scenario computes <code>sc['marg']</code> (a stressed/relaxed EBIT margin) but the projection loop only reads <code>sc['g']</code>. The margin differentiation is <strong>never applied</strong> — the three scenarios differ only by growth rate.</td>
+              </tr>
+              <tr>
+                <td class="mono">buffett_price()</td>
+                <td>Discounts at <code>r_f + 0.02</code> and grows at <code>min(r_f, 0.02)</code>. Because <code>g_B ≤ r_B</code> always holds, the terminal value is always finite — this rule can never divide by zero.</td>
+              </tr>
+              <tr>
+                <td class="mono">_persona_prices()</td>
+                <td>The <code>if val &gt; 0</code> guard is deliberate and preserved. It means the range and per-persona values always agree, but also that a rule producing a negative value vanishes rather than reporting a bearish view.</td>
+              </tr>
+              <tr>
+                <td class="mono">persona_super_valuation()</td>
+                <td>Returns <strong>(min+max)/2</strong> as the third element, not the mean of the four persona values. With only two survivors this coincides; with three or four it does not.</td>
+              </tr>
+              <tr>
+                <td class="mono">_ratio()</td>
+                <td>Lives inside <code>_persona_prices()</code>, so it is re-created on every call. It exists specifically to stop a single missing yfinance row from NaN-propagating into three of the four rules.</td>
+              </tr>
+              <tr>
+                <td class="mono">WACC vs k_e</td>
+                <td>Two different capital costs coexist: <code>wacc</code> (book-equity weighted, used by Munger / Jhunjhunwala / Damodaran) and the fixed <code>r_M = 0.12</code> and <code>r_B = r_f + 0.02</code> used by Munger and Buffett respectively. They are not reconciled.</td>
+              </tr>
+              <tr>
+                <td class="mono">_get_fin() idx</td>
+                <td>Defaults to column index 0 — the most recent year. Only <code>int_exp</code> is passed explicitly with <code>idx=0</code>; <code>equity_prev</code> uses <code>idx=1</code>.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </section>
+
+</main>
+
+<footer>
+  Generated reference for <code>PERSONA_BASED_VALUATION.py</code> · 4 persona rules, 9 functions,
+  1 shared engine · Press <kbd>/</kbd> to search the function reference.
+</footer>
+
+<script>
+/* ──────────────────────────────────────────────────────────────────
+   Function reference data
+   ────────────────────────────────────────────────────────────────── */
+const FUNCS = [
+  {
+    name: "persona_super_valuation", kind: "public", kindLabel: "Public", layer: "L2",
+    section: "Public API",
+    sig: "persona_super_valuation(\n    ticker: str,\n) -> Tuple[Optional[float], Optional[float], Optional[float]]",
+    purpose: "Returns the (min, max, midpoint) per-share range across whichever persona rules produced a positive value. Thin wrapper that preserves the original public contract.",
+    returns: "(min, max, mid) in REPORTING currency, or (None, None, None) when nothing could be valued.",
+    calls: ["_persona_prices"],
+    calledBy: ["__main__", "PERSONA_AGENTS_CREW (conceptually / replicated)"],
+    notes: "The third element is (min + max) / 2 — the MIDPOINT, not the mean of the four persona values. Pre-existing behaviour, left untouched because callers depend on it."
+  },
+  {
+    name: "persona_valuations", kind: "public", kindLabel: "Public", layer: "L2",
+    section: "Public API",
+    sig: "persona_valuations(\n    ticker: str,\n) -> Dict[str, Optional[float]]",
+    purpose: "Per-persona counterpart to persona_super_valuation(): the four values stay separate and labelled instead of collapsing into a range. This is what lets the crewAI result be compared and blended persona by persona.",
+    returns: "dict with keys Buffett, Munger, Jhunjhunwala, Damodaran — values in reporting currency or None. Never raises.",
+    calls: ["_persona_prices"],
+    calledBy: ["PERSONA_AGENTS_CREW.persona_bridge (pv.persona_valuations)", "__main__"],
+    notes: "All four keys are ALWAYS present — a rule that did not price maps to None, so callers can count participants without special-casing a missing key."
+  },
+  {
+    name: "_persona_prices", kind: "engine", kindLabel: "Engine", layer: "L3",
+    section: "Core engine",
+    sig: "_persona_prices(\n    ticker: str,\n) -> List[Tuple[str, float]]",
+    purpose: "The single internal engine shared by both public wrappers. Fetches statements via yfinance, derives all shared ratios and capital costs, builds the four PCI scores, runs the four rule-based models, and filters to positive values only.",
+    returns: "Named values in reporting currency, e.g. [('Buffett', 1280.0), ('Munger', 1250.0)]. Empty list when nothing could be computed.",
+    calls: ["_get_fin", "_ratio", "buffett_price", "munger_price", "jhunjhun_price", "damodaran_price", "yfinance.Ticker"],
+    calledBy: ["persona_super_valuation", "persona_valuations"],
+    notes: "Every exception is caught and printed as 'Error for <ticker>' — never raised, so both wrappers degrade cleanly. Raises ValueError internally if all four rules fail, which is then swallowed by the except clause."
+  },
+  {
+    name: "_get_fin", kind: "helper", kindLabel: "Helper", layer: "L4",
+    section: "Helpers",
+    sig: "_get_fin(\n    df: pd.DataFrame,\n    names: list,\n    idx: int = 0,\n) -> float",
+    purpose: "Safe financial-statement extraction. Walks a list of candidate row labels in priority order and returns the first value that is present and not NaN.",
+    returns: "float — the first non-NaN match, or np.nan when no candidate label exists in the DataFrame.",
+    calls: [],
+    calledBy: ["_persona_prices (about 20 call sites)"],
+    notes: "Works because yfinance row labels vary by listing and period. The caller is responsible for NaN fallbacks — several call sites do `if pd.isna(x): x = 0.0` immediately afterwards. idx selects the column, i.e. the fiscal year (0 = most recent)."
+  },
+  {
+    name: "_ratio", kind: "helper", kindLabel: "Nested helper", layer: "L4",
+    section: "Helpers",
+    sig: "_ratio(\n    num: float,\n    den: float,\n    default: float,\n) -> float",
+    purpose: "NaN-safe division used for every normalised ratio (ebit_margin, depr_ratio, capex_ratio, nwc_ratio, roe, roic). Returns the caller-supplied default when either input is NaN or the denominator is zero.",
+    returns: "num / den, or `default`.",
+    calls: ["pandas.isna"],
+    calledBy: ["_persona_prices"],
+    notes: "Exists specifically to stop one missing yfinance row from NaN-propagating into a persona rule and silently removing it from the range. Defined INSIDE _persona_prices, so it is re-created on every call."
+  },
+  {
+    name: "buffett_price", kind: "rule", kindLabel: "Persona rule", layer: "L5",
+    section: "Nested rules",
+    sig: "buffett_price() -> float",
+    purpose: "Owner-earnings DCF: projects owner earnings for 10 explicit years plus a Gordon terminal value, then applies a 25% margin of safety before dividing by shares.",
+    returns: "float — per-share intrinsic value after the margin of safety.",
+    calls: [],
+    calledBy: ["_persona_prices"],
+    notes: "Discounts at r_f + 0.02 and grows at min(r_f, 0.02), so the terminal value is always finite. Charges only 80% of CapEx against earnings. Reads its inputs (NI, depr, capex, nwc_ratio, rev, rf, shares) directly from the enclosing _persona_prices scope — it takes no arguments."
+  },
+  {
+    name: "munger_price", kind: "rule", kindLabel: "Persona rule", layer: "L5",
+    section: "Nested rules",
+    sig: "munger_price() -> float",
+    purpose: "Residual income model with a moat-truncated horizon: book value plus the present value of residual income, for T years where T scales with the ROIC-over-WACC excess return.",
+    returns: "float — (equity_prev + PV of residual income) / shares.",
+    calls: [],
+    calledBy: ["_persona_prices"],
+    notes: "Uses a flat 12% equity charge, assumes a 20% payout, and has NO terminal value beyond T. The only one of the four rules that never reads depr — which is why it survived when NaN propagation dropped the other three."
+  },
+  {
+    name: "jhunjhun_price", kind: "rule", kindLabel: "Persona rule", layer: "L5",
+    section: "Nested rules",
+    sig: "jhunjhun_price() -> float",
+    purpose: "Three-stage FCFF: 5 years at hyper-growth, a 5-year linear glide path toward stable growth, then a stable perpetuity. Enterprise value is bridged to equity by subtracting net debt.",
+    returns: "float — equity value per share, or 0 when the equity value is negative.",
+    calls: [],
+    calledBy: ["_persona_prices"],
+    notes: "Growth rates are country-aware: g_stable is 7% for Indian listings, 5% otherwise; g_hyper is revenue growth + 5pp capped at 30%. Working-capital drag is scaled by 5%, higher than Damodaran's 3%."
+  },
+  {
+    name: "damodaran_price", kind: "rule", kindLabel: "Persona rule", layer: "L5",
+    section: "Nested rules",
+    sig: "damodaran_price() -> float",
+    purpose: "Scenario-based FCFF: builds three growth scenarios (probabilities 0.25 / 0.50 / 0.25) around the observed revenue growth with sigma 0.08, discounts each, and returns the probability-weighted expected per-share value.",
+    returns: "float — expected per-share value across the three scenarios.",
+    calls: ["max"],
+    calledBy: ["_persona_prices"],
+    notes: "The terminal value fades ROIC toward WACC + 0.02 via a reinvestment rate. Each scenario is floored at max(0, ...) BEFORE weighting, so a negative scenario cannot drag the expected value below zero. The stress/relax margin factor (sc['marg']) is computed but never used."
+  }
+];
+
+/* ── Rendering ────────────────────────────────────────────────────── */
+const esc = s => String(s)
+  .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+function sigHTML(sig){
+  return esc(sig)
+    .replace(/^([a-z_][a-z0-9_]*)/, '<span class="fn-key">$1</span>')
+    .replace(/(:\s*)([A-Z\[][A-Za-z0-9_\[\], \.]*|float|int|str|dict|bool)(?=[,\n\)])/g,
+             '$1<span class="ty">$2</span>');
+}
+
+function chips(arr, cls){
+  if(!arr || !arr.length) return '<span class="chip none">— none —</span>';
+  return arr.map(n => `<span class="chip ${cls}">${esc(n)}</span>`).join('');
+}
+
+function fnCard(f){
+  return `
+  <article class="fn">
+    <div class="fn-head">
+      <span class="fn-name">${esc(f.name)}</span>
+      <span class="badge b-${f.kind}">${esc(f.kindLabel)}</span>
+      <span class="fn-sec">${esc(f.section)} · ${esc(f.layer)}</span>
+    </div>
+    <div class="card-body">
+      <pre class="sig">${sigHTML(f.sig)}</pre>
+      <dl class="kv">
+        <dt>Purpose</dt><dd>${esc(f.purpose)}</dd>
+        <dt>Returns</dt><dd>${esc(f.returns)}</dd>
+        <dt>Calls</dt><dd><div class="chips">${chips(f.calls, 'call')}</div></dd>
+        <dt>Called by</dt><dd><div class="chips">${chips(f.calledBy, 'by')}</div></dd>
+        ${f.notes ? `<dt>Notes</dt><dd>${esc(f.notes)}</dd>` : ''}
+      </dl>
+    </div>
+  </article>`;
+}
+
+function renderFns(q){
+  const term = (q || "").trim().toLowerCase();
+  const list = FUNCS.filter(f => !term ||
+    (f.name + " " + f.purpose + " " + f.section + " " + f.kindLabel + " " + f.layer)
+      .toLowerCase().includes(term));
+  document.getElementById("fnList").innerHTML =
+    list.length ? list.map(fnCard).join("")
+                : '<p class="note" style="padding:20px">No functions match that filter.</p>';
+  document.getElementById("fnCount").textContent = list.length + " / " + FUNCS.length + " functions";
+}
+
+/* ── Linkage matrix ───────────────────────────────────────────────── */
+function renderMatrix(){
+  document.getElementById("matrixBody").innerHTML = FUNCS.map(f => `
+    <tr>
+      <td class="mono">${esc(f.name)}()</td>
+      <td><div class="chips">${chips(f.calls, 'call')}</div></td>
+      <td><div class="chips">${chips(f.calledBy, 'by')}</div></td>
+      <td class="c">${esc(f.layer)}</td>
+    </tr>`).join("");
+}
+
+/* ── Tabs ─────────────────────────────────────────────────────────── */
+function activate(panelId){
+  document.querySelectorAll(".tab").forEach(x =>
+    x.classList.toggle("active", x.dataset.panel === panelId));
+  document.querySelectorAll(".panel").forEach(p =>
+    p.classList.toggle("active", p.id === panelId));
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function initTabs(){
+  document.querySelectorAll(".tab").forEach(t =>
+    t.addEventListener("click", () => activate(t.dataset.panel)));
+
+  // Overview persona cards jump to the matching persona tab.
+  document.querySelectorAll("[data-goto]").forEach(card =>
+    card.addEventListener("click", () => activate(card.dataset.goto)));
+}
+
+/* ── Theme ────────────────────────────────────────────────────────── */
+function initTheme(){
+  const root = document.documentElement;
+  const saved = localStorage.getItem("persona-theme");
+  if(saved) root.dataset.theme = saved;
+  document.getElementById("themeBtn").addEventListener("click", () => {
+    root.dataset.theme = root.dataset.theme === "dark" ? "light" : "dark";
+    localStorage.setItem("persona-theme", root.dataset.theme);
+  });
+}
+
+/* ── Init ─────────────────────────────────────────────────────────── */
+document.addEventListener("DOMContentLoaded", () => {
+  initTabs();
+  initTheme();
+  renderFns("");
+  renderMatrix();
+  document.getElementById("fnSearch").addEventListener("input", e => renderFns(e.target.value));
+
+  document.addEventListener("keydown", e => {
+    if(e.key === "/" && document.activeElement.tagName !== "INPUT"){
+      e.preventDefault();
+      activate("p-funcs");
+      document.getElementById("fnSearch").focus();
+    }
+  });
+});
+
+/* KaTeX: render every \[ … \] block once the DOM and library are ready. */
+window.addEventListener("load", () => {
+  if(window.renderMathInElement){
+    renderMathInElement(document.body, {
+      delimiters: [
+        {left: "\\[", right: "\\]", display: true},
+        {left: "\\(", right: "\\)", display: false}
+      ],
+      throwOnError: false
+    });
+  }
+});
+</script>
+
+</body>
+</html>

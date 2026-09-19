@@ -1,0 +1,1269 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ReAct Agent Models — stock_react_agent.py Reference</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+
+<style>
+/* ── Design tokens ───────────────────────────────────────────────── */
+:root{
+  --bg:#f5f7fb; --surface:#fff; --surface-2:#fafbfe; --border:#e4e8f0;
+  --text:#0f172a; --text-2:#5b6679; --text-3:#8b95a7;
+  --accent:#4f46e5; --accent-soft:#eef0ff; --accent-2:#0284c7;
+  --green:#0f9d58; --green-soft:#e8f7ef;
+  --amber:#b45309; --amber-soft:#fdf3e3;
+  --rose:#be123c; --rose-soft:#fdeaf0;
+  --violet:#7c3aed; --violet-soft:#f3ecfe;
+  --teal:#0f766e; --teal-soft:#e6f6f4;
+  --code-bg:#f3f5fa;
+  --radius:14px; --radius-sm:9px;
+  --shadow:0 1px 2px rgba(15,23,42,.05), 0 10px 28px -14px rgba(15,23,42,.22);
+  --mono:"JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* persona accents */
+  --p-fund:#4f46e5;  --p-fund-soft:#eef0ff;
+  --p-tech:#0284c7;  --p-tech-soft:#e6f4fd;
+  --p-tool:#b45309;  --p-tool-soft:#fdf3e3;
+}
+[data-theme="dark"]{
+  --bg:#080b13; --surface:#0f1523; --surface-2:#121a2b; --border:#222c42;
+  --text:#e9eefb; --text-2:#9aa6bd; --text-3:#6c7891;
+  --accent:#8f8ff8; --accent-soft:#1a1f3d; --accent-2:#4cc9f0;
+  --green:#3ddc97; --green-soft:#0d2a1f;
+  --amber:#f0b357; --amber-soft:#2a1f0d;
+  --rose:#fb7185; --rose-soft:#2d1119;
+  --violet:#c4b5fd; --violet-soft:#1f1836;
+  --teal:#5eead4; --teal-soft:#082522;
+  --code-bg:#0c1220;
+  --shadow:0 1px 2px rgba(0,0,0,.6), 0 14px 36px -18px rgba(0,0,0,.9);
+
+  --p-fund:#a5b4fc;  --p-fund-soft:#1b1f42;
+  --p-tech:#7dd3fc;  --p-tech-soft:#082431;
+  --p-tool:#f0b357;  --p-tool-soft:#2a1f0d;
+}
+
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{
+  margin:0; background:var(--bg); color:var(--text);
+  font-family:Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size:15px; line-height:1.65;
+  -webkit-font-smoothing:antialiased;
+}
+
+/* ── Header ──────────────────────────────────────────────────────── */
+header{
+  position:sticky; top:0; z-index:40;
+  background:color-mix(in srgb, var(--surface) 88%, transparent);
+  backdrop-filter:blur(12px); border-bottom:1px solid var(--border);
+}
+.hdr-inner{max-width:1180px; margin:0 auto; padding:14px 26px;
+  display:flex; align-items:center; gap:16px}
+.brand{display:flex; align-items:center; gap:13px; min-width:0}
+.logo{width:40px; height:40px; flex:none; border-radius:11px;
+  background:linear-gradient(135deg, var(--accent), var(--accent-2));
+  display:grid; place-items:center; color:#fff; font-weight:700; font-size:14px;
+  box-shadow:0 6px 16px -6px var(--accent)}
+.brand h1{margin:0; font-size:16.5px; font-weight:650; letter-spacing:-.01em; white-space:nowrap}
+.brand p{margin:0; font-size:12.5px; color:var(--text-2)}
+.hdr-actions{margin-left:auto; display:flex; align-items:center; gap:10px}
+.src-chip{font-family:var(--mono); font-size:11.5px; padding:5px 11px; border-radius:99px;
+  background:var(--code-bg); border:1px solid var(--border); color:var(--text-2); white-space:nowrap}
+.icon-btn{width:36px; height:36px; border-radius:10px; border:1px solid var(--border);
+  background:var(--surface); color:var(--text-2); cursor:pointer;
+  display:grid; place-items:center; font-size:15px; transition:.15s}
+.icon-btn:hover{color:var(--accent); border-color:var(--accent)}
+
+main{max-width:1180px; margin:0 auto; padding:26px 26px 90px}
+
+/* ── Tabs ────────────────────────────────────────────────────────── */
+.tabs{display:flex; gap:6px; padding:6px; margin-bottom:26px;
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:13px; box-shadow:var(--shadow); overflow-x:auto}
+.tab{flex:1 1 auto; min-width:112px; border:0; cursor:pointer; background:transparent;
+  color:var(--text-2); font:inherit; font-weight:550; font-size:13.5px;
+  padding:10px 14px; border-radius:9px; transition:.15s; white-space:nowrap}
+.tab:hover{color:var(--text); background:var(--surface-2)}
+.tab.active{background:linear-gradient(135deg, var(--accent), var(--accent-2));
+  color:#fff; box-shadow:0 6px 18px -8px var(--accent)}
+.tab.active[data-persona="fund"]{background:linear-gradient(135deg,#6366f1,#4338ca); box-shadow:0 6px 18px -8px #4f46e5}
+.tab.active[data-persona="tech"]{background:linear-gradient(135deg,#0ea5e9,#0369a1); box-shadow:0 6px 18px -8px #0284c7}
+.tab.active[data-persona="tool"]{background:linear-gradient(135deg,#d97706,#b45309); box-shadow:0 6px 18px -8px #b45309}
+
+.panel{display:none}
+.panel.active{display:block; animation:fade .22s ease}
+@keyframes fade{from{opacity:0; transform:translateY(4px)}to{opacity:1;transform:none}}
+
+/* ── Hero ────────────────────────────────────────────────────────── */
+.hero{border:1px solid var(--border); border-left:4px solid var(--pa, var(--accent));
+  border-radius:var(--radius); background:var(--surface);
+  box-shadow:var(--shadow); padding:20px 22px; margin-bottom:22px}
+.hero-top{display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin-bottom:6px}
+.hero-top h2{margin:0; font-size:22px; font-weight:680; letter-spacing:-.02em}
+.hero .philosophy{margin:0; font-size:14.5px; color:var(--text-2); font-style:italic}
+.pa-chip{font-family:var(--mono); font-size:11px; font-weight:600; padding:3px 9px;
+  border-radius:99px; background:var(--pa-soft, var(--accent-soft)); color:var(--pa, var(--accent))}
+
+/* ── Sections & cards ────────────────────────────────────────────── */
+.sec{margin-bottom:28px}
+.sec-head{display:flex; align-items:baseline; gap:12px; margin:0 0 14px}
+.sec-head .num{font-family:var(--mono); font-size:12px; font-weight:600;
+  color:var(--accent); background:var(--accent-soft); padding:3px 9px; border-radius:7px; flex:none}
+.sec-head h2{margin:0; font-size:19px; font-weight:650; letter-spacing:-.015em}
+.sec-head .tag{margin-left:auto; font-size:11.5px; color:var(--text-3);
+  font-family:var(--mono); white-space:nowrap}
+
+.card{background:var(--surface); border:1px solid var(--border);
+  border-radius:var(--radius); box-shadow:var(--shadow); margin-bottom:14px; overflow:hidden}
+.card-top{padding:14px 18px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+  border-bottom:1px solid var(--border); background:var(--surface-2)}
+.card-top h3{margin:0; font-size:14.5px; font-weight:625; letter-spacing:-.01em}
+.card-body{padding:16px 18px}
+
+.badge{font-size:10.5px; font-weight:650; letter-spacing:.03em; text-transform:uppercase;
+  padding:3.5px 9px; border-radius:99px; white-space:nowrap}
+.b-persona{background:var(--accent-soft); color:var(--accent)}
+.b-tool{background:var(--amber-soft); color:var(--amber)}
+.b-helper{background:var(--violet-soft); color:var(--violet)}
+.b-orch{background:var(--rose-soft); color:var(--rose)}
+.b-parse{background:var(--teal-soft); color:var(--teal)}
+.b-data{background:var(--green-soft); color:var(--green)}
+
+/* ── Code / prompt blocks ────────────────────────────────────────── */
+.prompt{
+  font-family:var(--mono); font-size:12.2px; line-height:1.7;
+  background:var(--code-bg); border:1px solid var(--border);
+  border-left:3px solid var(--pa, var(--accent));
+  border-radius:var(--radius-sm); padding:13px 15px; margin:2px 0 12px;
+  white-space:pre-wrap; word-break:break-word; color:var(--text); overflow-x:auto;
+}
+.formula{background:var(--code-bg); border:1px solid var(--border);
+  border-left:3px solid var(--pa, var(--accent));
+  border-radius:var(--radius-sm); padding:14px 16px; margin:2px 0 12px;
+  overflow-x:auto; overflow-y:hidden}
+.formula .katex-display{margin:.25em 0}
+.formula .katex{font-size:1.05em}
+
+.note{font-size:13px; color:var(--text-2); margin:8px 0 0}
+.note strong{color:var(--text); font-weight:600}
+.impl{display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+  font-size:12.5px; color:var(--text-2); margin-top:10px;
+  padding-top:10px; border-top:1px dashed var(--border)}
+.impl .lbl{font-weight:600; color:var(--text)}
+
+code, .mono{font-family:var(--mono)}
+code{font-size:12.3px; background:var(--code-bg); border:1px solid var(--border);
+  padding:1.5px 6px; border-radius:5px; color:var(--text); white-space:nowrap}
+.chips{display:flex; flex-wrap:wrap; gap:6px}
+.chip{font-family:var(--mono); font-size:11.3px; padding:3px 9px; border-radius:7px;
+  background:var(--code-bg); border:1px solid var(--border); color:var(--text-2)}
+.chip.call{color:var(--accent-2); border-color:color-mix(in srgb, var(--accent-2) 30%, var(--border))}
+.chip.by{color:var(--violet); border-color:color-mix(in srgb, var(--violet) 30%, var(--border))}
+.chip.none{opacity:.55}
+
+/* ── Verdict pills ───────────────────────────────────────────────── */
+.verdicts{display:flex; gap:8px; flex-wrap:wrap; margin:4px 0 0}
+.vd{font-family:var(--mono); font-size:11.5px; font-weight:600; padding:5px 12px; border-radius:8px}
+.vd.sbuy{background:var(--green-soft); color:var(--green); border:1px solid color-mix(in srgb,var(--green) 35%,var(--border))}
+.vd.buy{background:var(--teal-soft); color:var(--teal); border:1px solid color-mix(in srgb,var(--teal) 35%,var(--border))}
+.vd.hold{background:var(--amber-soft); color:var(--amber); border:1px solid color-mix(in srgb,var(--amber) 35%,var(--border))}
+.vd.sell{background:var(--rose-soft); color:var(--rose); border:1px solid color-mix(in srgb,var(--rose) 35%,var(--border))}
+.vd.ssell{background:var(--rose-soft); color:var(--rose); border:1px solid color-mix(in srgb,var(--rose) 50%,var(--border))}
+.vd.neutral{background:var(--code-bg); color:var(--text-3); border:1px solid var(--border)}
+
+/* ── Overview grid ───────────────────────────────────────────────── */
+.pgrid{display:grid; grid-template-columns:repeat(auto-fill,minmax(258px,1fr)); gap:12px}
+.pcard{border:1px solid var(--border); border-top:3px solid var(--pc);
+  border-radius:var(--radius); background:var(--surface);
+  box-shadow:var(--shadow); padding:15px 16px; cursor:pointer; transition:.15s}
+.pcard:hover{transform:translateY(-2px); border-color:color-mix(in srgb, var(--pc) 45%, var(--border))}
+.pcard h4{margin:0 0 2px; font-size:15px; font-weight:660; color:var(--pc)}
+.pcard .kind{font-size:11px; text-transform:uppercase; letter-spacing:.05em;
+  color:var(--text-3); font-weight:650}
+.pcard p{margin:8px 0 0; font-size:12.6px; color:var(--text-2)}
+
+/* ── Layers ──────────────────────────────────────────────────────── */
+.lgrid{display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:11px}
+.lcard{border:1px solid var(--border); border-radius:var(--radius);
+  background:var(--surface); box-shadow:var(--shadow); padding:14px 16px;
+  border-left:3px solid var(--lc)}
+.lcard .n{font-family:var(--mono); font-size:11px; font-weight:600; color:var(--lc)}
+.lcard h4{margin:4px 0 6px; font-size:14px; font-weight:640}
+.lcard p{margin:0; font-size:12.5px; color:var(--text-2)}
+.lcard .fn{font-family:var(--mono); font-size:11.3px; color:var(--text-3); margin-top:7px}
+
+/* ── Function reference ──────────────────────────────────────────── */
+.toolbar{display:flex; align-items:center; gap:12px; margin-bottom:16px; flex-wrap:wrap}
+.search{flex:1; min-width:230px; display:flex; align-items:center; gap:9px;
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:11px; padding:9px 13px; box-shadow:var(--shadow)}
+.search input{border:0; outline:0; background:transparent; color:var(--text);
+  font:inherit; font-size:14px; width:100%}
+.search input::placeholder{color:var(--text-3)}
+.count{font-size:12.5px; color:var(--text-2); font-family:var(--mono); white-space:nowrap}
+
+.fn{background:var(--surface); border:1px solid var(--border);
+  border-radius:var(--radius); box-shadow:var(--shadow); margin-bottom:12px;
+  overflow:hidden; transition:.15s}
+.fn:hover{border-color:color-mix(in srgb, var(--accent) 40%, var(--border))}
+.fn-head{padding:14px 18px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+  border-bottom:1px solid var(--border); background:var(--surface-2)}
+.fn-name{font-family:var(--mono); font-size:13.5px; font-weight:600; color:var(--accent)}
+.fn-sec{font-size:11.5px; color:var(--text-3); margin-left:auto; white-space:nowrap}
+.sig{font-family:var(--mono); font-size:12.2px; line-height:1.72;
+  background:var(--code-bg); border:1px solid var(--border);
+  border-radius:var(--radius-sm); padding:12px 14px; margin:0 0 12px;
+  white-space:pre-wrap; word-break:break-word; color:var(--text)}
+.sig .fn-key{color:var(--accent); font-weight:600}
+.sig .ty{color:var(--text-3)}
+.kv{display:grid; grid-template-columns:96px 1fr; gap:5px 14px; font-size:13.2px}
+.kv dt{color:var(--text-3); font-weight:600; font-size:11.5px; text-transform:uppercase;
+  letter-spacing:.03em; padding-top:2px}
+.kv dd{margin:0; color:var(--text-2)}
+
+/* ── Dependency map ──────────────────────────────────────────────── */
+.flow{display:flex; flex-direction:column; gap:0}
+.layer{background:var(--surface); border:1px solid var(--border);
+  border-radius:var(--radius); box-shadow:var(--shadow); padding:16px 18px}
+.layer-h{display:flex; align-items:center; gap:10px; margin-bottom:12px; flex-wrap:wrap}
+.layer-h h4{margin:0; font-size:13px; font-weight:650; text-transform:uppercase;
+  letter-spacing:.06em; color:var(--text-2)}
+.layer-idx{font-family:var(--mono); font-size:11px; font-weight:600; color:var(--accent);
+  background:var(--accent-soft); padding:2px 8px; border-radius:6px}
+.conn{display:grid; place-items:center; padding:5px 0}
+.conn span{width:2px; height:26px;
+  background:linear-gradient(var(--accent), color-mix(in srgb, var(--accent) 25%, transparent));
+  border-radius:2px; position:relative}
+.conn span::after{content:""; position:absolute; bottom:-1px; left:50%; transform:translateX(-50%);
+  border-left:4.5px solid transparent; border-right:4.5px solid transparent; border-top:7px solid var(--accent)}
+.node-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(215px,1fr)); gap:8px}
+.node{border:1px solid var(--border); border-radius:10px; padding:9px 12px;
+  background:var(--surface-2); font-size:12.4px}
+.node b{font-family:var(--mono); font-size:11.8px; font-weight:600; color:var(--text); display:block}
+.node span{color:var(--text-3); font-size:11.4px}
+.node.orch{border-left:3px solid var(--rose)}
+.node.per{border-left:3px solid var(--accent)}
+.node.per2{border-left:3px solid var(--accent-2)}
+.node.tl{border-left:3px solid var(--amber)}
+.node.hp{border-left:3px solid var(--violet)}
+.node.ou{border-left:3px solid var(--green)}
+
+table{width:100%; border-collapse:collapse; font-size:13px; margin-top:4px}
+th,td{padding:9px 11px; text-align:left; border-bottom:1px solid var(--border)}
+th{font-size:11px; text-transform:uppercase; letter-spacing:.05em;
+  color:var(--text-3); font-weight:650; background:var(--surface-2)}
+tbody tr:last-child td{border-bottom:0}
+td.mono{font-family:var(--mono); font-size:11.8px; color:var(--accent)}
+td.c{text-align:center; font-family:var(--mono); color:var(--text-2)}
+
+.legend{display:flex; gap:14px; flex-wrap:wrap; font-size:12px; color:var(--text-2);
+  margin-top:12px; padding-top:12px; border-top:1px solid var(--border)}
+.legend i{display:inline-block; width:9px; height:9px; border-radius:3px; margin-right:6px}
+.dot-orch{background:var(--rose)} .dot-per{background:var(--accent)}
+.dot-per2{background:var(--accent-2)} .dot-tl{background:var(--amber)}
+.dot-hp{background:var(--violet)} .dot-ou{background:var(--green)}
+
+.callout{display:flex; gap:11px; padding:13px 15px; border-radius:var(--radius-sm);
+  background:var(--amber-soft); border:1px solid color-mix(in srgb, var(--amber) 25%, var(--border));
+  font-size:13px; color:var(--text-2); margin-bottom:14px}
+.callout b{color:var(--text)}
+.callout .ico{flex:none; font-size:14px}
+
+footer{max-width:1180px; margin:0 auto; padding:22px 26px 40px;
+  border-top:1px solid var(--border); color:var(--text-3); font-size:12.5px}
+footer code{font-size:11.5px}
+kbd{font-family:var(--mono); font-size:11px; background:var(--surface-2);
+  border:1px solid var(--border); border-bottom-width:2px; border-radius:5px;
+  padding:1px 6px; color:var(--text-2)}
+
+@media (max-width:820px){
+  .hdr-inner, main, footer{padding-left:16px; padding-right:16px}
+  .src-chip{display:none}
+  .kv{grid-template-columns:1fr; gap:2px}
+  .kv dt{padding-top:8px}
+  .brand p{display:none}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="hdr-inner">
+    <div class="brand">
+      <div class="logo">SRA</div>
+      <div>
+        <h1>ReAct Agent Models</h1>
+        <p>Every persona, tool and function in <code style="font-size:11.5px">stock_react_agent.py</code></p>
+      </div>
+    </div>
+    <div class="hdr-actions">
+      <span class="src-chip">2 LLM personas · 3 @tools · 19 functions</span>
+      <button class="icon-btn" id="themeBtn" title="Toggle light / dark" aria-label="Toggle theme">◐</button>
+    </div>
+  </div>
+</header>
+
+<main>
+
+  <nav class="tabs" role="tablist">
+    <button class="tab active" role="tab" data-panel="p-overview">Overview</button>
+    <button class="tab" role="tab" data-panel="p-fund" data-persona="fund">Fundamental Analyst</button>
+    <button class="tab" role="tab" data-panel="p-tech" data-persona="tech">Technical Analyst</button>
+    <button class="tab" role="tab" data-panel="p-tools" data-persona="tool">ReAct Tools</button>
+    <button class="tab" role="tab" data-panel="p-funcs">Function Reference</button>
+    <button class="tab" role="tab" data-panel="p-deps">Dependency Map</button>
+  </nav>
+
+  <!-- ══════════════════ OVERVIEW ══════════════════ -->
+  <section class="panel active" id="p-overview">
+
+    <div class="callout">
+      <span class="ico">◆</span>
+      <div>
+        This module follows a <strong>ReAct</strong> (Reasoning + Acting) pattern. It contains
+        <strong>two LLM personas</strong> — a fundamental analyst and a quantitative technical
+        analyst — which run <strong>in parallel</strong> on separate threads. The numbers they
+        reason about come from <strong>three deterministic <code>@tool</code> functions</strong>,
+        never from the model. A rule-based matrix then merges both verdicts into one Overall
+        Summary.
+      </div>
+    </div>
+
+    <!-- Personas -->
+    <div class="sec">
+      <div class="sec-head"><span class="num">A</span><h2>The LLM personas</h2>
+        <span class="tag">click a card to open its tab</span></div>
+      <div class="pgrid">
+        <div class="pcard" style="--pc:var(--p-fund)" data-goto="p-fund">
+          <h4>Fundamental Analyst</h4>
+          <div class="kind">Senior Wall Street analyst</div>
+          <p>Reasons over price, sentiment and news to produce four narrative sections plus a
+             BUY / HOLD / SELL recommendation.</p>
+        </div>
+        <div class="pcard" style="--pc:var(--p-tech)" data-goto="p-tech">
+          <h4>Technical Analyst</h4>
+          <div class="kind">Expert quantitative analyst</div>
+          <p>Reads a RAG-retrieved corpus built from the 5-year indicator DataFrame and
+             classifies the stock on a four-flag scale.</p>
+        </div>
+      </div>
+      <p class="note">
+        <strong>Only two personas exist in this module.</strong> They are deliberately
+        complementary rather than a panel: one is qualitative (narrative + news), the other is
+        quantitative (indicators). The multi-persona <em>investor</em> model lives in
+        <code>PERSONA_BASED_VALUATION.py</code> and <code>PERSONA_AGENTS_CREW.py</code>.
+      </p>
+    </div>
+
+    <!-- Persona comparison -->
+    <div class="sec">
+      <div class="sec-head"><span class="num">B</span><h2>Persona comparison</h2>
+        <span class="tag">side by side</span></div>
+      <div class="card">
+        <div class="card-body" style="padding:0">
+          <table>
+            <thead><tr><th style="width:22%">Aspect</th><th>Fundamental Analyst</th><th>Technical Analyst</th></tr></thead>
+            <tbody>
+              <tr><td class="mono">Function</td><td class="mono">generate_analysis()</td><td class="mono">generate_technical_analysis()</td></tr>
+              <tr><td class="mono">Role prompt</td><td>"You are a senior Wall Street analyst."</td><td>"You are an expert quantitative analyst specialising in technical analysis."</td></tr>
+              <tr><td class="mono">Inputs</td><td>ticker, price dict, sentiment dict, news list</td><td>ticker, 5-year indicator DataFrame</td></tr>
+              <tr><td class="mono">Context</td><td>Data interpolated directly into the prompt</td><td>RAG-retrieved indicator documents</td></tr>
+              <tr><td class="mono">Output shape</td><td>4 × <code>##</code> sections, prose paragraphs</td><td>6 × <code>##</code> groups, <code>###</code> per indicator</td></tr>
+              <tr><td class="mono">Verdict scale</td>
+                <td><div class="verdicts"><span class="vd buy">BUY</span><span class="vd hold">HOLD</span><span class="vd sell">SELL</span></div></td>
+                <td><div class="verdicts"><span class="vd sbuy">STRONG BUY</span><span class="vd buy">BUY</span><span class="vd sell">SELL</span><span class="vd ssell">STRONG SELL</span></div></td></tr>
+              <tr><td class="mono">Verdict anchor</td><td>Verdict word must be the <strong>very first characters</strong> of the recommendation section</td><td>Verdict flag on the <strong>first line</strong> of the verdict section</td></tr>
+              <tr><td class="mono">Executed by</td><td><code>ThreadPoolExecutor</code> worker 1</td><td><code>ThreadPoolExecutor</code> worker 2 (skipped if <code>tech_df</code> is None)</td></tr>
+              <tr><td class="mono">Failure mode</td><td>Empty string → report renders without analysis</td><td><code>None</code> → "Technical Analysis Unavailable" card</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <!-- Architecture -->
+    <div class="sec">
+      <div class="sec-head"><span class="num">C</span><h2>Architecture</h2>
+        <span class="tag">four layers</span></div>
+      <div class="lgrid">
+        <div class="lcard" style="--lc:var(--green)">
+          <div class="n">LAYER 1</div><h4>Data Collection</h4>
+          <p>Three <code>@tool</code>-decorated functions the LLM can invoke autonomously.</p>
+          <div class="fn">get_stock_price · get_stock_news · analyze_news_sentiment</div>
+        </div>
+        <div class="lcard" style="--lc:var(--accent)">
+          <div class="n">LAYER 2</div><h4>AI Analysis</h4>
+          <p>Two LLM personas running concurrently on a two-worker thread pool.</p>
+          <div class="fn">generate_analysis · generate_technical_analysis</div>
+        </div>
+        <div class="lcard" style="--lc:var(--teal)">
+          <div class="n">LAYER 3</div><h4>Presentation</h4>
+          <p>Markdown is parsed into structured sections, verdicts are detected and merged, then
+             rendered through a Jinja2 template.</p>
+          <div class="fn">parse_technical_analysis · build_overall_summary · generate_html_report</div>
+        </div>
+        <div class="lcard" style="--lc:var(--rose)">
+          <div class="n">LAYER 4</div><h4>Orchestration</h4>
+          <p>Prompts for input, invokes the tools, runs both agents in parallel, writes the report
+             and opens it in a browser.</p>
+          <div class="fn">main</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Overall summary matrix -->
+    <div class="sec">
+      <div class="sec-head"><span class="num">D</span><h2>Verdict merge matrix</h2>
+        <span class="tag">build_overall_summary — rule-based, not LLM</span></div>
+      <div class="card">
+        <div class="card-body" style="padding:0">
+          <table>
+            <thead><tr><th>Fundamental</th><th>Technical</th><th>Overall</th><th>Rationale</th></tr></thead>
+            <tbody>
+              <tr><td class="mono">BUY</td><td class="mono">STRONG BUY</td><td><span class="vd sbuy">STRONG BUY</span></td><td>Fundamentals and technicals align decisively bullish.</td></tr>
+              <tr><td class="mono">BUY</td><td class="mono">BUY</td><td><span class="vd buy">BUY</span></td><td>Both views bullish.</td></tr>
+              <tr><td class="mono">BUY</td><td class="mono">SELL</td><td><span class="vd hold">HOLD</span></td><td>Signals conflict — stay neutral.</td></tr>
+              <tr><td class="mono">BUY</td><td class="mono">STRONG SELL</td><td><span class="vd hold">HOLD</span></td><td>Signals conflict — stay neutral.</td></tr>
+              <tr><td class="mono">BUY</td><td class="mono">NEUTRAL</td><td><span class="vd buy">BUY</span></td><td>Fundamentals bullish; technicals unavailable.</td></tr>
+              <tr><td class="mono">HOLD</td><td class="mono">STRONG BUY</td><td><span class="vd buy">BUY</span></td><td>Neutral fundamentals, strong momentum — lean bullish.</td></tr>
+              <tr><td class="mono">HOLD</td><td class="mono">BUY</td><td><span class="vd buy">BUY</span></td><td>Neutral fundamentals, positive technicals.</td></tr>
+              <tr><td class="mono">HOLD</td><td class="mono">SELL</td><td><span class="vd sell">SELL</span></td><td>Neutral fundamentals, negative technicals.</td></tr>
+              <tr><td class="mono">HOLD</td><td class="mono">STRONG SELL</td><td><span class="vd sell">SELL</span></td><td>Neutral fundamentals, strongly negative technicals.</td></tr>
+              <tr><td class="mono">HOLD</td><td class="mono">NEUTRAL</td><td><span class="vd hold">HOLD</span></td><td>Nothing directional on either side.</td></tr>
+              <tr><td class="mono">SELL</td><td class="mono">STRONG BUY</td><td><span class="vd hold">HOLD</span></td><td>Signals conflict — stay neutral.</td></tr>
+              <tr><td class="mono">SELL</td><td class="mono">BUY</td><td><span class="vd hold">HOLD</span></td><td>Signals conflict — stay neutral.</td></tr>
+              <tr><td class="mono">SELL</td><td class="mono">SELL</td><td><span class="vd sell">SELL</span></td><td>Both views bearish.</td></tr>
+              <tr><td class="mono">SELL</td><td class="mono">STRONG SELL</td><td><span class="vd ssell">STRONG SELL</span></td><td>Aligned decisively bearish.</td></tr>
+              <tr><td class="mono">SELL</td><td class="mono">NEUTRAL</td><td><span class="vd sell">SELL</span></td><td>Fundamentals bearish; technicals unavailable.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <p class="note">
+        All 15 combinations are covered explicitly, plus a defensive fallback of
+        <code>HOLD</code> for any unrecognised pair. Note the asymmetry:
+        <strong>conflicts always resolve to HOLD</strong>, so a strongly bullish technical view
+        can never outvote a bearish fundamental one into a BUY.
+      </p>
+    </div>
+
+  </section>
+
+  <!-- ══════════════════ FUNDAMENTAL ANALYST ══════════════════ -->
+  <section class="panel" id="p-fund" style="--pa:var(--p-fund); --pa-soft:var(--p-fund-soft)">
+    <div class="hero">
+      <div class="hero-top">
+        <h2>Fundamental Analyst</h2>
+        <span class="pa-chip">LLM Persona 1</span>
+        <span class="pa-chip">BUY / HOLD / SELL</span>
+      </div>
+      <p class="philosophy">"You are a senior Wall Street analyst." — narrative-driven, reads the
+        price, the crowd's mood and the headlines, and commits to a rating.</p>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><span class="num">1</span><h2>Role prompt</h2>
+        <span class="tag">verbatim, abridged</span></div>
+      <div class="card">
+        <div class="card-body">
+          <div class="prompt">You are a senior Wall Street analyst.
+
+Analyze this stock.
+
+Ticker:
+{ticker}
+
+Stock Data:
+{stock_data}
+
+Sentiment:
+{sentiment_data}
+
+News:
+{news}
+
+Provide a structured analysis with EXACTLY these four sections.
+Use the exact section headers below (with the emoji), and format each as
+flowing paragraphs:</div>
+          <p class="note">
+            All three data payloads are interpolated <strong>directly into the prompt</strong> —
+            this persona does <em>not</em> use retrieval. The dicts and lists are stringified
+            with their Python <code>repr</code>, so the LLM sees the raw tool output.
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><span class="num">2</span><h2>Required output contract</h2>
+        <span class="tag">4 sections, fixed headers</span></div>
+      <div class="card">
+        <div class="card-body" style="padding:0">
+          <table>
+            <thead><tr><th style="width:30%">Section</th><th>Content demanded by the prompt</th></tr></thead>
+            <tbody>
+              <tr><td class="mono">## 📊 Financial Outlook</td><td>2–3 paragraphs on current financial performance and the short-term outlook.</td></tr>
+              <tr><td class="mono">## ⚠️ Key Risks</td><td>2–3 paragraphs on the major risks investors should be aware of.</td></tr>
+              <tr><td class="mono">## 🚀 Growth Potential</td><td>2–3 paragraphs on upside opportunities and catalysts.</td></tr>
+              <tr><td class="mono">## 🎯 Investment Recommendation</td><td>Verdict word in bold as the <strong>very first characters</strong> — exactly one of <code>**BUY.**</code> / <code>**HOLD.**</code> / <code>**SELL.**</code> — then 1–2 paragraphs of reasoning. In this section only, the single most critical sentence of each paragraph is wrapped in <code>&lt;mark&gt;</code> tags.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><span class="num">3</span><h2>Prompt engineering rules</h2>
+        <span class="tag">explicitly encoded in the prompt</span></div>
+      <div class="card">
+        <div class="card-body">
+          <div class="grid" style="display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:11px">
+            <div class="lcard" style="--lc:var(--p-fund)">
+              <div class="n">RULE 01</div><h4>Role instruction</h4>
+              <p>Sets tone, register and expected analytical depth.</p>
+            </div>
+            <div class="lcard" style="--lc:var(--p-fund)">
+              <div class="n">RULE 02</div><h4>Exactly four sections</h4>
+              <p>Fixed headers guarantee the downstream markdown parser can extract each section reliably.</p>
+            </div>
+            <div class="lcard" style="--lc:var(--p-fund)">
+              <div class="n">RULE 03</div><h4><code>&lt;mark&gt;</code> quarantine</h4>
+              <p>Allowed in the Recommendation section only, so intentional HTML cannot leak into sections that are rendered as escaped text.</p>
+            </div>
+            <div class="lcard" style="--lc:var(--p-fund)">
+              <div class="n">RULE 04</div><h4>No preamble</h4>
+              <p>The first characters must be the first header, otherwise the section splitter mis-assigns content.</p>
+            </div>
+          </div>
+          <div class="impl">
+            <span class="lbl">Implemented by</span>
+            <code>generate_analysis()</code>
+            <span class="arrow">→</span>
+            <span class="chips">
+              <span class="chip">returns raw markdown string</span>
+              <span class="chip">llm.invoke(prompt)</span>
+              <span class="chip">bounded by ThreadPoolExecutor</span>
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════ TECHNICAL ANALYST ══════════════════ -->
+  <section class="panel" id="p-tech" style="--pa:var(--p-tech); --pa-soft:var(--p-tech-soft)">
+    <div class="hero">
+      <div class="hero-top">
+        <h2>Technical Analyst</h2>
+        <span class="pa-chip">LLM Persona 2</span>
+        <span class="pa-chip">4-flag verdict</span>
+        <span class="pa-chip">RAG-grounded</span>
+      </div>
+      <p class="philosophy">"You are an expert quantitative analyst specialising in technical
+        analysis." — reads only the retrieved indicator documents and refuses to invent numbers.</p>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><span class="num">1</span><h2>Role prompt</h2>
+        <span class="tag">verbatim, abridged</span></div>
+      <div class="card">
+        <div class="card-body">
+          <div class="prompt">You are an expert quantitative analyst specialising in technical analysis.
+
+Analyse the technical indicators below for the stock {ticker} using ONLY the
+retrieved documents provided. These documents were retrieved via
+retrieval-augmented generation (RAG) from a 5-year daily technical-indicator
+database.
+
+Retrieved Documents (RAG):
+{rag_context}
+
+Rules:
+- Base every statement strictly on the numbers provided; never invent values.
+- Do not add any preamble before the first section header.
+- Keep every indicator analysis to 1-2 sentences.
+- Use only the four verdict flags above.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><span class="num">2</span><h2>The RAG pipeline</h2>
+        <span class="tag">no embeddings, no vector DB</span></div>
+      <div class="card">
+        <div class="card-body">
+          <div class="formula">
+            \[ \text{score}(d \mid q) \;=\; \sum_{t \in q} \Big[\, 3.0\cdot\mathbb{1}[t \in K_d] \;+\; 1.5\cdot\mathbb{1}[t \in T_d] \;+\; 0.2\cdot\min\!\big(\text{count}(t, C_d),\,5\big) \Big] \]
+          </div>
+          <p class="note">
+            The indicator DataFrame is split into <strong>9 topic documents</strong>
+            (overview, price_ma, volume_ma, rsi, macd, bollinger, stochastic, obv,
+            recent_price). Each carries a keyword list, a title and a content body. The
+            retriever scores each document with a dependency-free BM25-style keyword filter —
+            keyword hit <code>3.0</code>, title hit <code>1.5</code>, content frequency
+            <code>0.2</code> per occurrence capped at 5 — then ranks descending.
+          </p>
+          <table>
+            <thead><tr><th style="width:26%">Stage</th><th>Function</th><th>Role</th></tr></thead>
+            <tbody>
+              <tr><td>Index</td><td class="mono">_build_technical_corpus()</td><td>Turns the table into 9 retrievable topic documents.</td></tr>
+              <tr><td>Retrieve</td><td class="mono">_retrieve_technical_docs()</td><td>Keyword-scores and ranks documents against the query.</td></tr>
+              <tr><td>Generate</td><td class="mono">generate_technical_analysis()</td><td>Injects the retrieved documents into the prompt as context.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><span class="num">3</span><h2>Required output groups</h2>
+        <span class="tag">TECH_GROUP_META</span></div>
+      <div class="card">
+        <div class="card-body" style="padding:0">
+          <table>
+            <thead><tr><th style="width:30%">Group header</th><th>Indicators demanded (<code>###</code> sub-sections)</th></tr></thead>
+            <tbody>
+              <tr><td class="mono">## 📊 Price Moving Averages</td><td>SMA and EMA for windows <strong>5, 13, 23, 90, 200</strong> — 10 sub-sections.</td></tr>
+              <tr><td class="mono">## 📈 Volume Moving Averages</td><td>VOL_SMA and VOL_EMA for the same five windows — 10 sub-sections.</td></tr>
+              <tr><td class="mono">## ⚡ Momentum Indicators</td><td>RSI, MACD, STOCH_K, STOCH_D.</td></tr>
+              <tr><td class="mono">## 📏 Volatility — Bollinger Bands</td><td>BB_UPPER, BB_MIDDLE, BB_LOWER.</td></tr>
+              <tr><td class="mono">## 🔄 Volume Flow</td><td>OBV.</td></tr>
+              <tr><td class="mono">## 🎯 Technical Verdict</td><td>One flag line, then a 2–3 sentence overall summary explaining the choice.</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><span class="num">4</span><h2>Verdict detection</h2>
+        <span class="tag">_detect_technical_verdict — regex, not the LLM</span></div>
+      <div class="card">
+        <div class="card-body">
+          <div class="verdicts" style="margin-bottom:12px">
+            <span class="vd sbuy">STRONG BUY</span><span class="vd buy">BUY</span>
+            <span class="vd sell">SELL</span><span class="vd ssell">STRONG SELL</span>
+            <span class="vd neutral">NEUTRAL (fallback)</span>
+          </div>
+          <table>
+            <thead><tr><th style="width:16%">Priority</th><th>Pattern</th><th>Example</th></tr></thead>
+            <tbody>
+              <tr><td class="mono">1</td><td>Explicit bold flag anywhere in the section</td><td><code>**BUY**</code></td></tr>
+              <tr><td class="mono">2</td><td>Leading flag word, optionally unbolded</td><td><code>BUY — momentum ...</code></td></tr>
+              <tr><td class="mono">3</td><td>No match → <code>NEUTRAL</code></td><td>malformed output</td></tr>
+            </tbody>
+          </table>
+          <p class="note">
+            Flags are normalised to upper-case with single spaces, so <code>Strong&nbsp;&nbsp;Buy</code>
+            resolves to <code>STRONG BUY</code>. The match is ordered so that
+            <code>STRONG BUY</code> is tested before <code>BUY</code>.
+          </p>
+          <div class="impl">
+            <span class="lbl">Implemented by</span>
+            <code>generate_technical_analysis()</code>
+            <span class="arrow">→</span>
+            <span class="chips">
+              <span class="chip">_build_technical_corpus</span>
+              <span class="chip">_retrieve_technical_docs</span>
+              <span class="chip">llm.invoke(prompt)</span>
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════ REACT TOOLS ══════════════════ -->
+  <section class="panel" id="p-tools" style="--pa:var(--p-tool); --pa-soft:var(--p-tool-soft)">
+    <div class="hero">
+      <div class="hero-top">
+        <h2>ReAct Tools</h2>
+        <span class="pa-chip">Acting layer</span>
+        <span class="pa-chip">Deterministic</span>
+      </div>
+      <p class="philosophy">The three <code>@tool</code>-decorated functions the LLM can invoke.
+        They are the <em>only</em> source of ground truth — the personas reason about these
+        numbers but never generate them.</p>
+    </div>
+
+    <div class="callout">
+      <span class="ico">!</span>
+      <div>
+        <b>Docstrings are prompts.</b> With <code>@tool</code>, each function's docstring becomes
+        the description the LLM sees when deciding whether to call it. Rewording a docstring
+        changes agent behaviour even though the code is untouched.
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><span class="num">1</span><h2>get_stock_price</h2>
+        <span class="tag">@tool · yfinance</span></div>
+      <div class="card">
+        <div class="card-body">
+          <pre class="sig">get_stock_price.invoke(<span class="ty">ticker</span>: str) -> dict</pre>
+          <p class="note">Fetches the latest OHLCV bar for the symbol <strong>exactly as supplied</strong> — no
+            <code>.NS</code> / <code>.BO</code> suffix is ever appended or probed. Requests
+            <code>period="5d"</code> so a weekend gap still yields a bar, then takes
+            <code>iloc[-1]</code>.</p>
+          <table>
+            <thead><tr><th style="width:26%">Returns</th><th>Detail</th></tr></thead>
+            <tbody>
+              <tr><td class="mono">ticker / exchange</td><td>Echoed symbol; exchange derived from the suffix after the fetch.</td></tr>
+              <tr><td class="mono">current_price / open / high / low</td><td>Latest bar, rounded to 2 dp.</td></tr>
+              <tr><td class="mono">volume</td><td>Integer share count.</td></tr>
+              <tr><td class="mono">error</td><td>On any failure — empty history, network error, unexpected shape — a single-key error dict replaces the payload. <strong>Never raises.</strong></td></tr>
+            </tbody>
+          </table>
+          <div class="impl">
+            <span class="lbl">Depends on</span>
+            <span class="chips"><span class="chip">yfinance.Ticker</span><span class="chip">pandas</span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><span class="num">2</span><h2>get_stock_news</h2>
+        <span class="tag">@tool · NewsAPI</span></div>
+      <div class="card">
+        <div class="card-body">
+          <pre class="sig">get_stock_news.invoke(<span class="ty">company_name</span>: str) -> list</pre>
+          <p class="note">Queries NewsAPI <code>/v2/everything</code> with
+            <code>q = "{company_name} stock"</code>, English only, sorted by
+            <code>publishedAt</code>, capped at <code>page_size=5</code> to protect the context
+            window. Only <code>title</code>, <code>description</code> and <code>url</code> are
+            kept per article.</p>
+          <p class="note">Takes the <strong>full company name</strong>, not the ticker — NewsAPI
+            searches prose, not symbols. Returns <code>[]</code> when there is no coverage, and a
+            single error-entry list on exception.</p>
+          <div class="impl">
+            <span class="lbl">Depends on</span>
+            <span class="chips"><span class="chip">newsapi (module-level client)</span><span class="chip">NEWS_API_KEY</span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><span class="num">3</span><h2>analyze_news_sentiment</h2>
+        <span class="tag">@tool · TextBlob</span></div>
+      <div class="card">
+        <div class="card-body">
+          <pre class="sig">analyze_news_sentiment.invoke(<span class="ty">company_name</span>: str) -> dict</pre>
+          <div class="formula">
+            \[ \bar{p} \;=\; \frac{1}{n}\sum_{i=1}^{n} \text{Polarity}\big(\text{title}_i \;+\; \text{description}_i\big) \]
+          </div>
+          <div class="formula">
+            \[ \text{sentiment} = \begin{cases} \text{Positive} & \bar{p} > +0.15 \\ \text{Negative} & \bar{p} < -0.15 \\ \text{Neutral} & \text{otherwise}\end{cases} \]
+          </div>
+          <p class="note">
+            Uses a larger sample than the headlines tool (<code>page_size=20</code>) for a
+            statistically meaningful average. Title and description are concatenated before
+            scoring — more signal than the title alone. TextBlob is <strong>lexicon-based</strong>,
+            so it is fast and keyless but can miss sarcasm and financial jargon.
+          </p>
+          <p class="note">
+            Degenerate cases are explicit: no articles → <code>{"sentiment": "Unknown", "score": 0,
+            "reason": ...}</code>; exception → <code>{"sentiment": "Error", ...}</code>.
+          </p>
+          <div class="impl">
+            <span class="lbl">Depends on</span>
+            <span class="chips"><span class="chip">newsapi</span><span class="chip">TextBlob</span><span class="chip">NLTK punkt data</span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════ FUNCTION REFERENCE ══════════════════ -->
+  <section class="panel" id="p-funcs">
+    <div class="toolbar">
+      <label class="search">
+        <span style="color:var(--text-3)">⌕</span>
+        <input id="fnSearch" type="search" placeholder="Filter by function name, purpose or layer…" autocomplete="off">
+      </label>
+      <span class="count" id="fnCount"></span>
+    </div>
+    <div id="fnList"></div>
+  </section>
+
+  <!-- ══════════════════ DEPENDENCY MAP ══════════════════ -->
+  <section class="panel" id="p-deps">
+
+    <div class="sec">
+      <div class="sec-head"><span class="num">⤓</span><h2>Call hierarchy</h2>
+        <span class="tag">main → tools → parallel agents → parse → render</span></div>
+      <div class="flow">
+
+        <div class="layer">
+          <div class="layer-h"><span class="layer-idx">L1</span><h4>Orchestrator</h4></div>
+          <div class="node-grid">
+            <div class="node orch"><b>main()</b>
+              <span>ticker + company input → invoke tools → compute tech_df → run agents → render → open browser</span></div>
+          </div>
+        </div>
+
+        <div class="conn"><span></span></div>
+
+        <div class="layer">
+          <div class="layer-h"><span class="layer-idx">L2</span><h4>Data layer — @tool functions (deterministic)</h4></div>
+          <div class="node-grid">
+            <div class="node tl"><b>get_stock_price()</b><span>yfinance OHLCV</span></div>
+            <div class="node tl"><b>get_stock_news()</b><span>NewsAPI · 5 articles</span></div>
+            <div class="node tl"><b>analyze_news_sentiment()</b><span>NewsAPI · 20 + TextBlob</span></div>
+            <div class="node tl"><b>TECH_ANALYSIS.compute_technical_indicators()</b><span>external module → tech_df</span></div>
+          </div>
+        </div>
+
+        <div class="conn"><span></span></div>
+
+        <div class="layer">
+          <div class="layer-h"><span class="layer-idx">L3</span><h4>Two LLM personas — run in parallel (2 threads)</h4></div>
+          <div class="node-grid">
+            <div class="node per"><b>generate_analysis()</b><span>fundamental / sentiment · 4 sections</span></div>
+            <div class="node per2"><b>generate_technical_analysis()</b><span>quantitative · 6 groups</span></div>
+          </div>
+        </div>
+
+        <div class="conn"><span></span></div>
+
+        <div class="layer">
+          <div class="layer-h"><span class="layer-idx">L4</span><h4>RAG helpers — used only by the technical persona</h4></div>
+          <div class="node-grid">
+            <div class="node hp"><b>_build_technical_corpus()</b><span>table → 9 topic documents</span></div>
+            <div class="node hp"><b>_retrieve_technical_docs()</b><span>keyword scoring + ranking</span></div>
+            <div class="node hp"><b>_tokenize()</b><span>word tokens</span></div>
+            <div class="node hp"><b>_format_recent_series()</b><span>last 30 values as date:value</span></div>
+          </div>
+        </div>
+
+        <div class="conn"><span></span></div>
+
+        <div class="layer">
+          <div class="layer-h"><span class="layer-idx">L5</span><h4>Parsing &amp; merging — deterministic</h4></div>
+          <div class="node-grid">
+            <div class="node hp"><b>parse_technical_analysis()</b><span>markdown → groups + verdict + summary</span></div>
+            <div class="node hp"><b>_detect_technical_verdict()</b><span>regex flag extraction</span></div>
+            <div class="node hp"><b>_format_indicator_value()</b><span>display formatting</span></div>
+            <div class="node hp"><b>build_overall_summary()</b><span>15-entry merge matrix</span></div>
+          </div>
+        </div>
+
+        <div class="conn"><span></span></div>
+
+        <div class="layer">
+          <div class="layer-h"><span class="layer-idx">L6</span><h4>Presentation</h4></div>
+          <div class="node-grid">
+            <div class="node ou"><b>generate_html_report()</b><span>Jinja2 template → self-contained .html</span></div>
+            <div class="node ou"><b>highlight_bull_bear() · highlight_bull_bear_escaped()</b><span>green/red directional emphasis</span></div>
+            <div class="node ou"><b>strip_exchange_suffix()</b><span>report filename</span></div>
+          </div>
+        </div>
+
+      </div>
+      <div class="legend">
+        <span><i class="dot-orch"></i>Orchestrator</span>
+        <span><i class="dot-tl"></i>Tool / data</span>
+        <span><i class="dot-per"></i>LLM persona</span>
+        <span><i class="dot-hp"></i>Helper / parser</span>
+        <span><i class="dot-ou"></i>Presentation</span>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><span class="num">⇄</span><h2>Linkage matrix</h2>
+        <span class="tag">who calls whom</span></div>
+      <div class="card">
+        <div class="card-body" style="padding:0">
+          <table>
+            <thead><tr><th>Function</th><th>Calls</th><th>Called by</th><th style="text-align:center">Layer</th></tr></thead>
+            <tbody id="matrixBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><span class="num">!</span><h2>Notable behaviours</h2>
+        <span class="tag">read before trusting output</span></div>
+      <div class="card">
+        <div class="card-body" style="padding:0">
+          <table>
+            <thead><tr><th style="width:32%">Location</th><th>Behaviour</th></tr></thead>
+            <tbody>
+              <tr>
+                <td class="mono">generate_technical_analysis()</td>
+                <td>The retrieval query is a long fixed string listing <em>every</em> topic, and <code>k</code> defaults to <code>None</code> — which makes <code>_retrieve_technical_docs()</code> return <strong>all 9 documents</strong>. So the RAG step re-ranks the corpus but never filters it: the full indicator context always reaches the prompt.</td>
+              </tr>
+              <tr>
+                <td class="mono">parse_technical_analysis()</td>
+                <td>Indicator <strong>values in the report come from <code>tech_df</code>, not the LLM</strong>. The model supplies only the prose interpretation, so a hallucinated number can appear in commentary but never in the displayed metric.</td>
+              </tr>
+              <tr>
+                <td class="mono">parse_technical_analysis()</td>
+                <td>The section splitter uses <code>re.split(r'(?m)^##\s+')</code>. The <code>(?m)^</code> anchor is <strong>essential</strong> — a bare <code>##\s+</code> would also match the second and third <code>#</code> of every <code>### </code> indicator header and corrupt the parse.</td>
+              </tr>
+              <tr>
+                <td class="mono">build_overall_summary()</td>
+                <td>Conflicting signals always resolve to <code>HOLD</code>, never to the stronger side. A bearish fundamental view cannot be overruled by bullish technicals.</td>
+              </tr>
+              <tr>
+                <td class="mono">generate_analysis()</td>
+                <td>Data is interpolated with an f-string, so the prompt contains the Python <code>repr</code> of the dicts and lists — including a full error dict if a tool failed. The model can therefore read a failure and reason about it.</td>
+              </tr>
+              <tr>
+                <td class="mono">generate_html_report()</td>
+                <td>Writes <code>{CLEAN_TICKER}_REPORT_{YYYY_MM_DD}.html</code> as a <strong>bare relative path</strong>, so it lands in the process working directory — the repo root on Streamlit Cloud, not the app folder.</td>
+              </tr>
+              <tr>
+                <td class="mono">main()</td>
+                <td>Calls <code>webbrowser.open()</code> on the generated report. That is CLI-only behaviour; the Streamlit app calls <code>generate_html_report()</code> directly and never triggers a browser launch.</td>
+              </tr>
+              <tr>
+                <td class="mono">main()</td>
+                <td>The technical agent is submitted only when <code>tech_df is not None</code>. If indicator computation failed, <code>future_tech</code> stays <code>None</code> and the report renders a "Technical Analysis Unavailable" card rather than hanging on a missing future.</td>
+              </tr>
+              <tr>
+                <td class="mono">highlight_bull_bear() vs _escaped()</td>
+                <td>Two variants exist on purpose. The <code>_escaped</code> form escapes first, for untrusted LLM text; the plain form assumes the input already contains intentional markup (such as the prompt-mandated <code>&lt;mark&gt;</code> tags).</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </section>
+
+</main>
+
+<footer>
+  Generated reference for <code>stock_react_agent.py</code> · 2 LLM personas, 3 <code>@tool</code>
+  functions, 19 functions · Press <kbd>/</kbd> to search the function reference.
+</footer>
+
+<script>
+/* ──────────────────────────────────────────────────────────────────
+   Function reference data
+   ────────────────────────────────────────────────────────────────── */
+const FUNCS = [
+  {
+    name: "main", kind: "orch", kindLabel: "Orchestrator", layer: "L1",
+    section: "Orchestration",
+    sig: "main() -> None",
+    purpose: "Entry point. Prints a banner, prompts for ticker + company name, invokes all three @tool functions, computes the technical-indicator DataFrame, runs both LLM personas in parallel on a 2-worker thread pool, generates the HTML report and opens it in the default browser.",
+    returns: "None — writes {CLEAN_TICKER}_REPORT_{YYYY_MM_DD}.html and launches a browser.",
+    calls: ["get_stock_price", "get_stock_news", "analyze_news_sentiment", "TECH_ANALYSIS.compute_technical_indicators", "generate_analysis", "generate_technical_analysis", "generate_html_report", "webbrowser.open"],
+    calledBy: ["__main__ (CLI)"],
+    notes: "Two prompts are needed because NewsAPI searches by company name while yfinance needs the ticker. Every stage is defensive: no news yields [], unknown sentiment, and a failed indicator computation sets tech_df = None so the technical agent is never submitted."
+  },
+  {
+    name: "generate_analysis", kind: "persona", kindLabel: "LLM Persona", layer: "L3",
+    section: "Persona 1 · Fundamental",
+    sig: "generate_analysis(\n    ticker: str,\n    stock_data: dict,\n    sentiment_data: dict,\n    news: list,\n) -> str",
+    purpose: "Fundamental / sentiment persona. Builds a prompt instructing the LLM to role-play a senior Wall Street analyst, interpolating the full price, sentiment and news payloads, and demands exactly four labelled markdown sections.",
+    returns: "str — raw markdown with 4 sections: Financial Outlook, Key Risks, Growth Potential, Investment Recommendation (which carries the BUY / HOLD / SELL verdict and <mark> tags).",
+    calls: ["llm.invoke"],
+    calledBy: ["main (ThreadPoolExecutor worker 1)"],
+    notes: "Interpolates Python repr of the data dicts, so a tool error dict is visible to the model. The <mark> quarantine rule and the no-preamble rule are both enforced in the prompt because downstream parsing depends on them."
+  },
+  {
+    name: "generate_technical_analysis", kind: "persona", kindLabel: "LLM Persona", layer: "L3",
+    section: "Persona 2 · Technical",
+    sig: "generate_technical_analysis(\n    ticker: str,\n    tech_df: pd.DataFrame,\n) -> str",
+    purpose: "Quantitative technical persona. Runs the RAG pipeline over the indicator DataFrame, injects the retrieved documents into the prompt, and asks the LLM to analyse every indicator across six groups and emit a four-flag verdict.",
+    returns: "str — raw markdown with 6 ## groups and ### per-indicator sub-sections, ending in a Technical Verdict section whose first line is the flag.",
+    calls: ["_retrieve_technical_docs", "llm.invoke"],
+    calledBy: ["main (ThreadPoolExecutor worker 2)"],
+    notes: "The retrieval query lists every topic and k defaults to None, so all 9 corpus documents are returned — the step re-ranks but does not filter. Only launched when tech_df is not None."
+  },
+  {
+    name: "get_stock_price", kind: "tool", kindLabel: "@tool", layer: "L2",
+    section: "ReAct tools",
+    sig: "get_stock_price.invoke(\n    ticker: str,\n) -> dict",
+    purpose: "Fetches the latest OHLCV bar from Yahoo Finance for the symbol exactly as supplied — no exchange suffix is appended or probed. Requests 5 days of history so a weekend gap still yields a bar.",
+    returns: "dict with ticker, exchange, currency, current_price, open, high, low, volume — or a single-key {error} dict on any failure.",
+    calls: ["yfinance.Ticker"],
+    calledBy: ["main", "LLM (as an agent-callable tool)"],
+    notes: "The docstring is the LLM-facing tool description, so edits change agent behaviour. The try/except wraps everything, so it never raises. Called via .invoke() because @tool wraps the function."
+  },
+  {
+    name: "get_stock_news", kind: "tool", kindLabel: "@tool", layer: "L2",
+    section: "ReAct tools",
+    sig: "get_stock_news.invoke(\n    company_name: str,\n) -> list",
+    purpose: "Retrieves the latest financial headlines from NewsAPI, querying \"{company_name} stock\", English only, newest first, capped at 5 articles to protect the context window.",
+    returns: "list of {title, description, url} dicts — [] when no coverage exists, or a single error-entry list on exception.",
+    calls: ["newsapi.get_everything"],
+    calledBy: ["main", "LLM (as an agent-callable tool)"],
+    notes: "Takes the full company name, not the ticker, because NewsAPI searches prose. The \" stock\" suffix biases results toward financial coverage. Free-tier NewsAPI only covers the last 30 days."
+  },
+  {
+    name: "analyze_news_sentiment", kind: "tool", kindLabel: "@tool", layer: "L2",
+    section: "ReAct tools",
+    sig: "analyze_news_sentiment.invoke(\n    company_name: str,\n) -> dict",
+    purpose: "Computes aggregate market sentiment: fetches up to 20 articles, scores each title+description with TextBlob polarity, averages the scores and classifies the result against a ±0.15 band.",
+    returns: "dict with sentiment, score and articles_analyzed — or sentiment 'Unknown' / 'Error' variants with a reason or error key.",
+    calls: ["newsapi.get_everything", "TextBlob.sentiment.polarity"],
+    calledBy: ["main", "LLM (as an agent-callable tool)"],
+    notes: "Uses page_size=20 versus 5 for headlines, for a statistically meaningful sample. TextBlob is lexicon-based — fast and keyless, but it can miss sarcasm and domain-specific financial jargon. Needs NLTK punkt data, bootstrapped by the Streamlit app."
+  },
+  {
+    name: "build_overall_summary", kind: "parse", kindLabel: "Merge", layer: "L5",
+    section: "Parsing & merging",
+    sig: "build_overall_summary(\n    fund_verdict: str,\n    tech_verdict: str,\n) -> dict",
+    purpose: "Rule-based merge of the fundamental verdict (BUY / HOLD / SELL) and the technical verdict (STRONG BUY / BUY / SELL / STRONG SELL / NEUTRAL) into a single overall stance.",
+    returns: "dict with fundamental_verdict, technical_verdict, overall_verdict and the three CSS class names plus an explanatory text.",
+    calls: [],
+    calledBy: ["generate_html_report"],
+    notes: "A 15-entry matrix covers every combination, with a defensive HOLD fallback for unrecognised pairs. Conflicting signals ALWAYS resolve to HOLD — the stronger side never wins."
+  },
+  {
+    name: "parse_technical_analysis", kind: "parse", kindLabel: "Parser", layer: "L5",
+    section: "Parsing & merging",
+    sig: "parse_technical_analysis(\n    tech_analysis: str,\n    tech_df: pd.DataFrame = None,\n) -> dict",
+    purpose: "Parses the technical persona's markdown into structured groups and per-indicator entries, attaches the deterministic latest value for each indicator from tech_df, and extracts the verdict and summary.",
+    returns: "dict with groups (each {title, emoji, indicators}), verdict, verdict_css, summary and error.",
+    calls: ["_detect_technical_verdict", "_format_indicator_value"],
+    calledBy: ["generate_html_report"],
+    notes: "Both splits are anchored with (?m)^ — a bare '##\\s+' would also match the 2nd/3rd '#' of '### ' headers and corrupt the parse. Indicator VALUES come from tech_df, never from the LLM."
+  },
+  {
+    name: "generate_html_report", kind: "render", kindLabel: "Renderer", layer: "L6",
+    section: "Presentation",
+    sig: "generate_html_report(\n    ticker: str,\n    stock_data: dict,\n    sentiment_data: dict,\n    news: list,\n    analysis: str,\n    tech_analysis: str = None,\n    tech_df: pd.DataFrame = None,\n) -> str",
+    purpose: "The presentation engine. Parses both markdown analyses into sections, merges the verdicts, renders a Jinja2 template with responsive CSS and animation, and writes a self-contained HTML file.",
+    returns: "str — path to the written report file.",
+    calls: ["parse_technical_analysis", "build_overall_summary", "strip_exchange_suffix", "highlight_bull_bear", "highlight_bull_bear_escaped", "Template.render"],
+    calledBy: ["main", "Streamlit app (directly)"],
+    notes: "Writes a BARE relative filename, so the file lands in the process working directory — the repo root on Streamlit Cloud. No external dependencies beyond Google Fonts."
+  },
+  {
+    name: "_build_technical_corpus", kind: "helper", kindLabel: "RAG index", layer: "L4",
+    section: "RAG helpers",
+    sig: "_build_technical_corpus(\n    tech_df: pd.DataFrame,\n) -> list[dict]",
+    purpose: "Indexing step of the RAG pipeline: converts the indicator DataFrame into 9 self-contained topic documents — overview, price_ma, volume_ma, rsi, macd, bollinger, stochastic, obv, recent_price — each with a title, keyword list and content body.",
+    returns: "list of {id, title, keywords, content} dicts.",
+    calls: ["_format_recent_series", "TECH_ANALYSIS.MA_WINDOWS"],
+    calledBy: ["_retrieve_technical_docs"],
+    notes: "The overview document embeds the full latest row (all ~35 indicator columns). Price and volume MA documents compute the percentage gap between the latest close/volume and each moving average."
+  },
+  {
+    name: "_retrieve_technical_docs", kind: "helper", kindLabel: "RAG retrieve", layer: "L4",
+    section: "RAG helpers",
+    sig: "_retrieve_technical_docs(\n    tech_df: pd.DataFrame,\n    query: str,\n    k: int = None,\n) -> list[dict]",
+    purpose: "Retrieval step: scores each corpus document against a natural-language query with a dependency-free BM25-style keyword scorer, then returns the top k ranked descending. Ties keep corpus order.",
+    returns: "list of the top k documents, ranked by relevance.",
+    calls: ["_build_technical_corpus", "_tokenize"],
+    calledBy: ["generate_technical_analysis"],
+    notes: "Scoring: keyword hit 3.0, title hit 1.5, content frequency 0.2 per occurrence capped at 5. When k is None it is set to len(docs), so the default returns the ENTIRE corpus — re-ranked but unfiltered."
+  },
+  {
+    name: "_detect_technical_verdict", kind: "parse", kindLabel: "Parser", layer: "L5",
+    section: "Parsing & merging",
+    sig: "_detect_technical_verdict(\n    text: str,\n) -> str",
+    purpose: "Extracts the technical verdict flag from the Technical Verdict section — first looking for an explicit **FLAG** marker, then for a leading flag word.",
+    returns: "str — STRONG BUY / BUY / SELL / STRONG SELL (upper-case, single-spaced), or NEUTRAL when no flag is found.",
+    calls: ["re.search", "re.match"],
+    calledBy: ["parse_technical_analysis"],
+    notes: "STRONG BUY is tested before BUY so the longer flag wins. Normalising with \" \".join(...split()) means 'Strong  Buy' resolves correctly. NEUTRAL is the safe fallback for malformed output."
+  },
+  {
+    name: "_format_indicator_value", kind: "helper", kindLabel: "Helper", layer: "L5",
+    section: "Parsing & merging",
+    sig: "_format_indicator_value(\n    name: str,\n    value: float,\n) -> str",
+    purpose: "Formats an indicator's latest value for display: volume-style columns as integers with thousands separators, everything else to two decimal places.",
+    returns: "str — formatted value, or an em dash for None/NaN.",
+    calls: [],
+    calledBy: ["parse_technical_analysis"],
+    notes: "Prices and oscillator readings to 2 dp; volume and OBV as integers. NaN is detected with the value != value idiom."
+  },
+  {
+    name: "_tokenize", kind: "helper", kindLabel: "Helper", layer: "L4",
+    section: "RAG helpers",
+    sig: "_tokenize(\n    text: str,\n) -> list[str]",
+    purpose: "Splits text into lower-case alphanumeric word tokens, used by the retriever to score document relevance.",
+    returns: "list[str] — e.g. \"MACD signal\" -> [\"macd\", \"signal\"].",
+    calls: ["re.findall"],
+    calledBy: ["_retrieve_technical_docs"],
+    notes: "Deliberately crude — no stemming or stop-word removal — which keeps the retriever dependency-free."
+  },
+  {
+    name: "_format_recent_series", kind: "helper", kindLabel: "Helper", layer: "L4",
+    section: "RAG helpers",
+    sig: "_format_recent_series(\n    tech_df: pd.DataFrame,\n    column: str,\n    n: int = 30,\n) -> str",
+    purpose: "Formats the last n values of one indicator column as a compact comma-separated date:value list, giving the LLM a short recent history rather than a single reading.",
+    returns: "str — e.g. \"2026-08-01:54.20, 2026-08-04:56.10, ...\", or a 'No history available.' sentinel.",
+    calls: [],
+    calledBy: ["_build_technical_corpus"],
+    notes: "Drops NaNs before taking the tail, so a partially populated indicator still yields usable history."
+  },
+  {
+    name: "strip_exchange_suffix", kind: "helper", kindLabel: "Helper", layer: "L6",
+    section: "Presentation",
+    sig: "strip_exchange_suffix(\n    ticker: str,\n) -> str",
+    purpose: "Removes an Indian exchange suffix (.NS for NSE, .BO for BSE) so the bare symbol can be used for news queries and the report filename.",
+    returns: "str — uppercased ticker without the exchange suffix.",
+    calls: ["re.split"],
+    calledBy: ["generate_html_report", "Home.py"],
+    notes: "Anchored with $ so only a TRAILING .NS / .BO is stripped. \"AAPL\" passes through unchanged."
+  },
+  {
+    name: "highlight_bull_bear", kind: "helper", kindLabel: "Helper", layer: "L6",
+    section: "Presentation",
+    sig: "highlight_bull_bear(\n    text: str,\n) -> str",
+    purpose: "Wraps every bull/bullish in bold green and every bear/bearish in bold red, for text that ALREADY contains intentional HTML such as the prompt-mandated <mark> tags.",
+    returns: "str — the text with directional words wrapped in <b style=\"color:...\">.",
+    calls: ["_bull_bear_span", "BULL_BEAR_RE.sub"],
+    calledBy: ["generate_html_report", "Home.py"],
+    notes: "BULL_BEAR_RE is \\b(bullish|bull|bearish|bear)\\b — word-bounded, so 'bulletin' is not matched. 'bull' is tested before 'bearish' in the alternation but word boundaries keep the match unambiguous."
+  },
+  {
+    name: "highlight_bull_bear_escaped", kind: "helper", kindLabel: "Helper", layer: "L6",
+    section: "Presentation",
+    sig: "highlight_bull_bear_escaped(\n    text: str,\n) -> str",
+    purpose: "The safe variant: HTML-escapes plain text first, then applies the same bull/bear colouring. Guarantees a stray < or & in LLM output cannot be interpreted as markup once emitted with | safe.",
+    returns: "str — escaped text with directional words wrapped in <b>.",
+    calls: ["markupsafe.escape", "_bull_bear_span"],
+    calledBy: ["generate_html_report", "Home.py"],
+    notes: "Escaping before substitution is what makes it safe — escaping afterwards would destroy the tags it just inserted."
+  },
+  {
+    name: "_bull_bear_span", kind: "helper", kindLabel: "Helper", layer: "L6",
+    section: "Presentation",
+    sig: "_bull_bear_span(\n    match: re.Match,\n) -> str",
+    purpose: "Regex replacement callback: wraps a single matched bull/bear word in a colour-coded bold tag, choosing green for anything starting with 'bull' and red otherwise.",
+    returns: "str — the coloured <b> tag.",
+    calls: [],
+    calledBy: ["highlight_bull_bear", "highlight_bull_bear_escaped"],
+    notes: "A private callback, not part of the public surface — it only makes sense as the repl argument to the two public highlighters."
+  }
+];
+
+/* ── Rendering ────────────────────────────────────────────────────── */
+const esc = s => String(s)
+  .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+function sigHTML(sig){
+  return esc(sig)
+    .replace(/^([a-z_][a-z0-9_]*)/, '<span class="fn-key">$1</span>')
+    .replace(/(:\s*)([A-Z\[][A-Za-z0-9_\[\], \.]*|float|int|str|dict|bool|re\.Match|None)(?=[,\n\)])/g,
+             '$1<span class="ty">$2</span>');
+}
+
+function chips(arr, cls){
+  if(!arr || !arr.length) return '<span class="chip none">— none —</span>';
+  return arr.map(n => `<span class="chip ${cls}">${esc(n)}</span>`).join('');
+}
+
+function fnCard(f){
+  return `
+  <article class="fn">
+    <div class="fn-head">
+      <span class="fn-name">${esc(f.name)}</span>
+      <span class="badge b-${f.kind}">${esc(f.kindLabel)}</span>
+      <span class="fn-sec">${esc(f.section)} · ${esc(f.layer)}</span>
+    </div>
+    <div class="card-body">
+      <pre class="sig">${sigHTML(f.sig)}</pre>
+      <dl class="kv">
+        <dt>Purpose</dt><dd>${esc(f.purpose)}</dd>
+        <dt>Returns</dt><dd>${esc(f.returns)}</dd>
+        <dt>Calls</dt><dd><div class="chips">${chips(f.calls, 'call')}</div></dd>
+        <dt>Called by</dt><dd><div class="chips">${chips(f.calledBy, 'by')}</div></dd>
+        ${f.notes ? `<dt>Notes</dt><dd>${esc(f.notes)}</dd>` : ''}
+      </dl>
+    </div>
+  </article>`;
+}
+
+function renderFns(q){
+  const term = (q || "").trim().toLowerCase();
+  const list = FUNCS.filter(f => !term ||
+    (f.name + " " + f.purpose + " " + f.section + " " + f.kindLabel + " " + f.layer)
+      .toLowerCase().includes(term));
+  document.getElementById("fnList").innerHTML =
+    list.length ? list.map(fnCard).join("")
+                : '<p class="note" style="padding:20px">No functions match that filter.</p>';
+  document.getElementById("fnCount").textContent = list.length + " / " + FUNCS.length + " functions";
+}
+
+/* ── Linkage matrix ───────────────────────────────────────────────── */
+function renderMatrix(){
+  document.getElementById("matrixBody").innerHTML = FUNCS.map(f => `
+    <tr>
+      <td class="mono">${esc(f.name)}()</td>
+      <td><div class="chips">${chips(f.calls, 'call')}</div></td>
+      <td><div class="chips">${chips(f.calledBy, 'by')}</div></td>
+      <td class="c">${esc(f.layer)}</td>
+    </tr>`).join("");
+}
+
+/* ── Tabs ─────────────────────────────────────────────────────────── */
+function activate(panelId){
+  document.querySelectorAll(".tab").forEach(x =>
+    x.classList.toggle("active", x.dataset.panel === panelId));
+  document.querySelectorAll(".panel").forEach(p =>
+    p.classList.toggle("active", p.id === panelId));
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+function initTabs(){
+  document.querySelectorAll(".tab").forEach(t =>
+    t.addEventListener("click", () => activate(t.dataset.panel)));
+  document.querySelectorAll("[data-goto]").forEach(card =>
+    card.addEventListener("click", () => activate(card.dataset.goto)));
+}
+
+/* ── Theme ────────────────────────────────────────────────────────── */
+function initTheme(){
+  const root = document.documentElement;
+  const saved = localStorage.getItem("sra-theme");
+  if(saved) root.dataset.theme = saved;
+  document.getElementById("themeBtn").addEventListener("click", () => {
+    root.dataset.theme = root.dataset.theme === "dark" ? "light" : "dark";
+    localStorage.setItem("sra-theme", root.dataset.theme);
+  });
+}
+
+/* ── Init ─────────────────────────────────────────────────────────── */
+document.addEventListener("DOMContentLoaded", () => {
+  initTabs();
+  initTheme();
+  renderFns("");
+  renderMatrix();
+  document.getElementById("fnSearch").addEventListener("input", e => renderFns(e.target.value));
+
+  document.addEventListener("keydown", e => {
+    if(e.key === "/" && document.activeElement.tagName !== "INPUT"){
+      e.preventDefault();
+      activate("p-funcs");
+      document.getElementById("fnSearch").focus();
+    }
+  });
+});
+
+/* KaTeX: render every \[ … \] block once the DOM and library are ready. */
+window.addEventListener("load", () => {
+  if(window.renderMathInElement){
+    renderMathInElement(document.body, {
+      delimiters: [
+        {left: "\\[", right: "\\]", display: true},
+        {left: "\\(", right: "\\)", display: false}
+      ],
+      throwOnError: false
+    });
+  }
+});
+</script>
+
+</body>
+</html>
