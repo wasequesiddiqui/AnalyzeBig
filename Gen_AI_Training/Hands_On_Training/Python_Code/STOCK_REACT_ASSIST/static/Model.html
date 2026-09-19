@@ -1,0 +1,1634 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DCF Models — ALL_DCF_MODELS.py Reference</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+
+<style>
+/* ── Design tokens ───────────────────────────────────────────────── */
+:root{
+  --bg:#f5f7fb; --surface:#fff; --surface-2:#fafbfe; --border:#e4e8f0;
+  --text:#0f172a; --text-2:#5b6679; --text-3:#8b95a7;
+  --accent:#4f46e5; --accent-soft:#eef0ff; --accent-2:#0284c7;
+  --green:#0f9d58; --green-soft:#e8f7ef;
+  --amber:#b45309; --amber-soft:#fdf3e3;
+  --rose:#be123c; --rose-soft:#fdeaf0;
+  --violet:#7c3aed; --violet-soft:#f3ecfe;
+  --code-bg:#f3f5fa;
+  --radius:14px; --radius-sm:9px;
+  --shadow:0 1px 2px rgba(15,23,42,.05), 0 10px 28px -14px rgba(15,23,42,.22);
+  --mono:"JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+.dcf-root[data-theme="dark"]{
+  --bg:#080b13; --surface:#0f1523; --surface-2:#121a2b; --border:#222c42;
+  --text:#e9eefb; --text-2:#9aa6bd; --text-3:#6c7891;
+  --accent:#8f8ff8; --accent-soft:#1a1f3d; --accent-2:#4cc9f0;
+  --green:#3ddc97; --green-soft:#0d2a1f;
+  --amber:#f0b357; --amber-soft:#2a1f0d;
+  --rose:#fb7185; --rose-soft:#2d1119;
+  --violet:#c4b5fd; --violet-soft:#1f1836;
+  --code-bg:#0c1220;
+  --shadow:0 1px 2px rgba(0,0,0,.6), 0 14px 36px -18px rgba(0,0,0,.9);
+}
+
+/* Zero the page gutter so the standalone document has no white edges.
+   Streamlit already sets margin:0 on its own body, so this is a no-op there. */
+body{margin:0}
+
+.dcf-root{
+  background:var(--bg); color:var(--text); min-height:100vh;
+  font-family:Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size:15px; line-height:1.65;
+  -webkit-font-smoothing:antialiased;
+}
+.dcf-root, .dcf-root *, .dcf-root *::before, .dcf-root *::after{box-sizing:border-box}
+
+/* ── Header ──────────────────────────────────────────────────────── */
+.dcf-root header{
+  position:sticky; top:0; z-index:40;
+  background:color-mix(in srgb, var(--surface) 88%, transparent);
+  backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--border);
+}
+.hdr-inner{
+  max-width:1180px; margin:0 auto; padding:14px 26px;
+  display:flex; align-items:center; gap:16px;
+}
+.brand{display:flex; align-items:center; gap:13px; min-width:0}
+.logo{
+  width:40px; height:40px; flex:none; border-radius:11px;
+  background:linear-gradient(135deg, var(--accent), var(--accent-2));
+  display:grid; place-items:center; color:#fff; font-weight:700; font-size:17px;
+  box-shadow:0 6px 16px -6px var(--accent);
+}
+.brand h1{margin:0; font-size:16.5px; font-weight:650; letter-spacing:-.01em; white-space:nowrap}
+.brand p{margin:0; font-size:12.5px; color:var(--text-2)}
+.hdr-actions{margin-left:auto; display:flex; align-items:center; gap:10px}
+.src-chip{
+  font-family:var(--mono); font-size:11.5px; padding:5px 11px; border-radius:99px;
+  background:var(--code-bg); border:1px solid var(--border); color:var(--text-2);
+  white-space:nowrap;
+}
+.icon-btn{
+  width:36px; height:36px; border-radius:10px; border:1px solid var(--border);
+  background:var(--surface); color:var(--text-2); cursor:pointer;
+  display:grid; place-items:center; font-size:15px; transition:.15s;
+}
+.icon-btn:hover{color:var(--accent); border-color:var(--accent)}
+
+/* ── Layout ──────────────────────────────────────────────────────── */
+.dcf-root main{max-width:1180px; margin:0 auto; padding:26px 26px 90px}
+
+/* ── Tabs ────────────────────────────────────────────────────────── */
+.tabs{display:flex; gap:6px; padding:6px; margin-bottom:26px;
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:13px; box-shadow:var(--shadow); overflow-x:auto;}
+.tab{
+  flex:1; min-width:150px; border:0; cursor:pointer; background:transparent;
+  color:var(--text-2); font:inherit; font-weight:550; font-size:14px;
+  padding:10px 16px; border-radius:9px; transition:.15s; white-space:nowrap;
+}
+.tab:hover{color:var(--text); background:var(--surface-2)}
+.tab.active{
+  background:linear-gradient(135deg, var(--accent), var(--accent-2));
+  color:#fff; box-shadow:0 6px 18px -8px var(--accent);
+}
+.panel{display:none}
+.panel.active{display:block; animation:fade .22s ease}
+@keyframes fade{from{opacity:0; transform:translateY(4px)}to{opacity:1;transform:none}}
+
+/* ── Sections & cards ────────────────────────────────────────────── */
+.sec{margin-bottom:34px}
+.sec-head{display:flex; align-items:baseline; gap:12px; margin:0 0 14px}
+.sec-head .num{
+  font-family:var(--mono); font-size:12px; font-weight:600;
+  color:var(--accent); background:var(--accent-soft);
+  padding:3px 9px; border-radius:7px; flex:none;
+}
+.sec-head h2{margin:0; font-size:19px; font-weight:650; letter-spacing:-.015em}
+.sec-head .tag{
+  margin-left:auto; font-size:11.5px; color:var(--text-3);
+  font-family:var(--mono); white-space:nowrap;
+}
+
+.card{
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:var(--radius); box-shadow:var(--shadow);
+  margin-bottom:14px; overflow:hidden;
+}
+.card-top{
+  padding:14px 18px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+  border-bottom:1px solid var(--border); background:var(--surface-2);
+}
+.card-top h3{margin:0; font-size:14.5px; font-weight:625; letter-spacing:-.01em}
+.card-body{padding:16px 18px}
+
+.badge{
+  font-size:10.5px; font-weight:650; letter-spacing:.03em; text-transform:uppercase;
+  padding:3.5px 9px; border-radius:99px; white-space:nowrap;
+}
+.b-equity{background:var(--green-soft); color:var(--green)}
+.b-enterprise{background:var(--accent-soft); color:var(--accent)}
+.b-wrapper{background:var(--violet-soft); color:var(--violet)}
+.b-input{background:var(--amber-soft); color:var(--amber)}
+.b-orch{background:var(--rose-soft); color:var(--rose)}
+.b-opt{background:var(--accent-soft); color:var(--accent-2)}
+
+/* ── Formula block ───────────────────────────────────────────────── */
+.formula{
+  background:var(--code-bg); border:1px solid var(--border);
+  border-left:3px solid var(--accent);
+  border-radius:var(--radius-sm); padding:14px 16px; margin:2px 0 12px;
+  overflow-x:auto; overflow-y:hidden;
+}
+.formula .katex-display{margin:.25em 0}
+.formula .katex{font-size:1.06em}
+
+.note{font-size:13px; color:var(--text-2); margin:8px 0 0}
+.note strong{color:var(--text); font-weight:600}
+
+.impl{
+  display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+  font-size:12.5px; color:var(--text-2); margin-top:10px;
+  padding-top:10px; border-top:1px dashed var(--border);
+}
+.impl .lbl{font-weight:600; color:var(--text)}
+.dcf-root code, .dcf-root .mono{font-family:var(--mono)}
+.dcf-root code{
+  font-size:12.3px; background:var(--code-bg); border:1px solid var(--border);
+  padding:1.5px 6px; border-radius:5px; color:var(--text); white-space:nowrap;
+}
+.dcf-root a code{color:var(--accent)}
+.chain{display:flex; align-items:center; gap:6px; flex-wrap:wrap}
+.arrow{color:var(--text-3); font-size:12px}
+
+/* ── Function reference ──────────────────────────────────────────── */
+.toolbar{
+  display:flex; align-items:center; gap:12px; margin-bottom:16px; flex-wrap:wrap;
+}
+.search{
+  flex:1; min-width:230px; display:flex; align-items:center; gap:9px;
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:11px; padding:9px 13px; box-shadow:var(--shadow);
+}
+.search input{
+  border:0; outline:0; background:transparent; color:var(--text);
+  font:inherit; font-size:14px; width:100%;
+}
+.search input::placeholder{color:var(--text-3)}
+.count{font-size:12.5px; color:var(--text-2); font-family:var(--mono); white-space:nowrap}
+
+.fn{
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:var(--radius); box-shadow:var(--shadow);
+  margin-bottom:12px; overflow:hidden; transition:.15s;
+}
+.fn:hover{border-color:color-mix(in srgb, var(--accent) 40%, var(--border))}
+.fn-head{
+  padding:14px 18px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+  border-bottom:1px solid var(--border); background:var(--surface-2);
+}
+.fn-name{font-family:var(--mono); font-size:13.5px; font-weight:600; color:var(--accent)}
+.fn-sec{font-size:11.5px; color:var(--text-3); margin-left:auto; white-space:nowrap}
+.sig{
+  font-family:var(--mono); font-size:12.2px; line-height:1.72;
+  background:var(--code-bg); border:1px solid var(--border);
+  border-radius:var(--radius-sm); padding:12px 14px; margin:0 0 12px;
+  white-space:pre-wrap; word-break:break-word; color:var(--text);
+}
+.sig .fn-key{color:var(--accent); font-weight:600}
+.sig .ty{color:var(--text-3)}
+
+.kv{display:grid; grid-template-columns:96px 1fr; gap:5px 14px; font-size:13.2px}
+.kv dt{color:var(--text-3); font-weight:600; font-size:11.5px; text-transform:uppercase;
+  letter-spacing:.03em; padding-top:2px}
+.kv dd{margin:0; color:var(--text-2)}
+
+.chips{display:flex; flex-wrap:wrap; gap:6px}
+.chip{
+  font-family:var(--mono); font-size:11.3px; padding:3px 9px; border-radius:7px;
+  background:var(--code-bg); border:1px solid var(--border); color:var(--text-2);
+}
+.chip.call{color:var(--accent-2); border-color:color-mix(in srgb, var(--accent-2) 30%, var(--border))}
+.chip.by{color:var(--violet); border-color:color-mix(in srgb, var(--violet) 30%, var(--border))}
+.chip.none{opacity:.55}
+
+/* ── Dependency map ──────────────────────────────────────────────── */
+.flow{display:flex; flex-direction:column; gap:0}
+.layer{
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:var(--radius); box-shadow:var(--shadow); padding:16px 18px;
+}
+.layer-h{display:flex; align-items:center; gap:10px; margin-bottom:12px; flex-wrap:wrap}
+.layer-h h4{margin:0; font-size:13px; font-weight:650; text-transform:uppercase;
+  letter-spacing:.06em; color:var(--text-2)}
+.layer-idx{
+  font-family:var(--mono); font-size:11px; font-weight:600; color:var(--accent);
+  background:var(--accent-soft); padding:2px 8px; border-radius:6px;
+}
+.conn{display:grid; place-items:center; padding:5px 0}
+.conn span{
+  width:2px; height:26px;
+  background:linear-gradient(var(--accent), color-mix(in srgb, var(--accent) 25%, transparent));
+  border-radius:2px; position:relative;
+}
+.conn span::after{
+  content:""; position:absolute; bottom:-1px; left:50%; transform:translateX(-50%);
+  border-left:4.5px solid transparent; border-right:4.5px solid transparent;
+  border-top:7px solid var(--accent);
+}
+.node-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(215px,1fr)); gap:8px}
+.node{
+  border:1px solid var(--border); border-radius:10px; padding:9px 12px;
+  background:var(--surface-2); font-size:12.4px;
+}
+.node b{font-family:var(--mono); font-size:11.8px; font-weight:600; color:var(--text); display:block}
+.node span{color:var(--text-3); font-size:11.4px}
+.node.orch{border-left:3px solid var(--rose)}
+.node.mod{border-left:3px solid var(--accent)}
+.node.wrap{border-left:3px solid var(--violet)}
+.node.inp{border-left:3px solid var(--amber)}
+.node.out{border-left:3px solid var(--green)}
+
+.dcf-root table{width:100%; border-collapse:collapse; font-size:13px; margin-top:4px}
+.dcf-root th, .dcf-root td{padding:9px 11px; text-align:left; border-bottom:1px solid var(--border)}
+.dcf-root th{
+  font-size:11px; text-transform:uppercase; letter-spacing:.05em;
+  color:var(--text-3); font-weight:650; background:var(--surface-2);
+}
+.dcf-root tbody tr:last-child td{border-bottom:0}
+.dcf-root td.mono{font-family:var(--mono); font-size:11.8px; color:var(--accent)}
+.dcf-root td.c{text-align:center; font-family:var(--mono); color:var(--text-2)}
+
+.legend{display:flex; gap:14px; flex-wrap:wrap; font-size:12px; color:var(--text-2);
+  margin-top:12px; padding-top:12px; border-top:1px solid var(--border)}
+.legend i{display:inline-block; width:9px; height:9px; border-radius:3px; margin-right:6px}
+.dot-mod{background:var(--accent)} .dot-wrap{background:var(--violet)}
+.dot-inp{background:var(--amber)} .dot-orch{background:var(--rose)} .dot-out{background:var(--green)}
+
+.callout{
+  display:flex; gap:11px; padding:13px 15px; border-radius:var(--radius-sm);
+  background:var(--amber-soft); border:1px solid color-mix(in srgb, var(--amber) 25%, var(--border));
+  font-size:13px; color:var(--text-2); margin-bottom:14px;
+}
+.callout b{color:var(--text)}
+.callout .ico{flex:none; font-size:14px}
+
+.dcf-root footer{
+  max-width:1180px; margin:0 auto; padding:22px 26px 40px;
+  border-top:1px solid var(--border); color:var(--text-3); font-size:12.5px;
+}
+.dcf-root footer code{font-size:11.5px}
+
+.dcf-root kbd{
+  font-family:var(--mono); font-size:11px; background:var(--surface-2);
+  border:1px solid var(--border); border-bottom-width:2px;
+  border-radius:5px; padding:1px 6px; color:var(--text-2);
+}
+
+@media (max-width:720px){
+  .hdr-inner, main, footer{padding-left:16px; padding-right:16px}
+  .src-chip{display:none}
+  .kv{grid-template-columns:1fr; gap:2px}
+  .kv dt{padding-top:8px}
+  .brand p{display:none}
+}
+</style>
+</head>
+<body>
+
+<div class="dcf-root" data-theme="light">
+
+<header>
+  <div class="hdr-inner">
+    <div class="brand">
+      <div class="logo">DCF</div>
+      <div>
+        <h1>DCF Valuation Model Reference</h1>
+        <p>Every formula, function and linkage in <code style="font-size:11.5px">ALL_DCF_MODELS.py</code></p>
+      </div>
+    </div>
+    <div class="hdr-actions">
+      <span class="src-chip">24 functions · 21 valuation models · 3 scenarios</span>
+      <button class="icon-btn" id="themeBtn" title="Toggle light / dark" aria-label="Toggle theme">◐</button>
+    </div>
+  </div>
+</header>
+
+<main>
+
+  <nav class="tabs" role="tablist">
+    <button class="tab active" role="tab" data-panel="p-models">DCF Models</button>
+    <button class="tab" role="tab" data-panel="p-funcs">Function Reference</button>
+    <button class="tab" role="tab" data-panel="p-deps">Dependency Map</button>
+  </nav>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       TAB 1 — DCF MODELS
+       ══════════════════════════════════════════════════════════════ -->
+  <section class="panel active" id="p-models">
+
+    <div class="callout">
+      <span class="ico">◆</span>
+      <div>
+        Every valuation function returns a <strong>tuple</strong>. For firm-level models
+        (FCFF, APV, CCF, EVA, Sum-of-the-Parts) the first element is the
+        <strong>enterprise value</strong> and the second is <strong>equity value per share</strong>
+        after subtracting net debt. For equity-level models (DDM, FCFE, RIM, ECF) the first
+        element is the <strong>equity value</strong> directly.
+        Notation: <code>D₀</code> dividend, <code>r</code> cost of equity,
+        <code>g</code> growth, <code>N</code> shares outstanding.
+      </div>
+    </div>
+
+    <!-- 1 ─ DDM -->
+    <div class="sec">
+      <div class="sec-head">
+        <span class="num">01</span>
+        <h2>Dividend Discount Models</h2>
+        <span class="tag">equity-level · 4 functions</span>
+      </div>
+
+      <div class="card">
+        <div class="card-top">
+          <h3>Gordon Growth Model</h3>
+          <span class="badge b-equity">Equity</span>
+        </div>
+        <div class="card-body">
+          <div class="formula">
+            \[ P_0 \;=\; \frac{D_1}{r-g} \;=\; \frac{D_0\,(1+g)}{r-g} \qquad\text{requires } r > g \]
+          </div>
+          <p class="note">Constant perpetual dividend growth. The simplest DDM — one growth rate forever.</p>
+          <div class="impl">
+            <span class="lbl">Implemented by</span>
+            <code>ddm_gordon()</code>
+            <span class="arrow">→</span>
+            <span class="chain">
+              <span class="chip">raises ValueError if r ≤ g</span>
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-top">
+          <h3>Two-Stage DDM</h3>
+          <span class="badge b-equity">Equity</span>
+        </div>
+        <div class="card-body">
+          <div class="formula">
+            \[ P_0 \;=\; \sum_{t=1}^{n}\frac{D_0\,(1+g_1)^t}{(1+r)^t} \;+\; \frac{1}{(1+r)^n}\cdot\frac{D_n\,(1+g_2)}{r-g_2} \]
+          </div>
+          <p class="note">High-growth phase for <code>n</code> years, then a Gordon terminal value at stable growth <code>g₂</code>.</p>
+          <div class="impl">
+            <span class="lbl">Implemented by</span>
+            <code>ddm_two_stage()</code>
+            <span class="arrow">→</span>
+            <span class="chain"><span class="chip">requires r &gt; g₂</span></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-top">
+          <h3>Three-Stage DDM</h3>
+          <span class="badge b-equity">Equity</span>
+        </div>
+        <div class="card-body">
+          <div class="formula">
+            \[ P_0 = \underbrace{\sum_{t=1}^{n_1}\frac{D_0(1+g_1)^t}{(1+r)^t}}_{\text{high growth}} + \underbrace{\sum_{i=1}^{n_2}\frac{D_{n_1+i-1}\,(1+g_i)}{(1+r)^{\,n_1+i}}}_{\text{linear transition}} + \underbrace{\frac{D_{n_1+n_2}\,(1+g_3)}{(r-g_3)\,(1+r)^{\,n_1+n_2}}}_{\text{terminal}} \]
+          </div>
+          <div class="formula">
+            \[ g_i \;=\; g_1 - i\cdot\frac{g_1-g_3}{n_2+1}, \qquad i = 1,\dots,n_2 \]
+          </div>
+          <p class="note">Growth decays <strong>linearly</strong> across the transition phase. Note the step divisor is <code>n₂+1</code>, so the last transition rate lands one notch above <code>g₃</code> — the terminal value then applies <code>g₃</code> permanently.</p>
+          <div class="impl">
+            <span class="lbl">Implemented by</span>
+            <code>ddm_three_stage()</code>
+            <span class="arrow">→</span>
+            <span class="chain"><span class="chip">requires r &gt; g₃</span></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-top">
+          <h3>H-Model</h3>
+          <span class="badge b-equity">Equity</span>
+        </div>
+        <div class="card-body">
+          <div class="formula">
+            \[ P_0 \;=\; \frac{D_0\,(1+g_L)}{r-g_L} \;+\; \frac{D_0\,H\,(g_S-g_L)}{r-g_L} \]
+          </div>
+          <p class="note">Closed-form version of a linearly declining growth rate, where <code>H</code> is the <strong>half-life</strong> of the high-growth period — so the full high-growth phase spans <code>2H</code> years. Cheaper than the three-stage loop.</p>
+          <div class="impl">
+            <span class="lbl">Implemented by</span>
+            <code>ddm_h_model()</code>
+            <span class="arrow">→</span>
+            <span class="chain"><span class="chip">requires r &gt; g_L</span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 2 ─ FCFF -->
+    <div class="sec">
+      <div class="sec-head">
+        <span class="num">02</span>
+        <h2>Free Cash Flow to Firm</h2>
+        <span class="tag">enterprise-level · discounted at WACC</span>
+      </div>
+
+      <div class="card">
+        <div class="card-top">
+          <h3>FCFF — Single Stage</h3>
+          <span class="badge b-enterprise">Enterprise</span>
+        </div>
+        <div class="card-body">
+          <div class="formula">
+            \[ EV = \frac{FCFF_1}{WACC-g} = \frac{FCFF_0\,(1+g)}{WACC-g} \]
+            \[ V_0 = \frac{EV - D_{net}}{N} \]
+          </div>
+          <p class="note">Constant-growth perpetuity of unlevered free cash flow, then bridge from enterprise value to per-share equity value.</p>
+          <div class="impl">
+            <span class="lbl">Implemented by</span>
+            <code>fcff_single_stage()</code>
+            <span class="arrow">→</span>
+            <span class="chain"><span class="chip">requires WACC &gt; g</span></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-top">
+          <h3>FCFF — Two Stage</h3>
+          <span class="badge b-enterprise">Enterprise</span>
+        </div>
+        <div class="card-body">
+          <div class="formula">
+            \[ EV \;=\; \sum_{t=1}^{n}\frac{FCFF_t}{(1+WACC)^t} \;+\; \frac{1}{(1+WACC)^n}\cdot\frac{FCFF_n\,(1+g_2)}{WACC-g_2} \]
+          </div>
+          <p class="note">Explicit forecast for <code>n</code> high-growth years followed by a stable-growth terminal value.</p>
+          <div class="impl">
+            <span class="lbl">Implemented by</span>
+            <code>fcff_two_stage()</code>
+            <span class="arrow">→</span>
+            <span class="chain"><span class="chip">requires WACC &gt; g₂</span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3 ─ FCFE -->
+    <div class="sec">
+      <div class="sec-head">
+        <span class="num">03</span>
+        <h2>Free Cash Flow to Equity</h2>
+        <span class="tag">equity-level · discounted at r</span>
+      </div>
+
+      <div class="card">
+        <div class="card-top">
+          <h3>FCFE — Constant Growth</h3>
+          <span class="badge b-equity">Equity</span>
+        </div>
+        <div class="card-body">
+          <div class="formula">
+            \[ Equity = \frac{FCFE_1}{r-g} = \frac{FCFE_0\,(1+g)}{r-g} \]
+          </div>
+          <p class="note">Single-stage FCFE. No net-debt bridge is needed because the cash flow is already an equity claim.</p>
+          <div class="impl">
+            <span class="lbl">Implemented by</span>
+            <code>fcfe_constant_growth()</code>
+            <span class="arrow">→</span>
+            <span class="chain"><span class="chip">requires r &gt; g</span></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-top">
+          <h3>FCFE — Two Stage</h3>
+          <span class="badge b-equity">Equity</span>
+        </div>
+        <div class="card-body">
+          <div class="formula">
+            \[ Equity \;=\; \sum_{t=1}^{n}\frac{FCFE_t}{(1+r)^t} \;+\; \frac{1}{(1+r)^n}\cdot\frac{FCFE_n\,(1+g_2)}{r-g_2} \]
+          </div>
+          <p class="note">Structurally identical to the two-stage FCFF model, but discounted at the cost of equity.</p>
+          <div class="impl">
+            <span class="lbl">Implemented by</span>
+            <code>fcfe_two_stage()</code>
+            <span class="arrow">→</span>
+            <span class="chain"><span class="chip">requires r &gt; g₂</span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4 ─ APV -->
+    <div class="sec">
+      <div class="sec-head">
+        <span class="num">04</span>
+        <h2>Adjusted Present Value</h2>
+        <span class="tag">separates operating & financing value</span>
+      </div>
+
+      <div class="card">
+        <div class="card-top">
+          <h3>APV</h3>
+          <span class="badge b-enterprise">Enterprise</span>
+        </div>
+        <div class="card-body">
+          <div class="formula">
+            \[ V_L \;=\; V_U \;+\; PV(\text{tax shields}) \]
+            \[ V_U \;=\; \sum_{t=0}^{m-1}\frac{FCFF_t}{(1+r_U)^{t+1}} \;+\; \frac{TV_U}{(1+r_U)^{n}}, \qquad TV_U = \frac{FCFF_{n-1}\,(1+g)}{r_U-g} \]
+            \[ PV(TS) \;=\; \sum_{t=0}^{k-1}\frac{TS_t}{(1+r_{TS})^{t+1}} \]
+          </div>
+          <p class="note">
+            Values the unlevered firm first, then adds the interest tax shield as a separate
+            component. The tax shield may be discounted at a <strong>different rate</strong>
+            (<code>discount_rate_tax_shields</code>, typically the cost of debt) than the
+            operating cash flows. A terminal perpetuity on <code>V_U</code> is added only when
+            <code>terminal_growth &gt; 0</code> <em>and</em> <code>terminal_year</code> equals the
+            list length.
+          </p>
+          <div class="impl">
+            <span class="lbl">Implemented by</span>
+            <code>apv()</code>
+            <span class="arrow">→</span>
+            <span class="chain">
+              <span class="chip">rU = unlevered cost of equity</span>
+              <span class="chip">rTS = tax-shield discount rate</span>
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 5 ─ CCF -->
+    <div class="sec">
+      <div class="sec-head">
+        <span class="num">05</span>
+        <h2>Capital Cash Flow</h2>
+        <span class="tag">tax shield folded into cash flow</span>
+      </div>
+
+      <div class="card">
+        <div class="card-top">
+          <h3>CCF</h3>
+          <span class="badge b-enterprise">Enterprise</span>
+        </div>
+        <div class="card-body">
+          <div class="formula">
+            \[ CCF_t \;=\; FCFU_t \;+\; T_c\cdot I_t \]
+            \[ EV \;=\; \sum_{t=0}^{n-1}\frac{CCF_t}{(1+r_U)^{t+1}} \;+\; \frac{1}{(1+r_U)^{n}}\cdot\frac{CCF_{n-1}\,(1+g)}{r_U-g} \]
+          </div>
+          <p class="note">
+            The mirror image of APV: instead of discounting the tax shield separately, it is
+            added <em>into</em> each period's cash flow and the total is discounted at the
+            unlevered cost of equity <code>r_U</code>. Note the flows are indexed from
+            <code>t=0</code> and discounted at <code>t+1</code>, i.e. year-1 cash flows are
+            discounted one period.
+          </p>
+          <div class="impl">
+            <span class="lbl">Implemented by</span>
+            <code>ccf()</code>
+            <span class="arrow">→</span>
+            <span class="chain"><span class="chip">requires r_U &gt; g when g &gt; 0</span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 6 ─ ECF -->
+    <div class="sec">
+      <div class="sec-head">
+        <span class="num">06</span>
+        <h2>Equity Cash Flow</h2>
+        <span class="tag">levered equity claim</span>
+      </div>
+
+      <div class="card">
+        <div class="card-top">
+          <h3>ECF</h3>
+          <span class="badge b-equity">Equity</span>
+        </div>
+        <div class="card-body">
+          <div class="formula">
+            \[ ECF \;=\; \text{Dividends} \;+\; \text{Share repurchases} \;-\; \text{New equity issued} \]
+            \[ Equity \;=\; \sum_{t=0}^{n-1}\frac{ECF_t}{(1+r)^{t+1}} \;+\; \frac{1}{(1+r)^{n}}\cdot\frac{ECF_{n-1}\,(1+g)}{r-g} \]
+          </div>
+          <p class="note">The widest definition of an equity cash flow — captures dividends plus buybacks net of issuance.</p>
+          <div class="impl">
+            <span class="lbl">Implemented by</span>
+            <code>ecf()</code>
+            <span class="arrow">→</span>
+            <span class="chain"><span class="chip">requires r &gt; g when g &gt; 0</span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 7 ─ RIM / EVA -->
+    <div class="sec">
+      <div class="sec-head">
+        <span class="num">07</span>
+        <h2>Residual Income &amp; Economic Profit</h2>
+        <span class="tag">book-value anchored</span>
+      </div>
+
+      <div class="card">
+        <div class="card-top">
+          <h3>Residual Income Model (RIM)</h3>
+          <span class="badge b-equity">Equity</span>
+        </div>
+        <div class="card-body">
+          <div class="formula">
+            \[ V_0 \;=\; B_0 \;+\; \sum_{t=1}^{n}\frac{RI_t}{(1+r)^t}, \qquad RI_t \;=\; NI_t \;-\; r\cdot B_{t-1} \]
+            \[ TV_{RI} \;=\; \frac{RI_n\,(1+g)}{r-g}\Big/(1+r)^n \quad\text{when } g>0 \]
+          </div>
+          <p class="note">
+            Anchored on the <strong>current book value of equity</strong> <code>B₀</code>, then adds
+            the present value of profit earned above the cost of equity.
+            <code>Bₜ₋₁</code> is the beginning book value of period <code>t</code> — the previous
+            year's <em>ending</em> book value. The final residual income is recomputed from the
+            correct opening book value before applying terminal growth.
+          </p>
+          <div class="impl">
+            <span class="lbl">Implemented by</span>
+            <code>residual_income()</code>
+            <span class="arrow">→</span>
+            <span class="chain"><span class="chip">book_values_forecast length must equal net_income_forecast</span></span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-top">
+          <h3>Economic Value Added (EVA)</h3>
+          <span class="badge b-enterprise">Enterprise</span>
+        </div>
+        <div class="card-body">
+          <div class="formula">
+            \[ EV \;=\; IC_0 \;+\; \sum_{t=1}^{n}\frac{EVA_t}{(1+WACC)^t}, \qquad EVA_t \;=\; NOPAT_t \;-\; WACC\cdot IC_{t-1} \]
+          </div>
+          <p class="note">
+            The enterprise-level twin of RIM: anchored on <strong>invested capital</strong>, then
+            adds value created above the WACC hurdle. Uses beginning-period invested capital
+            <code>ICₜ₋₁</code> as the capital charge base, then subtracts net debt to reach equity.
+          </p>
+          <div class="impl">
+            <span class="lbl">Implemented by</span>
+            <code>eva()</code>
+            <span class="arrow">→</span>
+            <span class="chain"><span class="chip">invested_capital_forecast length must match nopat_forecast</span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 8 ─ SOTP -->
+    <div class="sec">
+      <div class="sec-head">
+        <span class="num">08</span>
+        <h2>Sum-of-the-Parts</h2>
+        <span class="tag">segment aggregation</span>
+      </div>
+
+      <div class="card">
+        <div class="card-top">
+          <h3>Sum-of-the-Parts DCF</h3>
+          <span class="badge b-enterprise">Enterprise</span>
+        </div>
+        <div class="card-body">
+          <div class="formula">
+            \[ EV \;=\; \sum_{i=1}^{k} V_i, \qquad V_0 \;=\; \frac{EV - D_{net}}{N} \]
+          </div>
+          <p class="note">
+            Simply aggregates independently valued segments. In the orchestrator the two segments
+            are themselves produced by calling <code>fcff_single_stage()</code> twice — splitting
+            FCFF 60&#8239;/&#8239;40 across the two parts — which is the clearest
+            <strong>cross-model linkage</strong> in the module.
+          </p>
+          <div class="impl">
+            <span class="lbl">Implemented by</span>
+            <code>sum_of_the_parts()</code>
+            <span class="arrow">←</span>
+            <span class="chain">
+              <span class="chip">fed by 2× <code>fcff_single_stage()</code></span>
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 9 ─ Real options -->
+    <div class="sec">
+      <div class="sec-head">
+        <span class="num">09</span>
+        <h2>Real Options</h2>
+        <span class="tag">scenario &amp; optionality value</span>
+      </div>
+
+      <div class="card">
+        <div class="card-top">
+          <h3>Decision Tree DCF</h3>
+          <span class="badge b-opt">Option</span>
+        </div>
+        <div class="card-body">
+          <div class="formula">
+            \[ \mathbb{E}[NPV] \;=\; \sum_{i=1}^{k} p_i \cdot NPV_i, \qquad \sum_{i=1}^{k} p_i = 1 \]
+          </div>
+          <p class="note">
+            Probability-weighted expected NPV. Probabilities are validated with
+            <code>np.isclose(…, 1.0)</code>. The <code>discount_rate</code> argument is accepted
+            <strong>for interface consistency only</strong> and is never used — NPVs are assumed
+            to already be discounted.
+          </p>
+          <div class="impl">
+            <span class="lbl">Implemented by</span>
+            <code>decision_tree_dcf()</code>
+            <span class="arrow">→</span>
+            <span class="chain">
+              <span class="chip">called by <code>decision_tree_dcf_wrapper()</code></span>
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-top">
+          <h3>Real Option — Black-Scholes</h3>
+          <span class="badge b-opt">Option</span>
+        </div>
+        <div class="card-body">
+          <div class="formula">
+            \[ C \;=\; S_0\,e^{-qT}\,N(d_1) \;-\; X\,e^{-rT}\,N(d_2) \]
+          </div>
+          <div class="formula">
+            \[ d_1 = \frac{\ln\!\left(S_0/X\right) + \left(r - q + \tfrac{\sigma^2}{2}\right)T}{\sigma\sqrt{T}}, \qquad d_2 = d_1 - \sigma\sqrt{T} \]
+          </div>
+          <p class="note">
+            Treats a growth/expansion opportunity as a European call: <code>S₀</code> is the
+            present value of project cash flows, <code>X</code> the investment cost, and
+            <code>N(·)</code> the standard normal CDF via <code>scipy.stats.norm.cdf</code>.
+            Degenerates to intrinsic value <code>max(S₀ − X, 0)</code> when <code>T ≤ 0</code>.
+            The resulting premium is meant to be <strong>added to a static NPV</strong>.
+          </p>
+          <div class="impl">
+            <span class="lbl">Implemented by</span>
+            <code>real_option_black_scholes()</code>
+            <span class="arrow">→</span>
+            <span class="chain"><span class="chip">scipy.stats.norm.cdf</span></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 10 ─ Stochastic -->
+    <div class="sec">
+      <div class="sec-head">
+        <span class="num">10</span>
+        <h2>Stochastic &amp; Simulation Models</h2>
+        <span class="tag">distribution-based</span>
+      </div>
+
+      <div class="card">
+        <div class="card-top">
+          <h3>Monte Carlo DCF</h3>
+          <span class="badge b-opt">Simulation</span>
+        </div>
+        <div class="card-body">
+          <div class="formula">
+            \[ g_t \sim \mathcal{N}\!\left(\mu,\;\sigma^2\right), \qquad CF_t = CF_{t-1}\,(1+g_t) \]
+          </div>
+          <div class="formula">
+            \[ PV^{(j)} \;=\; \sum_{t=1}^{T}\frac{CF_t^{(j)}}{(1+r)^{t}} \;+\; \frac{1}{(1+r)^{T}}\cdot\frac{CF_T^{(j)}\,(1+g)}{r-g}, \qquad \mathbb{E}[NPV] = \frac{1}{J}\sum_{j=1}^{J} PV^{(j)} \]
+          </div>
+          <p class="note">
+            Simulates <code>J</code> paths of uncertain annual growth, discounts each to a present
+            value, and returns the mean alongside the full distribution array. The RNG is seeded
+            with <code>np.random.seed(42)</code>, so results are <strong>deterministic and
+            reproducible</strong> between runs.
+          </p>
+          <div class="impl">
+            <span class="lbl">Implemented by</span>
+            <code>monte_carlo_dcf()</code>
+            <span class="arrow">→</span>
+            <span class="chain">
+              <span class="chip">called by <code>monte_carlo_dcf_wrapper()</code></span>
+              <span class="chip">numpy</span>
+            </span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-top">
+          <h3>Certainty-Equivalent DCF</h3>
+          <span class="badge b-opt">Simulation</span>
+        </div>
+        <div class="card-body">
+          <div class="formula">
+            \[ V_0 \;=\; \sum_{t=1}^{n}\frac{\alpha_t \,\mathbb{E}[CF_t]}{(1+r_f)^{t}}, \qquad 0 < \alpha_t \le 1 \]
+          </div>
+          <p class="note">
+            Adjusts the <strong>numerator</strong> for risk instead of the discount rate: risky
+            expected cash flows are scaled down by certainty-equivalent coefficients
+            <code>αₜ</code> and then discounted at the risk-free rate. The wrapper subtracts net
+            debt only when <code>is_enterprise=True</code>, since the same function serves both
+            FCFF and equity cash flows.
+          </p>
+          <div class="impl">
+            <span class="lbl">Implemented by</span>
+            <code>certainty_equivalent_dcf()</code>
+            <span class="arrow">→</span>
+            <span class="chain">
+              <span class="chip">called by <code>certainty_equivalent_dcf_wrapper()</code></span>
+              <span class="chip">requires len(α) == len(CF)</span>
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 11 ─ Input derivation -->
+    <div class="sec">
+      <div class="sec-head">
+        <span class="num">11</span>
+        <h2>Input Derivation</h2>
+        <span class="tag">get_financial_data()</span>
+      </div>
+
+      <div class="card">
+        <div class="card-top">
+          <h3>Cash-flow &amp; profit definitions</h3>
+          <span class="badge b-input">Inputs</span>
+        </div>
+        <div class="card-body">
+          <div class="formula">
+            \[ FCFF \;=\; EBIT\,(1-t) \;+\; \text{Dep} \;-\; \text{CapEx} \;-\; \Delta WC \]
+          </div>
+          <div class="formula">
+            \[ FCFE \;=\; FCFF \;-\; \text{Interest}\,(1-t) \;+\; \text{Net Borrowing} \]
+          </div>
+          <div class="formula">
+            \[ NOPAT \;=\; EBIT\,(1-t) \]
+          </div>
+          <p class="note">
+            <code>Dep</code> is depreciation &amp; amortisation. CapEx is normalised with
+            <code>abs()</code> because yfinance reports it as a negative number.
+            <strong>Net Borrowing is not modelled</strong> and
+            <strong><code>ΔWC</code> is a hard-coded placeholder of 0</strong> — worth knowing when
+            reconciling the output against a hand-built model.
+          </p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-top">
+          <h3>Discount rates &amp; capital structure</h3>
+          <span class="badge b-input">Inputs</span>
+        </div>
+        <div class="card-body">
+          <div class="formula">
+            \[ r_e \;=\; r_f \;+\; \beta \cdot MRP \qquad (r_f = 4\%,\; MRP = 5\%) \]
+          </div>
+          <div class="formula">
+            \[ r_d \;=\; \frac{\text{Interest Expense}}{\text{Total Debt}} \qquad(\text{fallback } 4\%) \]
+          </div>
+          <div class="formula">
+            \[ WACC \;=\; \frac{r_e\,E \;+\; r_d\,(1-t)\,D}{E + D} \]
+          </div>
+          <div class="formula">
+            \[ D_{net} = \text{Total Debt} - \text{Cash}, \qquad IC_0 = \text{Total Debt} + B_0 \]
+          </div>
+          <p class="note">
+            Equity <code>E</code> uses <strong>market capitalisation</strong>, not book equity.
+            The risk-free rate and market risk premium are fixed placeholders rather than
+            market-sourced values.
+          </p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-top">
+          <h3>Effective tax rate</h3>
+          <span class="badge b-input">Inputs</span>
+        </div>
+        <div class="card-body">
+          <div class="formula">
+            \[ t \;=\; \frac{\text{Income Tax Expense}}{\text{Pretax Income}} \qquad(\text{fallback } 0.21) \]
+          </div>
+          <p class="note">Falls back to the 21% US statutory rate when either figure is unavailable or pretax income is zero.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- 12 ─ Scenario engine -->
+    <div class="sec">
+      <div class="sec-head">
+        <span class="num">12</span>
+        <h2>Scenario Forecast Engine</h2>
+        <span class="tag">run_valuation_analysis()</span>
+      </div>
+
+      <div class="card">
+        <div class="card-top">
+          <h3>Projection recursions</h3>
+          <span class="badge b-orch">Orchestrator</span>
+        </div>
+        <div class="card-body">
+          <div class="formula">
+            \[ FCFF_t = FCFF_{t-1}(1+g_{fcff}), \qquad D_t = D_{t-1}(1+g_{div}), \qquad NI_t = NI_{t-1}(1+g_{ni}) \]
+          </div>
+          <div class="formula">
+            \[ B_t \;=\; B_{t-1} + 0.4\,NI_t \qquad (\text{40\% retention}) \]
+          </div>
+          <div class="formula">
+            \[ NOPAT_t \;=\; NOPAT_{t-1}(1+g_{fcff}), \qquad IC_t \;=\; IC_{t-1} + 0.5\,NOPAT_t \]
+          </div>
+          <div class="formula">
+            \[ TS_t \;\approx\; 0.02 \cdot FCFF_t, \qquad \alpha_t = 0.85 \;\; \forall t \]
+          </div>
+          <p class="note">
+            Book value and invested capital are grown by simplified reinvestment rates rather
+            than derived from a real capital plan, and tax shields are approximated as a flat
+            2% of FCFF rather than from an interest schedule.
+          </p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-top">
+          <h3>Stable-growth clamping</h3>
+          <span class="badge b-orch">Orchestrator</span>
+        </div>
+        <div class="card-body">
+          <div class="formula">
+            \[ g_{stable}^{eq} \;=\; \min\!\left(g_{stable},\; 0.9\,r_e\right), \qquad g_{stable}^{wacc} \;=\; \min\!\left(g_{stable},\; 0.9\,WACC\right) \]
+          </div>
+          <p class="note">
+            Guards the <code>r &gt; g</code> precondition that every perpetual-growth model
+            requires. Scenario <code>g_stable</code> values are clamped to at most 90% of the
+            relevant discount rate before being passed to the models — without this, a bull-case
+            growth rate could exceed the discount rate and raise <code>ValueError</code>.
+          </p>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-top">
+          <h3>Aggregation</h3>
+          <span class="badge b-orch">Orchestrator</span>
+        </div>
+        <div class="card-body">
+          <div class="formula">
+            \[ \bar{V}_{scenario} = \frac{1}{k}\sum_{i=1}^{k} V_i, \qquad \bar{V}_{all} = \frac{1}{m}\sum_{j=1}^{m} V_j \]
+          </div>
+          <p class="note">
+            Each scenario is the <strong>unweighted mean of 21 per-share estimates</strong>, and
+            the headline figure is the mean across all scenarios pooled together. No model
+            weighting, trimming or outlier treatment is applied.
+          </p>
+        </div>
+      </div>
+    </div>
+
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       TAB 2 — FUNCTION REFERENCE
+       ══════════════════════════════════════════════════════════════ -->
+  <section class="panel" id="p-funcs">
+    <div class="toolbar">
+      <label class="search">
+        <span style="color:var(--text-3)">⌕</span>
+        <input id="fnSearch" type="search" placeholder="Filter by function name, purpose or section…" autocomplete="off">
+      </label>
+      <span class="count" id="fnCount"></span>
+    </div>
+    <div id="fnList"></div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════════
+       TAB 3 — DEPENDENCY MAP
+       ══════════════════════════════════════════════════════════════ -->
+  <section class="panel" id="p-deps">
+
+    <div class="sec">
+      <div class="sec-head">
+        <span class="num">⤓</span>
+        <h2>Call hierarchy</h2>
+        <span class="tag">top-down execution flow</span>
+      </div>
+
+      <div class="flow">
+
+        <div class="layer">
+          <div class="layer-h">
+            <span class="layer-idx">L1</span>
+            <h4>External consumer</h4>
+          </div>
+          <div class="node-grid">
+            <div class="node out">
+              <b>Home.py</b>
+              <span>imports ALL_DCF_MODELS as adm</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="conn"><span></span></div>
+
+        <div class="layer">
+          <div class="layer-h">
+            <span class="layer-idx">L2</span>
+            <h4>Single entry point</h4>
+          </div>
+          <div class="node-grid">
+            <div class="node orch">
+              <b>run_valuation_analysis()</b>
+              <span>fetch → loop 3 scenarios → call 21 models → aggregate → report</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="conn"><span></span></div>
+
+        <div class="layer">
+          <div class="layer-h">
+            <span class="layer-idx">L3</span>
+            <h4>Data layer</h4>
+          </div>
+          <div class="node-grid">
+            <div class="node inp">
+              <b>get_financial_data()</b>
+              <span>yfinance → FCFF, FCFE, NOPAT, r_e, r_d, WACC, net debt</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="conn"><span></span></div>
+
+        <div class="layer">
+          <div class="layer-h">
+            <span class="layer-idx">L4</span>
+            <h4>Valuation models — called directly by the orchestrator</h4>
+          </div>
+          <div class="node-grid">
+            <div class="node mod"><b>ddm_gordon()</b><span>DDM</span></div>
+            <div class="node mod"><b>ddm_two_stage()</b><span>DDM</span></div>
+            <div class="node mod"><b>ddm_three_stage()</b><span>DDM</span></div>
+            <div class="node mod"><b>ddm_h_model()</b><span>DDM</span></div>
+            <div class="node mod"><b>fcff_single_stage()</b><span>FCFF · also feeds SOTP</span></div>
+            <div class="node mod"><b>fcff_two_stage()</b><span>FCFF</span></div>
+            <div class="node mod"><b>fcfe_constant_growth()</b><span>FCFE</span></div>
+            <div class="node mod"><b>fcfe_two_stage()</b><span>FCFE</span></div>
+            <div class="node mod"><b>apv()</b><span>APV</span></div>
+            <div class="node mod"><b>ccf()</b><span>CCF</span></div>
+            <div class="node mod"><b>ecf()</b><span>ECF</span></div>
+            <div class="node mod"><b>residual_income()</b><span>RIM</span></div>
+            <div class="node mod"><b>eva()</b><span>EVA</span></div>
+            <div class="node mod"><b>sum_of_the_parts()</b><span>SOTP</span></div>
+            <div class="node mod"><b>real_option_black_scholes()</b><span>Real option</span></div>
+          </div>
+        </div>
+
+        <div class="conn"><span></span></div>
+
+        <div class="layer">
+          <div class="layer-h">
+            <span class="layer-idx">L5</span>
+            <h4>Wrappers — normalise a bare value into (total, per-share)</h4>
+          </div>
+          <div class="node-grid">
+            <div class="node wrap"><b>decision_tree_dcf_wrapper()</b><span>→ decision_tree_dcf()</span></div>
+            <div class="node wrap"><b>monte_carlo_dcf_wrapper()</b><span>→ monte_carlo_dcf()</span></div>
+            <div class="node wrap"><b>certainty_equivalent_dcf_wrapper()</b><span>→ certainty_equivalent_dcf()</span></div>
+          </div>
+        </div>
+
+        <div class="conn"><span></span></div>
+
+        <div class="layer">
+          <div class="layer-h">
+            <span class="layer-idx">L6</span>
+            <h4>Terminal step</h4>
+          </div>
+          <div class="node-grid">
+            <div class="node out"><b>scenario_error_analysis()</b><span>latest price → absolute deviation per scenario</span></div>
+          </div>
+        </div>
+
+      </div>
+
+      <div class="legend">
+        <span><i class="dot-orch"></i>Orchestrator</span>
+        <span><i class="dot-inp"></i>Input</span>
+        <span><i class="dot-mod"></i>Valuation model</span>
+        <span><i class="dot-wrap"></i>Wrapper</span>
+        <span><i class="dot-out"></i>Output / consumer</span>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head">
+        <span class="num">⇄</span>
+        <h2>Linkage matrix</h2>
+        <span class="tag">who calls whom</span>
+      </div>
+      <div class="card">
+        <div class="card-body" style="padding:0">
+          <table>
+            <thead>
+              <tr>
+                <th>Function</th>
+                <th>Calls</th>
+                <th>Called by</th>
+                <th style="text-align:center">Layer</th>
+              </tr>
+            </thead>
+            <tbody id="matrixBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head">
+        <span class="num">!</span>
+        <h2>Notable behaviours</h2>
+        <span class="tag">read before trusting output</span>
+      </div>
+
+      <div class="card">
+        <div class="card-body">
+          <table>
+            <thead>
+              <tr><th style="width:38%">Location</th><th>Behaviour</th></tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td class="mono">run_valuation_analysis · "9b"</td>
+                <td>The Black-Scholes block appends the <strong>previous</strong> scenario value (<code>vps</code>) to <code>scenario_vps</code> rather than the computed <code>option_val</code>. The option premium is printed but never enters any average — so the DDM value above it is counted twice.</td>
+              </tr>
+              <tr>
+                <td class="mono">decision_tree_dcf</td>
+                <td><code>discount_rate</code> is accepted and ignored; the wrapper passes <code>0.0</code>. NPVs must already be discounted by the caller.</td>
+              </tr>
+              <tr>
+                <td class="mono">monte_carlo_dcf</td>
+                <td>Calls <code>np.random.seed(42)</code> internally, so it is reproducible but also <strong>mutates global RNG state</strong> for anything running after it.</td>
+              </tr>
+              <tr>
+                <td class="mono">get_financial_data</td>
+                <td><code>change_in_wc = 0</code> placeholder and no net-borrowing term — both WC and net borrowing are effectively omitted from FCFF / FCFE.</td>
+              </tr>
+              <tr>
+                <td class="mono">residual_income</td>
+                <td><code>last_ri</code> is computed three times in the terminal-value block; the first two assignments are dead code. The final, correct value uses the right opening book value.</td>
+              </tr>
+              <tr>
+                <td class="mono">run_valuation_analysis</td>
+                <td><code>segment_values</code> calls <code>fcff_single_stage()</code> with <code>net_debt = 0</code> deliberately, so the returned first element is a pure segment enterprise value. If it ever returned equity value instead, SOTP would silently double-count the debt bridge.</td>
+              </tr>
+              <tr>
+                <td class="mono">All occurrences</td>
+                <td>Discount rates, betas and growth assumptions come from fixed constants or <code>yfinance</code> fields — <code>yfinance</code>'s <code>beta</code> is unreliable for non-US listings (e.g. INFY.NS returns ≈ 0.11), which flows straight into the CAPM cost of equity.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </section>
+
+</main>
+
+<footer>
+  Generated reference for <code>ALL_DCF_MODELS.py</code> · 24 functions, 21 valuation models,
+  3 scenarios (base / bull / bear) · Press <kbd>/</kbd> to search the function reference.
+</footer>
+
+</div><!-- /.dcf-root -->
+
+<script>
+/* ──────────────────────────────────────────────────────────────────
+   Function reference data
+   ────────────────────────────────────────────────────────────────── */
+const FUNCS = [
+  {
+    name: "run_valuation_analysis", kind: "orch", kindLabel: "Orchestrator",
+    section: "Orchestration",
+    sig: "run_valuation_analysis(\n    ticker: str = \"INFY.NS\",\n    currency: str = \"\u20B9 \",\n    scenario_assumptions: Optional[List[dict]] = None,\n    scenarios_dt: Optional[List[Tuple[float, float]]] = None,\n    data: Optional[dict] = None,\n    verbose: bool = True,\n) -> dict",
+    purpose: "Top-level driver. Fetches financial data, loops over the three default scenarios (base / bull / bear), builds the explicit forecast lists, invokes all 21 valuation models per scenario, averages the per-share results, then runs the error analysis and returns a consolidated dict.",
+    returns: "dict — scenario_results, all_values_per_share, average_all, base_val / bull_val / bear_val, base_rmse / bull_rmse / bear_rmse, ticker, currency",
+    calls: ["get_financial_data", "fcff_single_stage", "ddm_gordon", "ddm_two_stage", "ddm_three_stage", "ddm_h_model", "fcff_two_stage", "fcfe_constant_growth", "fcfe_two_stage", "apv", "ccf", "ecf", "residual_income", "eva", "sum_of_the_parts", "decision_tree_dcf_wrapper", "real_option_black_scholes", "monte_carlo_dcf_wrapper", "certainty_equivalent_dcf_wrapper", "scenario_error_analysis"],
+    calledBy: ["Home.py", "__main__"],
+    notes: "Falls back to hard-coded dummy financials if get_financial_data() raises. Clamps stable growth to 90% of the discount rate. Seeds each Monte Carlo run internally."
+  },
+  {
+    name: "get_financial_data", kind: "input", kindLabel: "Input",
+    section: "Data",
+    sig: "get_financial_data(ticker: str) -> dict",
+    purpose: "Fetches balance sheet, income statement and cash flow statement via yfinance and derives every model input: FCFF, FCFE, NOPAT, net debt, invested capital, book equity, CAPM cost of equity, cost of debt and WACC.",
+    returns: "dict with shares_outstanding, dividend_per_share, fcff, fcfe, net_debt, book_value_equity, invested_capital, ebit, nopat, net_income, cost_of_equity, wacc, risk_free_rate, tax_rate, beta",
+    calls: ["yfinance.Ticker"],
+    calledBy: ["run_valuation_analysis"],
+    notes: "Raises ValueError if the balance sheet, income statement or cash flow statement is empty. Shares fall back to marketCap / price, then to a dummy 1e9. change_in_wc is a hard-coded 0 placeholder."
+  },
+  {
+    name: "ddm_gordon", kind: "equity", kindLabel: "Equity",
+    section: "1 · Dividend Discount",
+    sig: "ddm_gordon(\n    dividend_per_share: float,\n    cost_of_equity: float,\n    growth_rate: float,\n    shares_outstanding: float,\n) -> Tuple[float, float]",
+    purpose: "Gordon Growth Model — values equity as a single perpetuity of dividends growing at a constant rate.",
+    returns: "(equity_value, value_per_share)",
+    calls: [],
+    calledBy: ["run_valuation_analysis"],
+    notes: "Raises ValueError when cost of equity <= growth rate."
+  },
+  {
+    name: "ddm_two_stage", kind: "equity", kindLabel: "Equity",
+    section: "1 · Dividend Discount",
+    sig: "ddm_two_stage(\n    dividend_per_share: float,\n    growth_high: float,\n    growth_stable: float,\n    years_high: int,\n    cost_of_equity: float,\n    shares_outstanding: float,\n) -> Tuple[float, float]",
+    purpose: "Two-stage DDM: an explicit high-growth phase of n years followed by a Gordon terminal value at the stable growth rate.",
+    returns: "(equity_value, value_per_share)",
+    calls: [],
+    calledBy: ["run_valuation_analysis"],
+    notes: "Raises ValueError when r <= stable growth rate. Dividends are compounded year-by-year in a loop."
+  },
+  {
+    name: "ddm_three_stage", kind: "equity", kindLabel: "Equity",
+    section: "1 · Dividend Discount",
+    sig: "ddm_three_stage(\n    dividend_per_share: float,\n    growth_high: float,\n    growth_stable: float,\n    years_high: int,\n    years_transition: int,\n    cost_of_equity: float,\n    shares_outstanding: float,\n) -> Tuple[float, float]",
+    purpose: "Three-stage DDM: high growth, then a transition phase where the growth rate declines linearly from g1 toward g3, then a stable perpetuity.",
+    returns: "(equity_value, value_per_share)",
+    calls: [],
+    calledBy: ["run_valuation_analysis"],
+    notes: "Transition step is (g1 - g3) / (n2 + 1), so the final transition rate sits just above g3 rather than exactly on it."
+  },
+  {
+    name: "ddm_h_model", kind: "equity", kindLabel: "Equity",
+    section: "1 · Dividend Discount",
+    sig: "ddm_h_model(\n    dividend_per_share: float,\n    growth_short: float,\n    growth_long: float,\n    half_life: float,\n    cost_of_equity: float,\n    shares_outstanding: float,\n) -> Tuple[float, float]",
+    purpose: "H-Model — closed-form valuation for a growth rate that declines linearly from a short-term high to a long-term stable rate. H is the half-life, so the full high-growth window is 2H years.",
+    returns: "(equity_value, value_per_share)",
+    calls: [],
+    calledBy: ["run_valuation_analysis"],
+    notes: "Raises ValueError when r <= long-term growth rate."
+  },
+  {
+    name: "fcff_single_stage", kind: "enterprise", kindLabel: "Enterprise",
+    section: "2 · FCFF",
+    sig: "fcff_single_stage(\n    fcff_0: float,\n    wacc: float,\n    growth_rate: float,\n    shares_outstanding: float,\n    net_debt: float,\n) -> Tuple[float, float]",
+    purpose: "Constant-growth FCFF perpetuity producing enterprise value, then bridging to per-share equity value by subtracting net debt.",
+    returns: "(enterprise_value, value_per_share)",
+    calls: [],
+    calledBy: ["run_valuation_analysis"],
+    notes: "Called TWICE by the orchestrator with net_debt = 0 to build the two segment enterprise values consumed by sum_of_the_parts(). Raises ValueError when WACC <= g."
+  },
+  {
+    name: "fcff_two_stage", kind: "enterprise", kindLabel: "Enterprise",
+    section: "2 · FCFF",
+    sig: "fcff_two_stage(\n    fcff_0: float,\n    growth_high: float,\n    growth_stable: float,\n    years_high: int,\n    wacc: float,\n    shares_outstanding: float,\n    net_debt: float,\n) -> Tuple[float, float]",
+    purpose: "Two-stage FCFF: explicit high-growth forecast discounted at WACC, plus a stable-growth terminal value, then the net-debt bridge.",
+    returns: "(enterprise_value, value_per_share)",
+    calls: [],
+    calledBy: ["run_valuation_analysis"],
+    notes: "Raises ValueError when WACC <= stable growth rate."
+  },
+  {
+    name: "fcfe_constant_growth", kind: "equity", kindLabel: "Equity",
+    section: "3 · FCFE",
+    sig: "fcfe_constant_growth(\n    fcfe_0: float,\n    cost_of_equity: float,\n    growth_rate: float,\n    shares_outstanding: float,\n) -> Tuple[float, float]",
+    purpose: "Single-stage FCFE perpetuity discounted at the cost of equity. No net-debt bridge, because FCFE is already an equity claim.",
+    returns: "(equity_value, value_per_share)",
+    calls: [],
+    calledBy: ["run_valuation_analysis"],
+    notes: "Raises ValueError when cost of equity <= growth rate."
+  },
+  {
+    name: "fcfe_two_stage", kind: "equity", kindLabel: "Equity",
+    section: "3 · FCFE",
+    sig: "fcfe_two_stage(\n    fcfe_0: float,\n    growth_high: float,\n    growth_stable: float,\n    years_high: int,\n    cost_of_equity: float,\n    shares_outstanding: float,\n) -> Tuple[float, float]",
+    purpose: "Two-stage FCFE — mirrors fcff_two_stage but discounts at the cost of equity and never subtracts net debt.",
+    returns: "(equity_value, value_per_share)",
+    calls: [],
+    calledBy: ["run_valuation_analysis"],
+    notes: "Raises ValueError when cost of equity <= stable growth rate."
+  },
+  {
+    name: "apv", kind: "enterprise", kindLabel: "Enterprise",
+    section: "4 · APV",
+    sig: "apv(\n    unlevered_fcff: List[float],\n    unlevered_cost_of_equity: float,\n    interest_tax_shields: List[float],\n    discount_rate_tax_shields: float,\n    net_debt: float,\n    shares_outstanding: float,\n    terminal_growth: float = 0.0,\n    terminal_year: Optional[int] = None,\n) -> Tuple[float, float]",
+    purpose: "Values the unlevered firm at rU, then adds the present value of interest tax shields discounted at a separate rate — the only model with two distinct discount rates.",
+    returns: "(enterprise_value, value_per_share)",
+    calls: [],
+    calledBy: ["run_valuation_analysis"],
+    notes: "A terminal perpetuity is added only when terminal_growth > 0 AND terminal_year == len(list). terminal_year defaults to the list length. Tax-shield list may be longer than the FCFF list (one extra for terminal)."
+  },
+  {
+    name: "ccf", kind: "enterprise", kindLabel: "Enterprise",
+    section: "5 · CCF",
+    sig: "ccf(\n    capital_cash_flows: List[float],\n    unlevered_cost_of_equity: float,\n    net_debt: float,\n    shares_outstanding: float,\n    terminal_growth: float = 0.0,\n) -> Tuple[float, float]",
+    purpose: "Capital Cash Flow — folds the tax shield into each period's cash flow (FCFU + Tc·I) and discounts the total at the unlevered cost of equity.",
+    returns: "(enterprise_value, value_per_share)",
+    calls: [],
+    calledBy: ["run_valuation_analysis"],
+    notes: "Indexes flows from t=0 discounted at t+1. Raises ValueError when terminal_growth > 0 and rU <= terminal_growth. The orchestrator builds its input as FCFF + 2% of FCFF."
+  },
+  {
+    name: "ecf", kind: "equity", kindLabel: "Equity",
+    section: "6 · ECF",
+    sig: "ecf(\n    equity_cash_flows: List[float],\n    cost_of_equity: float,\n    shares_outstanding: float,\n    terminal_growth: float = 0.0,\n) -> Tuple[float, float]",
+    purpose: "Equity Cash Flow — the broadest equity claim (dividends + buybacks - new issuance), discounted at the cost of equity.",
+    returns: "(equity_value, value_per_share)",
+    calls: [],
+    calledBy: ["run_valuation_analysis"],
+    notes: "Raises ValueError when terminal_growth > 0 and r <= terminal_growth."
+  },
+  {
+    name: "residual_income", kind: "equity", kindLabel: "Equity",
+    section: "7 · Residual Income",
+    sig: "residual_income(\n    book_value_equity: float,\n    net_income_forecast: List[float],\n    book_values_forecast: List[float],\n    cost_of_equity: float,\n    shares_outstanding: float,\n    terminal_growth: float = 0.0,\n) -> Tuple[float, float]",
+    purpose: "Residual Income Model — anchors on current book value of equity then adds the present value of profit earned above the equity charge (NI - r·B_begin).",
+    returns: "(equity_value, value_per_share)",
+    calls: [],
+    calledBy: ["run_valuation_analysis"],
+    notes: "Raises ValueError if book_values_forecast length differs from net_income_forecast. The terminal block recomputes last_ri from the correct opening book value but leaves two dead assignments above it."
+  },
+  {
+    name: "eva", kind: "enterprise", kindLabel: "Enterprise",
+    section: "7 · EVA",
+    sig: "eva(\n    invested_capital_0: float,\n    nopat_forecast: List[float],\n    invested_capital_forecast: List[float],\n    wacc: float,\n    net_debt: float,\n    shares_outstanding: float,\n    terminal_growth: float = 0.0,\n) -> Tuple[float, float]",
+    purpose: "Economic Value Added — the enterprise-level twin of RIM. Anchors on invested capital and adds the present value of NOPAT above the WACC capital charge.",
+    returns: "(enterprise_value, value_per_share)",
+    calls: [],
+    calledBy: ["run_valuation_analysis"],
+    notes: "Raises ValueError if invested_capital_forecast length differs from nopat_forecast. Capital charge uses beginning-period invested capital."
+  },
+  {
+    name: "sum_of_the_parts", kind: "enterprise", kindLabel: "Enterprise",
+    section: "8 · Sum-of-the-Parts",
+    sig: "sum_of_the_parts(\n    segment_values: List[float],\n    net_debt: float,\n    shares_outstanding: float,\n) -> Tuple[float, float]",
+    purpose: "Aggregates the enterprise values of independently valued business segments into a single consolidated enterprise value.",
+    returns: "(enterprise_value, value_per_share)",
+    calls: [],
+    calledBy: ["run_valuation_analysis"],
+    notes: "Receives segment values produced by two fcff_single_stage() calls (net_debt = 0), which is the module's clearest cross-model dependency."
+  },
+  {
+    name: "decision_tree_dcf", kind: "opt", kindLabel: "Option",
+    section: "9 · Real Options",
+    sig: "decision_tree_dcf(\n    scenarios: List[Tuple[float, float]],\n    discount_rate: float,\n) -> float",
+    purpose: "Probability-weighted expected NPV across discrete scenarios. Each tuple is (probability, npv).",
+    returns: "float — expected NPV (per share requires dividing by shares separately)",
+    calls: [],
+    calledBy: ["decision_tree_dcf_wrapper"],
+    notes: "Raises ValueError unless probabilities sum to 1 (checked with np.isclose). discount_rate is accepted for interface consistency and is never used."
+  },
+  {
+    name: "decision_tree_dcf_wrapper", kind: "wrapper", kindLabel: "Wrapper",
+    section: "9 · Real Options",
+    sig: "decision_tree_dcf_wrapper(\n    scenarios: List[Tuple[float, float]],\n    net_debt: float,\n    shares_outstanding: float,\n) -> Tuple[float, float]",
+    purpose: "Adapts decision_tree_dcf's bare float into the standard (total_value, value_per_share) contract so it can sit alongside the other models.",
+    returns: "(enterprise_value, value_per_share)",
+    calls: ["decision_tree_dcf"],
+    calledBy: ["run_valuation_analysis"],
+    notes: "Passes discount_rate = 0.0 because the underlying function ignores it."
+  },
+  {
+    name: "real_option_black_scholes", kind: "opt", kindLabel: "Option",
+    section: "9 · Real Options",
+    sig: "real_option_black_scholes(\n    underlying_value: float,\n    exercise_price: float,\n    risk_free_rate: float,\n    volatility: float,\n    time_to_maturity: float,\n    dividend_yield: float = 0.0,\n) -> float",
+    purpose: "Prices a growth or expansion opportunity as a European call option, to be added to a static NPV. Uses scipy's standard normal CDF.",
+    returns: "float — call option value (option premium)",
+    calls: ["scipy.stats.norm.cdf"],
+    calledBy: ["run_valuation_analysis"],
+    notes: "Returns max(S - X, 0) when time_to_maturity <= 0. Note the orchestrator prints this value but appends the previous scenario value to the results list rather than the premium."
+  },
+  {
+    name: "monte_carlo_dcf", kind: "opt", kindLabel: "Simulation",
+    section: "10 · Stochastic",
+    sig: "monte_carlo_dcf(\n    base_cash_flow: float,\n    growth_mean: float,\n    growth_std: float,\n    discount_rate: float,\n    years: int,\n    n_simulations: int,\n    terminal_growth: float = 0.0,\n) -> Tuple[float, np.ndarray]",
+    purpose: "Simulates many cash-flow paths under normally distributed annual growth, discounts each path, and returns the expected NPV plus the full distribution for dispersion analysis.",
+    returns: "(expected_npv, npv_distribution_array)",
+    calls: ["numpy.random.normal", "numpy.mean"],
+    calledBy: ["monte_carlo_dcf_wrapper"],
+    notes: "Seeds np.random.seed(42) internally for reproducibility, which also mutates global RNG state. Growth is drawn from a normal distribution despite the docstring mentioning log-normal."
+  },
+  {
+    name: "monte_carlo_dcf_wrapper", kind: "wrapper", kindLabel: "Wrapper",
+    section: "10 · Stochastic",
+    sig: "monte_carlo_dcf_wrapper(\n    base_cash_flow: float,\n    growth_mean: float,\n    growth_std: float,\n    discount_rate: float,\n    years: int,\n    n_simulations: int,\n    net_debt: float,\n    shares_outstanding: float,\n    terminal_growth: float = 0.0,\n) -> Tuple[float, float]",
+    purpose: "Wraps the simulation into the standard contract, assuming the simulated cash flow is unlevered FCFF so that net debt is subtracted.",
+    returns: "(enterprise_value, value_per_share)",
+    calls: ["monte_carlo_dcf"],
+    calledBy: ["run_valuation_analysis"],
+    notes: "Discards the NPV distribution array. The orchestrator runs it with 5,000 paths per scenario, so it dominates total runtime."
+  },
+  {
+    name: "certainty_equivalent_dcf", kind: "opt", kindLabel: "Simulation",
+    section: "10 · Stochastic",
+    sig: "certainty_equivalent_dcf(\n    expected_cash_flows: List[float],\n    ce_coefficients: List[float],\n    risk_free_rate: float,\n) -> float",
+    purpose: "Certainty-equivalent valuation — scales risky expected cash flows down by alpha coefficients, then discounts at the risk-free rate, adjusting the numerator rather than the discount rate.",
+    returns: "float — present value (firm or equity value depending on cash-flow nature)",
+    calls: [],
+    calledBy: ["certainty_equivalent_dcf_wrapper"],
+    notes: "Raises ValueError if ce_coefficients length differs from expected_cash_flows. alpha_t is expected in the range (0, 1]."
+  },
+  {
+    name: "certainty_equivalent_dcf_wrapper", kind: "wrapper", kindLabel: "Wrapper",
+    section: "10 · Stochastic",
+    sig: "certainty_equivalent_dcf_wrapper(\n    expected_cash_flows: List[float],\n    ce_coefficients: List[float],\n    risk_free_rate: float,\n    is_enterprise: bool,\n    net_debt: float,\n    shares_outstanding: float,\n) -> Tuple[float, float]",
+    purpose: "Normalises the bare PV into the standard contract, applying the net-debt bridge only for enterprise cash flows.",
+    returns: "(total_value, value_per_share)",
+    calls: ["certainty_equivalent_dcf"],
+    calledBy: ["run_valuation_analysis"],
+    notes: "When is_enterprise is False the PV is treated as equity value directly. The orchestrator calls it with is_enterprise=True and alpha = 0.85 for every forecast year."
+  },
+  {
+    name: "scenario_error_analysis", kind: "input", kindLabel: "Output",
+    section: "Analysis",
+    sig: "scenario_error_analysis(\n    ticker: str,\n    base_value: float,\n    bull_value: float,\n    bear_value: float,\n    currency_symbol: str = \"$ \",\n) -> Tuple[float, float, float, float, float, float]",
+    purpose: "Fetches the latest market price and measures how far each scenario's fair value sits from it, printing a formatted over/under-valuation report.",
+    returns: "(base_value, bull_value, bear_value, base_rmse, bull_rmse, bear_rmse)",
+    calls: ["yfinance.Ticker"],
+    calledBy: ["run_valuation_analysis"],
+    notes: "Imports yfinance locally inside the function body. The 'RMSE' is computed as sqrt(diff^2) for a single observation, i.e. it is really an absolute deviation, not a root-mean-square error. Returns zeros for all three deviations if no price is retrievable."
+  }
+];
+
+/* ── Rendering ────────────────────────────────────────────────────── */
+const esc = s => String(s)
+  .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+
+function sigHTML(sig){
+  return esc(sig)
+    .replace(/^([a-z_][a-z0-9_]*)/, '<span class="fn-key">$1</span>')
+    .replace(/(:\s*)([A-Z\[][A-Za-z0-9_\[\], \.]*|float|int|str|dict|bool|np\.ndarray)(?=[,\n\)])/g,
+             '$1<span class="ty">$2</span>');
+}
+
+function chips(arr, cls){
+  if(!arr || !arr.length) return '<span class="chip none">— none —</span>';
+  return arr.map(n => `<span class="chip ${cls}">${esc(n)}</span>`).join('');
+}
+
+function fnCard(f){
+  return `
+  <article class="fn">
+    <div class="fn-head">
+      <span class="fn-name">${esc(f.name)}</span>
+      <span class="badge b-${f.kind}">${esc(f.kindLabel)}</span>
+      <span class="fn-sec">${esc(f.section)}</span>
+    </div>
+    <div class="card-body">
+      <pre class="sig">${sigHTML(f.sig)}</pre>
+      <dl class="kv">
+        <dt>Purpose</dt><dd>${esc(f.purpose)}</dd>
+        <dt>Returns</dt><dd>${esc(f.returns)}</dd>
+        <dt>Calls</dt><dd><div class="chips">${chips(f.calls, 'call')}</div></dd>
+        <dt>Called by</dt><dd><div class="chips">${chips(f.calledBy, 'by')}</div></dd>
+        ${f.notes ? `<dt>Notes</dt><dd>${esc(f.notes)}</dd>` : ''}
+      </dl>
+    </div>
+  </article>`;
+}
+
+function renderFns(q){
+  const term = (q || "").trim().toLowerCase();
+  const list = FUNCS.filter(f => !term ||
+    (f.name + " " + f.purpose + " " + f.section + " " + f.kindLabel).toLowerCase().includes(term));
+  document.getElementById("fnList").innerHTML =
+    list.length ? list.map(fnCard).join("")
+                : '<p class="note" style="padding:20px">No functions match that filter.</p>';
+  document.getElementById("fnCount").textContent = list.length + " / " + FUNCS.length + " functions";
+}
+
+/* ── Linkage matrix ───────────────────────────────────────────────── */
+function renderMatrix(){
+  const layerOf = k => ({orch:"L2",input:"L3",equity:"L4",enterprise:"L4",opt:"L4",
+                         wrapper:"L5"}[k] || "—");
+  document.getElementById("matrixBody").innerHTML = FUNCS.map(f => `
+    <tr>
+      <td class="mono">${esc(f.name)}()</td>
+      <td><div class="chips">${chips(f.calls, 'call')}</div></td>
+      <td><div class="chips">${chips(f.calledBy, 'by')}</div></td>
+      <td class="c">${layerOf(f.kind)}</td>
+    </tr>`).join("");
+}
+
+/* ── Initialisation ───────────────────────────────────────────────
+   st.html injects this document straight into the Streamlit page, so the
+   usual `DOMContentLoaded` / `load` events have ALREADY fired and can never
+   be relied on here. Everything is bound immediately instead, and every
+   binding is guarded per-element so a Streamlit re-render (which re-injects
+   this markup and re-runs this script) cannot double-bind.
+   ─────────────────────────────────────────────────────────────── */
+function dcfRoot(){
+  return document.querySelector(".dcf-root") || document.body;
+}
+
+function dcfBindTabs(){
+  document.querySelectorAll(".tab").forEach(tab => {
+    if(tab.dataset.dcfBound) return;
+    tab.dataset.dcfBound = "1";
+    tab.addEventListener("click", () => {
+      document.querySelectorAll(".tab").forEach(x =>
+        x.classList.toggle("active", x === tab));
+      document.querySelectorAll(".panel").forEach(p =>
+        p.classList.toggle("active", p.id === tab.dataset.panel));
+      window.scrollTo({top:0, behavior:"smooth"});
+    });
+  });
+}
+
+function dcfBindTheme(){
+  const btn = document.getElementById("themeBtn");
+  if(!btn) return;
+  /* Re-apply the saved theme on every injection (DOM may be brand new). */
+  const saved = localStorage.getItem("dcf-theme");
+  if(saved) dcfRoot().dataset.theme = saved;
+  if(btn.dataset.dcfBound) return;
+  btn.dataset.dcfBound = "1";
+  btn.addEventListener("click", () => {
+    const el = dcfRoot();
+    el.dataset.theme = el.dataset.theme === "dark" ? "light" : "dark";
+    localStorage.setItem("dcf-theme", el.dataset.theme);
+  });
+}
+
+function dcfRenderTables(){
+  if(!document.getElementById("fnList")) return;
+  renderFns("");
+  renderMatrix();
+  const search = document.getElementById("fnSearch");
+  if(search && !search.dataset.dcfBound){
+    search.dataset.dcfBound = "1";
+    search.addEventListener("input", e => renderFns(e.target.value));
+  }
+}
+
+function dcfBindShortcut(){
+  if(window.__dcfKeyBound) return;
+  window.__dcfKeyBound = true;
+  document.addEventListener("keydown", e => {
+    if(e.key === "/" && document.activeElement.tagName !== "INPUT"){
+      e.preventDefault();
+      const tab = document.querySelector('[data-panel="p-funcs"]');
+      if(tab) tab.click();
+      const search = document.getElementById("fnSearch");
+      if(search) search.focus();
+    }
+  });
+}
+
+function dcfRenderMath(){
+  /* The KaTeX CDN scripts are injected alongside this one and load
+     asynchronously, so poll briefly until the renderer shows up. Rendering
+     is scoped to .dcf-root so Streamlit's own DOM is never walked. */
+  let attempts = 0;
+  (function attempt(){
+    if(window.renderMathInElement){
+      window.renderMathInElement(dcfRoot(), {
+        delimiters: [
+          {left: "\\[", right: "\\]", display: true},
+          {left: "\\(", right: "\\)", display: false}
+        ],
+        throwOnError: false
+      });
+    } else if(attempts++ < 200){
+      setTimeout(attempt, 50);
+    }
+  })();
+}
+
+function dcfInit(){
+  dcfBindTabs();
+  dcfBindTheme();
+  dcfRenderTables();
+  dcfBindShortcut();
+  dcfRenderMath();
+}
+
+if(document.readyState === "loading"){
+  document.addEventListener("DOMContentLoaded", dcfInit);
+} else {
+  dcfInit();
+}
+</script>
+
+</body>
+</html>

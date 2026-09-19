@@ -14,6 +14,7 @@ runs only the selected one. That is why this file calls
 ``st.set_page_config`` itself instead of relying on ``Home.py``.
 """
 
+import re
 from datetime import datetime
 from pathlib import Path
 
@@ -28,6 +29,10 @@ st.set_page_config(
 # ``__file__`` is <app root>/pages/About.py, so the app root is two levels up.
 APP_ROOT = Path(__file__).resolve().parent.parent
 IMAGE_DIR = APP_ROOT / "images"
+
+# Everything in this folder is served by Streamlit at `<app-url>/app/static/<name>`.
+# Requires `server.enableStaticServing = true` in .streamlit/config.toml.
+STATIC_DIR = APP_ROOT / "static"
 
 PERSONAS = [
     (
@@ -194,6 +199,62 @@ with right:
         "Locally the keys live in `.env`; on Streamlit Cloud they are entered "
         "as app Secrets and mirrored into the environment at startup."
     )
+
+st.divider()
+
+# ── Reference documents (served from the static/ folder) ─────────────────
+st.subheader("📘 Reference Documents")
+
+
+def _doc_label(path: Path) -> str:
+    """Prefer an HTML document's <title>; fall back to a readable filename."""
+    if path.suffix.lower() in {".html", ".htm"}:
+        try:
+            head = path.read_text(encoding="utf-8", errors="ignore")[:8000]
+        except OSError:
+            head = ""
+        match = re.search(
+            r"<title[^>]*>(.*?)</title>", head, re.IGNORECASE | re.DOTALL
+        )
+        if match:
+            title = re.sub(r"\s+", " ", match.group(1)).strip()
+            if title:
+                return title
+    return path.stem.replace("_", " ").replace("-", " ").title()
+
+
+DOCS = (
+    sorted(
+        (p for p in STATIC_DIR.iterdir() if p.is_file() and not p.name.startswith(".")),
+        key=lambda p: p.name.lower(),
+    )
+    if STATIC_DIR.is_dir()
+    else []
+)
+
+if not DOCS:
+    st.caption(
+        "No documents available yet — add a file to the `static/` folder and it "
+        "will be listed here on the next rerun."
+    )
+else:
+    for doc in DOCS:
+        # Streamlit serves everything in `static/` at /app/static/<filename>.
+        # The URL is RELATIVE on purpose so it also resolves correctly behind a
+        # `server.baseUrlPath`.
+        doc_url = f"app/static/{doc.name}"
+        size_kb = doc.stat().st_size / 1024
+        with st.container(border=True):
+            st.markdown(
+                f"<a href='{doc_url}' target='_blank' rel='noopener noreferrer' "
+                "style='font-size:0.98rem; font-weight:650; "
+                "text-decoration:none;'>"
+                f"📄 {_doc_label(doc)}</a>"
+                "<br><span style='font-size:0.78rem; opacity:0.65;'>"
+                f"static/{doc.name} · {size_kb:,.0f} KB</span>",
+                unsafe_allow_html=True,
+            )
+    st.caption("Each document opens in a new browser tab.")
 
 st.divider()
 

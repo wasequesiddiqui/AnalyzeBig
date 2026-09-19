@@ -1,0 +1,18 @@
+# ============================================================
+# Streamlit runtime configuration.
+#
+# Committed on purpose: these settings must also apply on
+# Streamlit Community Cloud. (secrets.toml stays local + gitignored.)
+# ============================================================
+
+[server]
+# Serve files from the `static/` folder that sits next to the entrypoint
+# (Home.py). Streamlit exposes them at `<app-url>/app/static/<filename>`.
+#
+# Needed so `pages/About.py` can link to the DCF model reference
+# (Model.html) and have it open in a new browser tab. Note that an HTML
+# file placed in `pages/` is NOT served — Streamlit only treats `.py`
+# files there as pages.
+#
+# Default is false, so this must be set explicitly.
+enableStaticServing = true
