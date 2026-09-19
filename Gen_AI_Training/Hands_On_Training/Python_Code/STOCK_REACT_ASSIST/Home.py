@@ -15,7 +15,7 @@ fundamental verdict into an Overall Summary.
 
 Usage
 -----
-    streamlit run streamlit_app.py
+    streamlit run Home.py
 
 Environment Variables (.env)
 -----------------------------

@@ -16,7 +16,7 @@ Personas (mirroring ``PERSONA_BASED_VALUATION.py``):
     * Aswath Damodaran   — explicit DCF assumptions & scenario discipline.
 
 Why a separate module?
-    * Kept independent of ``streamlit_app.py`` / ``stock_react_agent.py`` so it
+    * Kept independent of ``Home.py`` / ``stock_react_agent.py`` so it
       can be imported lazily (only when the user clicks the persona button) and
       run headlessly for tests. It never re-imports the Streamlit app (which
       would re-execute the whole script inside a live session).
@@ -212,9 +212,9 @@ Design notes
   raises :class:`ValueError`, because nothing useful can be shown then.
 * **No LangChain.** Every data path is a thin wrapper over a plain function in
   this module, so there are no ``langchain_*`` imports to keep in sync.
-* **Headless-friendly.** This module never imports ``streamlit_app`` (that
-  would re-execute the whole script inside a live session), so it runs happily
-  under pytest or plain ``python``.
+* **Headless-friendly.** This module never imports the Streamlit entrypoint
+  ``Home`` (that would re-execute the whole script inside a live session), so it
+  runs happily under pytest or plain ``python``.
 * **Low variance.** ``temperature=0`` plus "work silently, emit JSON only"
   prompts keep token cost and output shape stable.
 
@@ -244,7 +244,7 @@ See Also
 --------
 * ``PERSONA_BASED_VALUATION.persona_super_valuation`` — the deterministic
   counterpart whose range is surfaced in ``deterministic_range``.
-* ``streamlit_app.py`` — the UI consumer (lazy-imports this module).
+* ``Home.py`` — the UI consumer (lazy-imports this module).
 * ``stock_react_agent.py`` — the single-agent ReAct analyst, for contrast.
 """
 
@@ -1111,7 +1111,7 @@ def reporting_currency(ticker: str) -> str:
 def get_price_snapshot(ticker: str) -> dict[str, Any]:
     """Return a small price snapshot for a COMPLETE Yahoo Finance symbol.
 
-    Mirrors ``streamlit_app.get_stock_price`` semantics but lives here so this
+    Mirrors ``Home.get_stock_price`` semantics but lives here so this
     module never has to import the Streamlit app. The symbol is consumed EXACTLY
     as supplied — including its exchange suffix, e.g. ``INFY.NS`` /
     ``RELIANCE.BO`` — since no ``.NS`` / ``.BO`` suffix is ever appended.

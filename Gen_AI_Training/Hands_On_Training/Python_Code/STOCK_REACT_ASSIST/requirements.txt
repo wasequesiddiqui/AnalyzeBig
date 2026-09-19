@@ -29,14 +29,14 @@ scipy==1.17.1
 # NewsAPI.org client for financial headlines
 newsapi-python==0.2.7
 # TextBlob: lexicon-based sentiment. It tokenizes with NLTK, and a fresh Cloud
-# container has no NLTK data, so streamlit_app.py bootstraps the punkt
+# container has no NLTK data, so Home.py bootstraps the punkt
 # resources at startup via _ensure_nltk_data().
 textblob==0.20.0
 nltk==3.9.4
 
 # --- Configuration / secrets ---------------------------------
 # Loads API keys from .env locally. On Cloud the same keys come from the
-# app's Secrets; streamlit_app.py mirrors them into os.environ.
+# app's Secrets; Home.py mirrors them into os.environ.
 python-dotenv==1.2.2
 
 # --- Report rendering ----------------------------------------
