@@ -121,6 +121,9 @@ main{max-width:1180px; margin:0 auto; padding:26px 26px 90px}
   background:var(--pa-soft, var(--accent-soft))}
 .avatar-mono{display:grid; place-items:center; font-family:var(--mono);
   font-size:16px; font-weight:700; letter-spacing:.02em; color:var(--pa, var(--accent))}
+.glyph-inline{width:22px; height:22px; border-radius:6px; object-fit:cover;
+  vertical-align:-6px; margin-right:8px; display:inline-block;
+  border:1px solid var(--border)}
 
 /* ── Sections & cards ────────────────────────────────────────────── */
 .sec{margin-bottom:28px}
@@ -544,7 +547,7 @@ Task(name="aggregator_task", agent=lead_agent, context=persona_tasks)</div>
               <tr><td class="mono">role</td><td>Warren Buffett — Value / Owner-Earnings Persona</td></tr>
               <tr><td class="mono">goal</td><td>Focus on durable competitive advantage (moat), high and stable returns on equity, low leverage, consistent owner earnings, and demand a <strong>margin of safety (~20–30%)</strong> below intrinsic value before calling it Undervalued. Base the fair value strictly on tool output.</td></tr>
               <tr><td class="mono">backstory</td><td>See the quote above — sets voice and biases.</td></tr>
-              <tr><td class="mono">emoji</td><td>🧸 (fallback glyph when no portrait resolves)</td></tr>
+              <tr><td class="mono">emoji</td><td><img class="glyph-inline" src="personas/warren_buffett.png" alt="">🧸 (fallback glyph when no portrait resolves)</td></tr>
               <tr><td class="mono">image</td><td><code>WARREN_BUFFET.png</code> in <code>./images</code></td></tr>
             </tbody>
           </table>
@@ -619,7 +622,7 @@ Task(name="aggregator_task", agent=lead_agent, context=persona_tasks)</div>
             <tbody>
               <tr><td class="mono">role</td><td>Charlie Munger — Quality / Moat Persona</td></tr>
               <tr><td class="mono">goal</td><td>Judge business quality by <strong>return on invested capital (ROIC) relative to its cost of capital</strong>, moat durability, pricing power and management integrity. <em>Invert</em> — ask what could destroy the franchise — and set a fair value a long-term holder could compound through.</td></tr>
-              <tr><td class="mono">emoji</td><td>🧠</td></tr>
+              <tr><td class="mono">emoji</td><td><img class="glyph-inline" src="personas/charlie_munger.png" alt="">🧠 (fallback glyph when no portrait resolves)</td></tr>
               <tr><td class="mono">image</td><td><code>CHARLIE_MUNGER.png</code></td></tr>
             </tbody>
           </table>
@@ -694,7 +697,7 @@ Your FINAL message must contain ONLY the single JSON object ...</div>
             <tbody>
               <tr><td class="mono">role</td><td>Rakesh Jhunjhunwala — Growth / India Persona</td></tr>
               <tr><td class="mono">goal</td><td>Overweight revenue and earnings growth, scalable business models and (for Indian companies) the <strong>domestic growth tailwind</strong>. Use a <strong>multi-stage growth mindset</strong> — high growth fading to a stable rate — and be willing to pay up for genuine growth, but not for low-quality earnings.</td></tr>
-              <tr><td class="mono">emoji</td><td>🦁</td></tr>
+              <tr><td class="mono">emoji</td><td><img class="glyph-inline" src="personas/jhunjhunwala.png" alt="">🦁 (fallback glyph when no portrait resolves)</td></tr>
               <tr><td class="mono">image</td><td><code>RAKESH.png</code></td></tr>
             </tbody>
           </table>
@@ -761,7 +764,7 @@ Your FINAL message must contain ONLY the single JSON object ...</div>
             <tbody>
               <tr><td class="mono">role</td><td>Aswath Damodaran — Valuation / DCF Persona</td></tr>
               <tr><td class="mono">goal</td><td>Lay out explicit DCF assumptions (growth, margins, reinvestment, cost of capital), value the company under <strong>base / bull / bear scenarios</strong> and probability-weight them, then report a point fair value <strong>with the uncertainty explicitly acknowledged</strong>. Never let the market price drive the value.</td></tr>
-              <tr><td class="mono">emoji</td><td>📐</td></tr>
+              <tr><td class="mono">emoji</td><td><img class="glyph-inline" src="personas/damodaran.png" alt="">📐 (fallback glyph when no portrait resolves)</td></tr>
               <tr><td class="mono">image</td><td><code>ASWATH.png</code></td></tr>
             </tbody>
           </table>

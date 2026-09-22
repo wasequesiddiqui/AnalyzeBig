@@ -109,6 +109,8 @@ main{max-width:1180px; margin:0 auto; padding:26px 26px 90px}
   padding:10px 14px; border-radius:9px; transition:.15s; white-space:nowrap;
 }
 .tab:hover{color:var(--text); background:var(--surface-2)}
+.tab img{width:16px; height:16px; border-radius:5px; object-fit:cover;
+  vertical-align:-3px; margin-right:5px; display:inline-block}
 .tab.active{
   background:linear-gradient(135deg, var(--accent), var(--accent-2));
   color:#fff; box-shadow:0 6px 18px -8px var(--accent);
@@ -135,6 +137,9 @@ main{max-width:1180px; margin:0 auto; padding:26px 26px 90px}
   font-family:var(--mono); font-size:11px; font-weight:600; padding:3px 9px;
   border-radius:99px; background:var(--pa-soft, var(--accent-soft)); color:var(--pa, var(--accent));
 }
+.avatar{width:56px; height:56px; border-radius:14px; flex:none; object-fit:cover;
+  display:block; border:1px solid var(--border);
+  background:var(--pa-soft, var(--accent-soft))}
 
 /* ── Sections & cards ────────────────────────────────────────────── */
 .sec{margin-bottom:28px}
@@ -221,7 +226,9 @@ code{
   box-shadow:var(--shadow); padding:15px 16px; cursor:pointer; transition:.15s;
 }
 .pcard:hover{transform:translateY(-2px); border-color:color-mix(in srgb, var(--pc) 45%, var(--border))}
-.pcard h4{margin:0 0 2px; font-size:15px; font-weight:660; color:var(--pc)}
+.pcard img.em{width:48px; height:48px; border-radius:12px; object-fit:cover;
+  display:block; border:1px solid var(--border)}
+.pcard h4{margin:6px 0 2px; font-size:15px; font-weight:660; color:var(--pc)}
 .pcard .kind{font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--text-3); font-weight:650}
 .pcard p{margin:8px 0 0; font-size:12.6px; color:var(--text-2)}
 
@@ -341,10 +348,10 @@ kbd{font-family:var(--mono); font-size:11px; background:var(--surface-2);
 
   <nav class="tabs" role="tablist">
     <button class="tab active" role="tab" data-panel="p-overview">Overview</button>
-    <button class="tab" role="tab" data-panel="p-buffett" data-persona="buffett">Buffett</button>
-    <button class="tab" role="tab" data-panel="p-munger" data-persona="munger">Munger</button>
-    <button class="tab" role="tab" data-panel="p-jhunjhunwala" data-persona="jhunjhunwala">Jhunjhunwala</button>
-    <button class="tab" role="tab" data-panel="p-damodaran" data-persona="damodaran">Damodaran</button>
+    <button class="tab" role="tab" data-panel="p-buffett" data-persona="buffett"><img src="personas/warren_buffett.png" alt="">Buffett</button>
+    <button class="tab" role="tab" data-panel="p-munger" data-persona="munger"><img src="personas/charlie_munger.png" alt="">Munger</button>
+    <button class="tab" role="tab" data-panel="p-jhunjhunwala" data-persona="jhunjhunwala"><img src="personas/jhunjhunwala.png" alt="">Jhunjhunwala</button>
+    <button class="tab" role="tab" data-panel="p-damodaran" data-persona="damodaran"><img src="personas/damodaran.png" alt="">Damodaran</button>
     <button class="tab" role="tab" data-panel="p-funcs">Function Reference</button>
     <button class="tab" role="tab" data-panel="p-deps">Dependency Map</button>
   </nav>
@@ -372,24 +379,28 @@ kbd{font-family:var(--mono); font-size:11px; background:var(--surface-2);
       </div>
       <div class="pgrid">
         <div class="pcard" style="--pc:var(--p-buffett)" data-goto="p-buffett">
+          <img class="em" src="personas/warren_buffett.png" alt="Warren Buffett">
           <h4>Warren Buffett</h4>
           <div class="kind">Owner Earnings · 10-year DCF</div>
           <p>Discounts owner earnings for 10 explicit years plus a terminal value, then applies a
              25% margin of safety.</p>
         </div>
         <div class="pcard" style="--pc:var(--p-munger)" data-goto="p-munger">
+          <img class="em" src="personas/charlie_munger.png" alt="Charlie Munger">
           <h4>Charlie Munger</h4>
           <div class="kind">Residual Income · moat-truncated</div>
           <p>Book value plus the present value of residual income, truncated at the estimated
              moat duration.</p>
         </div>
         <div class="pcard" style="--pc:var(--p-jhunjhunwala)" data-goto="p-jhunjhunwala">
+          <img class="em" src="personas/jhunjhunwala.png" alt="Rakesh Jhunjhunwala">
           <h4>Rakesh Jhunjhunwala</h4>
           <div class="kind">Three-stage FCFF</div>
           <p>Hyper-growth for 5 years, a 5-year linear transition, then a stable perpetuity —
              India gets a higher stable rate.</p>
         </div>
         <div class="pcard" style="--pc:var(--p-damodaran)" data-goto="p-damodaran">
+          <img class="em" src="personas/damodaran.png" alt="Aswath Damodaran">
           <h4>Aswath Damodaran</h4>
           <div class="kind">Scenario FCFF · ROIC fade</div>
           <p>Probability-weighted average of three growth scenarios, with the terminal value
@@ -559,6 +570,7 @@ kbd{font-family:var(--mono); font-size:11px; background:var(--surface-2);
   <section class="panel" id="p-buffett" style="--pa:var(--p-buffett); --pa-soft:var(--p-buffett-soft)">
     <div class="hero">
       <div class="hero-top">
+        <img class="avatar" src="personas/warren_buffett.png" alt="Warren Buffett">
         <h2>Warren Buffett</h2>
         <span class="pa-chip">Owner Earnings</span>
         <span class="pa-chip">10-year DCF</span>
@@ -649,6 +661,7 @@ kbd{font-family:var(--mono); font-size:11px; background:var(--surface-2);
   <section class="panel" id="p-munger" style="--pa:var(--p-munger); --pa-soft:var(--p-munger-soft)">
     <div class="hero">
       <div class="hero-top">
+        <img class="avatar" src="personas/charlie_munger.png" alt="Charlie Munger">
         <h2>Charlie Munger</h2>
         <span class="pa-chip">Residual Income</span>
         <span class="pa-chip">Moat-truncated</span>
@@ -747,6 +760,7 @@ kbd{font-family:var(--mono); font-size:11px; background:var(--surface-2);
   <section class="panel" id="p-jhunjhunwala" style="--pa:var(--p-jhunjhunwala); --pa-soft:var(--p-jhunjhunwala-soft)">
     <div class="hero">
       <div class="hero-top">
+        <img class="avatar" src="personas/jhunjhunwala.png" alt="Rakesh Jhunjhunwala">
         <h2>Rakesh Jhunjhunwala</h2>
         <span class="pa-chip">Three-stage FCFF</span>
         <span class="pa-chip">India tailwind</span>
@@ -842,6 +856,7 @@ kbd{font-family:var(--mono); font-size:11px; background:var(--surface-2);
   <section class="panel" id="p-damodaran" style="--pa:var(--p-damodaran); --pa-soft:var(--p-damodaran-soft)">
     <div class="hero">
       <div class="hero-top">
+        <img class="avatar" src="personas/damodaran.png" alt="Aswath Damodaran">
         <h2>Aswath Damodaran</h2>
         <span class="pa-chip">Scenario FCFF</span>
         <span class="pa-chip">ROIC fade</span>
