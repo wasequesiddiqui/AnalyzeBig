@@ -1,0 +1,1207 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Planned Upgrades — STOCK_REACT_ASSIST Roadmap</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.css">
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/katex.min.js"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/katex@0.16.9/dist/contrib/auto-render.min.js"></script>
+
+<style>
+/* ── Design tokens ───────────────────────────────────────────────── */
+:root{
+  --bg:#f5f7fb; --surface:#fff; --surface-2:#fafbfe; --border:#e4e8f0;
+  --text:#0f172a; --text-2:#5b6679; --text-3:#8b95a7;
+  --accent:#4f46e5; --accent-soft:#eef0ff; --accent-2:#0284c7;
+  --green:#0f9d58; --green-soft:#e8f7ef;
+  --amber:#b45309; --amber-soft:#fdf3e3;
+  --rose:#be123c; --rose-soft:#fdeaf0;
+  --violet:#7c3aed; --violet-soft:#f3ecfe;
+  --teal:#0f766e; --teal-soft:#e6f6f4;
+  --code-bg:#f3f5fa;
+  --radius:14px; --radius-sm:9px;
+  --shadow:0 1px 2px rgba(15,23,42,.05), 0 10px 28px -14px rgba(15,23,42,.22);
+  --mono:"JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+}
+[data-theme="dark"]{
+  --bg:#080b13; --surface:#0f1523; --surface-2:#121a2b; --border:#222c42;
+  --text:#e9eefb; --text-2:#9aa6bd; --text-3:#6c7891;
+  --accent:#8f8ff8; --accent-soft:#1a1f3d; --accent-2:#4cc9f0;
+  --green:#3ddc97; --green-soft:#0d2a1f;
+  --amber:#f0b357; --amber-soft:#2a1f0d;
+  --rose:#fb7185; --rose-soft:#2d1119;
+  --violet:#c4b5fd; --violet-soft:#1f1836;
+  --teal:#5eead4; --teal-soft:#082522;
+  --code-bg:#0c1220;
+  --shadow:0 1px 2px rgba(0,0,0,.6), 0 14px 36px -18px rgba(0,0,0,.9);
+}
+
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0; background:var(--bg); color:var(--text);
+  font-family:Inter, system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-size:15px; line-height:1.65; -webkit-font-smoothing:antialiased}
+
+/* ── Header ──────────────────────────────────────────────────────── */
+header{position:sticky; top:0; z-index:40;
+  background:color-mix(in srgb, var(--surface) 88%, transparent);
+  backdrop-filter:blur(12px); border-bottom:1px solid var(--border)}
+.hdr-inner{max-width:1180px; margin:0 auto; padding:14px 26px;
+  display:flex; align-items:center; gap:16px}
+.brand{display:flex; align-items:center; gap:13px; min-width:0}
+.logo{width:40px; height:40px; flex:none; border-radius:11px;
+  background:linear-gradient(135deg, #14b8a6, var(--accent));
+  display:grid; place-items:center; color:#fff; font-weight:700; font-size:12px;
+  box-shadow:0 6px 16px -6px var(--accent)}
+.brand h1{margin:0; font-size:16.5px; font-weight:650; letter-spacing:-.01em; white-space:nowrap}
+.brand p{margin:0; font-size:12.5px; color:var(--text-2)}
+.hdr-actions{margin-left:auto; display:flex; align-items:center; gap:10px}
+.src-chip{font-family:var(--mono); font-size:11.5px; padding:5px 11px; border-radius:99px;
+  background:var(--code-bg); border:1px solid var(--border); color:var(--text-2); white-space:nowrap}
+.icon-btn{width:36px; height:36px; border-radius:10px; border:1px solid var(--border);
+  background:var(--surface); color:var(--text-2); cursor:pointer;
+  display:grid; place-items:center; font-size:15px; transition:.15s}
+.icon-btn:hover{color:var(--accent); border-color:var(--accent)}
+
+main{max-width:1180px; margin:0 auto; padding:26px 26px 90px}
+
+/* ── Tabs ────────────────────────────────────────────────────────── */
+.tabs{display:flex; gap:5px; padding:6px; margin-bottom:26px;
+  background:var(--surface); border:1px solid var(--border);
+  border-radius:13px; box-shadow:var(--shadow); overflow-x:auto}
+.tab{flex:1 1 auto; min-width:104px; border:0; cursor:pointer; background:transparent;
+  color:var(--text-2); font:inherit; font-weight:550; font-size:13px;
+  padding:10px 13px; border-radius:9px; transition:.15s; white-space:nowrap}
+.tab:hover{color:var(--text); background:var(--surface-2)}
+.tab.active{background:linear-gradient(135deg, var(--accent), var(--accent-2));
+  color:#fff; box-shadow:0 6px 18px -8px var(--accent)}
+.tab.active[data-a="over"]{background:linear-gradient(135deg,#0d9488,#0f766e); box-shadow:0 6px 18px -8px #0f766e}
+.tab.active[data-a="reg"]{background:linear-gradient(135deg,#6366f1,#4338ca); box-shadow:0 6px 18px -8px #4f46e5}
+.tab.active[data-a="u1"]{background:linear-gradient(135deg,#0284c7,#075985); box-shadow:0 6px 18px -8px #0284c7}
+.tab.active[data-a="road"]{background:linear-gradient(135deg,#d97706,#b45309); box-shadow:0 6px 18px -8px #b45309}
+.tab.active[data-a="how"]{background:linear-gradient(135deg,#8b5cf6,#6d28d9); box-shadow:0 6px 18px -8px #7c3aed}
+.tab.active[data-a="open"]{background:linear-gradient(135deg,#e11d48,#9f1239); box-shadow:0 6px 18px -8px #be123c}
+.tab.active[data-a="ver"]{background:linear-gradient(135deg,#0ea5e9,#0369a1); box-shadow:0 6px 18px -8px #0284c7}
+
+.panel{display:none}
+.panel.active{display:block; animation:fade .22s ease}
+@keyframes fade{from{opacity:0; transform:translateY(4px)}to{opacity:1;transform:none}}
+
+/* ── Sections & cards ────────────────────────────────────────────── */
+.sec{margin-bottom:28px}
+.sec-head{display:flex; align-items:baseline; gap:12px; margin:0 0 14px}
+.sec-head .num{font-family:var(--mono); font-size:12px; font-weight:600;
+  color:var(--accent); background:var(--accent-soft); padding:3px 9px; border-radius:7px; flex:none}
+.sec-head h2{margin:0; font-size:19px; font-weight:650; letter-spacing:-.015em}
+.sec-head .tag{margin-left:auto; font-size:11.5px; color:var(--text-3);
+  font-family:var(--mono); white-space:nowrap}
+
+.card{background:var(--surface); border:1px solid var(--border);
+  border-radius:var(--radius); box-shadow:var(--shadow); margin-bottom:14px; overflow:hidden}
+.card-top{padding:14px 18px; display:flex; align-items:center; gap:10px; flex-wrap:wrap;
+  border-bottom:1px solid var(--border); background:var(--surface-2)}
+.card-top h3{margin:0; font-size:14.5px; font-weight:625; letter-spacing:-.01em}
+.card-top .spacer{margin-left:auto}
+.card-body{padding:16px 18px}
+
+.hero{border:1px solid var(--border); border-left:4px solid var(--pa, var(--accent));
+  border-radius:var(--radius); background:var(--surface); padding:18px 20px;
+  box-shadow:var(--shadow); margin-bottom:20px}
+.hero h2{margin:0 0 6px; font-size:21px; font-weight:660; letter-spacing:-.02em}
+.hero p{margin:0 0 8px; color:var(--text-2); font-size:14px}
+.hero p:last-child{margin-bottom:0}
+
+/* ── Badges & chips ─────────────────────────────────────────────── */
+.badge{font-size:10.5px; font-weight:650; letter-spacing:.03em; text-transform:uppercase;
+  padding:3.5px 9px; border-radius:99px; white-space:nowrap}
+.st-planned{background:var(--accent-soft); color:var(--accent)}
+.st-candidate{background:var(--amber-soft); color:var(--amber)}
+.st-inprogress{background:var(--teal-soft); color:var(--teal)}
+.st-done{background:var(--green-soft); color:var(--green)}
+.st-rejected{background:var(--rose-soft); color:var(--rose)}
+.b-area{background:var(--violet-soft); color:var(--violet)}
+.pri{font-family:var(--mono); font-size:11px; font-weight:600; padding:2.5px 8px;
+  border-radius:6px; background:var(--code-bg); border:1px solid var(--border); color:var(--text-2)}
+
+/* ── Stats ───────────────────────────────────────────────────────── */
+.stats{display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:12px; margin-bottom:22px}
+.stat{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:14px 16px; box-shadow:var(--shadow)}
+.stat .k{font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--text-3); font-weight:600}
+.stat .v{font-size:26px; font-weight:680; letter-spacing:-.02em; margin-top:2px; font-family:var(--mono)}
+.stat .s{font-size:11.5px; color:var(--text-2)}
+
+/* ── Code / prompt / formula blocks ─────────────────────────────── */
+.prompt,.sig{font-family:var(--mono); font-size:12.2px; line-height:1.7;
+  background:var(--code-bg); border:1px solid var(--border);
+  border-left:3px solid var(--pa, var(--accent));
+  border-radius:var(--radius-sm); padding:13px 15px; margin:2px 0 12px;
+  white-space:pre-wrap; word-break:break-word; color:var(--text); overflow-x:auto}
+.formula{background:var(--code-bg); border:1px solid var(--border);
+  border-left:3px solid var(--pa, var(--accent));
+  border-radius:var(--radius-sm); padding:14px 16px; margin:2px 0 12px;
+  overflow-x:auto; overflow-y:hidden}
+.formula .katex-display{margin:.25em 0}
+.formula .katex{font-size:1.05em}
+
+code, .mono{font-family:var(--mono)}
+code{font-size:12.3px; background:var(--code-bg); border:1px solid var(--border);
+  padding:1.5px 6px; border-radius:5px; color:var(--text); white-space:nowrap}
+.chips{display:flex; flex-wrap:wrap; gap:6px}
+.chip{font-family:var(--mono); font-size:11.3px; padding:3px 9px; border-radius:7px;
+  background:var(--code-bg); border:1px solid var(--border); color:var(--text-2)}
+.chip.by{color:var(--violet); border-color:color-mix(in srgb, var(--violet) 30%, var(--border))}
+
+.note{font-size:13px; color:var(--text-2); margin:8px 0 0}
+.note strong{color:var(--text); font-weight:600}
+.impl{display:flex; align-items:center; gap:8px; flex-wrap:wrap;
+  font-size:12.5px; color:var(--text-2); margin-top:10px;
+  padding-top:10px; border-top:1px dashed var(--border)}
+.impl .lbl{font-weight:600; color:var(--text)}
+
+/* ── Callouts ────────────────────────────────────────────────────── */
+.callout{border:1px solid var(--border); border-left:3px solid var(--pa, var(--accent));
+  border-radius:var(--radius-sm); background:var(--surface-2);
+  padding:13px 15px; margin:2px 0 12px; font-size:13.5px}
+.callout p{margin:0 0 8px}
+.callout p:last-child{margin-bottom:0}
+.callout.warn{border-left-color:var(--amber); background:var(--amber-soft)}
+.callout.stop{border-left-color:var(--rose); background:var(--rose-soft)}
+.callout.go{border-left-color:var(--green); background:var(--green-soft)}
+
+/* ── Lists ───────────────────────────────────────────────────────── */
+.kv{margin:0 0 10px}
+.kv dt{font-size:11px; text-transform:uppercase; letter-spacing:.05em; color:var(--text-3);
+  font-weight:650; margin-top:12px}
+.kv dt:first-child{margin-top:0}
+.kv dd{margin:2px 0 0; font-size:13.5px}
+
+ul.plain{margin:6px 0 12px; padding-left:20px}
+ul.plain li{margin-bottom:6px; font-size:13.5px}
+ul.plain li:last-child{margin-bottom:0}
+ul.check{list-style:none; margin:6px 0 12px; padding:0}
+ul.check li{position:relative; padding-left:26px; margin-bottom:7px; font-size:13.5px}
+ul.check li::before{content:"✓"; position:absolute; left:0; top:0; color:var(--green); font-weight:700}
+
+.steps{counter-reset:s; margin:2px 0 12px; padding:0; list-style:none}
+.steps li{position:relative; padding:12px 0 12px 42px; border-bottom:1px dashed var(--border); font-size:13.5px}
+.steps li:last-child{border-bottom:0}
+.steps li::before{counter-increment:s; content:counter(s); position:absolute; left:0; top:12px;
+  width:26px; height:26px; border-radius:8px; background:var(--pa-soft,var(--accent-soft));
+  color:var(--pa,var(--accent)); font-family:var(--mono); font-size:12px; font-weight:650;
+  display:grid; place-items:center}
+.steps .step-dep{margin-top:6px; font-size:11.5px; color:var(--text-3); font-family:var(--mono)}
+
+/* ── Tables ──────────────────────────────────────────────────────── */
+.tbl{width:100%; border-collapse:collapse; font-size:13px; margin:2px 0 12px}
+.tbl th{text-align:left; font-size:11px; text-transform:uppercase; letter-spacing:.05em;
+  color:var(--text-3); padding:8px 10px; border-bottom:1px solid var(--border); background:var(--surface-2)}
+.tbl td{padding:9px 10px; border-bottom:1px solid var(--border); vertical-align:top}
+.tbl tr:last-child td{border-bottom:0}
+.tbl td.mono{font-family:var(--mono); font-size:11.8px; color:var(--accent); white-space:nowrap}
+
+/* ── Filters ─────────────────────────────────────────────────────── */
+.filters{display:flex; gap:8px; flex-wrap:wrap; align-items:center; margin-bottom:14px}
+.fbtn{font:inherit; font-size:12.5px; font-weight:550; padding:6px 12px; border-radius:9px;
+  border:1px solid var(--border); background:var(--surface); color:var(--text-2);
+  cursor:pointer; transition:.15s}
+.fbtn:hover{color:var(--text); border-color:color-mix(in srgb, var(--accent) 40%, var(--border))}
+.fbtn.on{background:var(--accent); border-color:var(--accent); color:#fff}
+.fsearch{flex:1 1 200px; min-width:180px; font:inherit; font-size:13px; padding:8px 12px;
+  border-radius:9px; border:1px solid var(--border); background:var(--surface); color:var(--text)}
+.fsearch:focus{outline:2px solid color-mix(in srgb, var(--accent) 35%, transparent); outline-offset:1px}
+.fcount{font-family:var(--mono); font-size:11.5px; color:var(--text-3); white-space:nowrap}
+
+/* ── Roadmap ─────────────────────────────────────────────────────── */
+.phase{border:1px solid var(--border); border-radius:var(--radius); background:var(--surface);
+  box-shadow:var(--shadow); margin-bottom:14px; overflow:hidden}
+.phase-top{padding:12px 16px; background:var(--surface-2); border-bottom:1px solid var(--border);
+  display:flex; gap:10px; align-items:center; flex-wrap:wrap}
+.phase-top h3{margin:0; font-size:14.5px; font-weight:625}
+.phase-body{padding:14px 16px}
+.dep{font-family:var(--mono); font-size:11.5px; color:var(--amber)}
+
+.empty{text-align:center; padding:34px 16px; color:var(--text-2);
+  border:1px dashed var(--border); border-radius:var(--radius); background:var(--surface-2)}
+
+footer{max-width:1180px; margin:0 auto; padding:0 26px 50px;
+  font-size:12px; color:var(--text-3); text-align:center}
+footer a{color:var(--accent)}
+
+@media (max-width:820px){
+  .hdr-inner{padding:12px 16px; flex-wrap:wrap}
+  .brand h1{font-size:15px; white-space:normal}
+  .src-chip{display:none}
+  main{padding:18px 16px 70px}
+  .tab{min-width:auto; flex:0 0 auto}
+  .stats{grid-template-columns:repeat(auto-fit,minmax(130px,1fr))}
+  .card-body{padding:14px}
+  .steps li{padding-left:36px}
+}
+</style>
+</head>
+<body>
+
+<header>
+  <div class="hdr-inner">
+    <div class="brand">
+      <div class="logo">PU</div>
+      <div>
+        <h1>Planned Upgrades</h1>
+        <p>STOCK_REACT_ASSIST · upgrade registry &amp; design decisions</p>
+      </div>
+    </div>
+    <div class="hdr-actions">
+      <span class="src-chip" id="chipReg">static/PlannedUpgrades.html</span>
+      <button class="icon-btn" id="themeBtn" type="button" title="Toggle dark mode" aria-label="Toggle dark mode">◐</button>
+    </div>
+  </div>
+</header>
+
+<main>
+  <nav class="tabs" id="tabs">
+    <button class="tab active" type="button" data-a="over" data-p="p-over">Overview</button>
+    <button class="tab" type="button" data-a="reg"  data-p="p-reg">Upgrade Registry</button>
+    <button class="tab" type="button" data-a="u1"   data-p="p-u1">U1 · BERT Reranker</button>
+    <button class="tab" type="button" data-a="road" data-p="p-road">Roadmap</button>
+    <button class="tab" type="button" data-a="how"  data-p="p-how">How To Use This File</button>
+    <button class="tab" type="button" data-a="open" data-p="p-open">Decisions &amp; Open Questions</button>
+    <button class="tab" type="button" data-a="ver"  data-p="p-ver">Verification</button>
+  </nav>
+
+  <!-- ══ Overview ══════════════════════════════════════════════════ -->
+  <section class="panel active" id="p-over">
+    <div class="hero" style="--pa:var(--teal); --pa-soft:var(--teal-soft)">
+      <h2>This file <em>is</em> the backlog</h2>
+      <p>
+        It exists so that a planned upgrade can be discussed once, recorded precisely, and then
+        implemented later — by a human or an assistant — without the reasoning being lost.
+      </p>
+      <p>
+        The machine-readable part is
+        <code>&lt;script type="application/json" id="upgrade-registry"&gt;</code>
+        further down this file. Everything rendered on this page is derived from that block, so
+        the numbers on screen cannot drift away from the data.
+      </p>
+    </div>
+
+    <div class="stats" id="stats"></div>
+
+    <div class="sec">
+      <div class="sec-head"><span class="num">01</span><h2>Where it lives &amp; how it is served</h2><span class="tag">no code change required</span></div>
+      <div class="card">
+        <div class="card-body">
+          <dl class="kv">
+            <dt>File</dt>
+            <dd><code>static/PlannedUpgrades.html</code> — beside <code>Home.py</code></dd>
+            <dt>Why this folder</dt>
+            <dd>
+              <code>streamlit/file_util.py</code> resolves the app static directory as
+              <code>&lt;dir of Home.py&gt;/static</code>, and
+              <code>server.enableStaticServing = true</code> is already set in
+              <code>.streamlit/config.toml</code>.
+            </dd>
+            <dt>Public URL</dt>
+            <dd><code>&lt;app-url&gt;/app/static/PlannedUpgrades.html</code></dd>
+            <dt>Discovery</dt>
+            <dd>
+              <code>pages/About.py</code> enumerates <code>STATIC_DIR.iterdir()</code> dynamically
+              and labels each entry from its <code>&lt;title&gt;</code>. This page therefore appears
+              in <strong>📘 Reference Documents</strong> automatically — nothing in the app needs
+              editing to publish it.
+            </dd>
+          </dl>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><span class="num">02</span><h2>Status vocabulary</h2><span class="tag">applies to every entry</span></div>
+      <div class="card">
+        <div class="card-body">
+          <table class="tbl">
+            <thead><tr><th>Status</th><th>Meaning</th><th>Action expected</th></tr></thead>
+            <tbody>
+              <tr>
+                <td><span class="badge st-planned">planned</span></td>
+                <td>Agreed and fully specified. Ready to implement.</td>
+                <td>Implement when its <code>dependsOn</code> entries are <em>done</em>.</td>
+              </tr>
+              <tr>
+                <td><span class="badge st-inprogress">in-progress</span></td>
+                <td>Work has started but verification has not passed.</td>
+                <td>Continue; do not start a competing entry in the same area.</td>
+              </tr>
+              <tr>
+                <td><span class="badge st-done">done</span></td>
+                <td>Implemented and every verification item passed.</td>
+                <td>Nothing — but <code>dependsOn</code> references to it are now unblocked.</td>
+              </tr>
+              <tr>
+                <td><span class="badge st-candidate">candidate</span></td>
+                <td>Captured as a real possibility, deliberately unscheduled.</td>
+                <td>Ask before starting. Never implement silently.</td>
+              </tr>
+              <tr>
+                <td><span class="badge st-rejected">rejected</span></td>
+                <td>Considered and declined, with the reason recorded.</td>
+                <td>Do not implement. Do not re-propose without new evidence.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec">
+      <div class="sec-head"><span class="num">03</span><h2>Scope boundary</h2><span class="tag">upgrades only · locked 2026-09-23</span></div>
+      <div class="card">
+        <div class="card-body">
+          <div class="callout stop">
+            <p>
+              <strong>Deliberately out of scope.</strong> This registry holds upgrades and design
+              decisions only. Four verified codebase defects surfaced during the earlier audit and
+              were explicitly excluded by the user on 2026-09-23:
+            </p>
+            <ul class="plain">
+              <li><code>SUPER_DCF.py</code> is an orphan — nothing imports it.</li>
+              <li>Duplicated verdict logic in <code>Home.parse_analysis</code> and <code>stock_react_agent.generate_html_report</code>.</li>
+              <li><code>ALL_DCF_MODELS.py</code> appends the previous model's value after computing the Black-Scholes option value.</li>
+              <li>"Average" is a min/max midpoint in three places, so one outlier swings it fully.</li>
+            </ul>
+            <p>Do not add them here. They belong in a separate defect tracker if they are ever picked up.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ Registry ══════════════════════════════════════════════════ -->
+  <section class="panel" id="p-reg">
+    <div class="sec-head"><span class="num">04</span><h2>Upgrade registry</h2><span class="tag" id="regTag"></span></div>
+    <div class="filters">
+      <input class="fsearch" id="regSearch" type="search" placeholder="Search titles, problems, steps, files…  (press / to focus)">
+      <button class="fbtn on" type="button" data-f="all">All</button>
+      <button class="fbtn" type="button" data-f="planned">Planned</button>
+      <button class="fbtn" type="button" data-f="candidate">Candidates</button>
+      <button class="fbtn" type="button" data-f="rejected">Rejected</button>
+      <span class="fcount" id="regCount"></span>
+    </div>
+    <div id="regList"></div>
+  </section>
+
+  <!-- ══ U1 detail ═════════════════════════════════════════════════ -->
+  <section class="panel" id="p-u1">
+    <div id="u1Body"></div>
+  </section>
+
+  <!-- ══ Roadmap ═══════════════════════════════════════════════════ -->
+  <section class="panel" id="p-road">
+    <div class="sec-head"><span class="num">05</span><h2>Roadmap</h2><span class="tag">derived from registry status</span></div>
+    <div id="roadList"></div>
+    <div class="callout warn" style="margin-top:6px">
+      <p>
+        <strong>Ordering rule.</strong> Priority is a hint, dependency is a gate. An entry marked
+        <span class="badge st-planned">planned</span> must not start until every id in its
+        <code>dependsOn</code> list carries <span class="badge st-done">done</span>.
+      </p>
+    </div>
+  </section>
+
+  <!-- ══ How to use ════════════════════════════════════════════════ -->
+  <section class="panel" id="p-how">
+    <div class="sec-head"><span class="num">06</span><h2>How to use this file</h2><span class="tag">instructions for a future session</span></div>
+
+    <div class="callout go">
+      <p>
+        <strong>If you are an assistant being asked to implement a planned upgrade, read this tab
+        before touching any code.</strong>
+      </p>
+    </div>
+
+    <div class="card">
+      <div class="card-top"><h3>Operating instructions</h3><span class="badge b-area">read first</span></div>
+      <div class="card-body">
+        <div class="prompt" style="--pa:var(--violet); --pa-soft:var(--violet-soft)">READ THIS FIRST if you are an assistant asked to work on planned upgrades.
+
+1. PARSE THE REGISTRY. Read the JSON inside
+   &lt;script type="application/json" id="upgrade-registry"&gt;.
+   It is the single source of truth. Do not infer the backlog from prose on this page.
+
+2. SELECT WORK. Take entries whose status is "planned" and whose dependsOn ids are all
+   "done". Respect priority order (P0 before P1 before P2). "candidate" entries are
+   deliberately unscheduled - ask before starting one. Never start a "rejected" entry.
+
+3. READ THE ENTRY FULLY before touching code. "problem" says why, "recommendedApproach"
+   says how, "steps" are ordered and each names its files and symbols, "verification" is
+   the gate you must pass.
+
+4. DO NOT RE-LITIGATE "alternativesRejected". Each option there was considered and declined,
+   with a reason and a date. If you believe one is now correct, say so and ask - never
+   silently switch approach.
+
+5. RESOLVE "openQuestions" with the user if the answer changes the design.
+
+6. IMPLEMENT THE STEPS IN ORDER. A step's dependsOn means the earlier step must land first.
+   Do not batch unrelated steps into one sprawling edit.
+
+7. RUN EVERY ITEM UNDER "verification". These are not suggestions. An entry is not complete
+   until they pass. If a check is impossible in the current environment, say so explicitly
+   rather than skipping it silently.
+
+8. KEEP THIS FILE IN SYNC. Flip "status", append an entry to "discussion" with the date and
+   the outcome, and bump "meta.updated". Nothing else in the project tracks upgrade state.
+   Update the JSON only - every count on this page is derived, so never hand-edit a number.
+
+9. DO NOT EDIT PROJECT SOURCE AS A SIDE EFFECT of editing this page. Creating or updating a
+   plan is a separate, deliberate act from implementing it.
+
+10. PRESERVE THE INVARIANTS named in "decisions". They encode choices that were hard to
+    reach, and the most likely failure mode of this work is an assistant quietly undoing one.</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-top"><h3>Editing rules for the JSON block</h3><span class="badge st-candidate">gotchas</span></div>
+      <div class="card-body">
+        <ul class="plain">
+          <li>
+            <strong>No raw newlines inside a string.</strong> A JSON string value must sit on one
+            line. This is the same class of failure that blanked
+            <code>AllFunctionList.html</code> when a multi-line value was written inside its JS
+            array literal.
+          </li>
+          <li>
+            <strong>No double quotes inside a string value.</strong> Refer to code with
+            <code>&lt;code&gt;</code> styling in the surrounding page instead — the renderer
+            escapes text, so it is safe to write <code>&lt;</code> and <code>&amp;</code>.
+          </li>
+          <li>
+            <strong>Keep it valid JSON.</strong> After any edit, run <code>get_errors</code> on this
+            file and reload; a syntax error renders <em>every</em> derived panel as empty rather
+            than throwing a visible error.
+          </li>
+          <li>
+            <strong>Never hardcode a count anywhere in the page.</strong> Stat cards, the header
+            chip, the registry counter and the row totals are all computed from the registry.
+          </li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-top"><h3>Element schema</h3><span class="badge b-area">reference</span></div>
+      <div class="card-body">
+        <div class="sig" style="--pa:var(--violet); --pa-soft:var(--violet-soft)">meta:
+  project       string  - project name
+  purpose       string  - one-line reason this file exists
+  updated       string  - ISO date, bumped on every edit
+  readerNote    string  - the instruction aimed at a future assistant
+
+upgrades[]:
+  id                string   - stable key, e.g. "U1". Referenced by dependsOn.
+  title             string
+  status            string   - planned | in-progress | done | candidate | rejected
+  priority          string   - P0 | P1 | P2 | P3 | "-"
+  area              string   - grouping, e.g. "Vectorless RAG / Retrieval"
+  effort            string   - S | M | L | "-"
+  dependsOn         string[] - ids of other upgrades; a gate, not a hint
+  summary           string   - what the upgrade is, in one paragraph
+  problem           string   - why it is needed
+  recommendedApproach string - how it should be done
+  alternativesRejected { name, why }[]  - decided against; do not re-open
+  steps[]           { n, detail, files[], symbols[], dependsOn[] }
+  verification[]    string[]
+  risks[]           string[]
+  decisions[]       { date?, text }
+  openQuestions[]   string[]
+  acceptanceCriteria[] string[]
+  discussion[]      { date, who, text }   - append-only log</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══ Decisions & open questions ═══════════════════════════════ -->
+  <section class="panel" id="p-open">
+    <div class="sec-head"><span class="num">07</span><h2>Decisions &amp; open questions</h2><span class="tag">flattened across all entries</span></div>
+    <div class="sec">
+      <div class="sec-head"><span class="num">a</span><h2>Locked decisions</h2></div>
+      <div id="decList"></div>
+    </div>
+    <div class="sec">
+      <div class="sec-head"><span class="num">b</span><h2>Open questions</h2></div>
+      <div id="oqList"></div>
+    </div>
+  </section>
+
+  <!-- ══ Verification ══════════════════════════════════════════════ -->
+  <section class="panel" id="p-ver">
+    <div class="sec-head"><span class="num">08</span><h2>Verification</h2><span class="tag">the gate, not a suggestion</span></div>
+
+    <div class="card">
+      <div class="card-top"><h3>This page</h3><span class="badge st-done">checked on creation</span></div>
+      <div class="card-body">
+        <ul class="check">
+          <li><code>get_errors</code> on <code>static/PlannedUpgrades.html</code> reports no problems.</li>
+          <li>7 <code>.tab</code> buttons, 7 <code>.panel</code> sections, exactly 1 <code>.panel.active</code>.</li>
+          <li>Rendered card count equals the number of entries in the registry — asserted live from the DOM, not by eye.</li>
+          <li>All status filters and the search box work, and clearing every filter restores the full list.</li>
+          <li>
+            KaTeX integrity: the number of <code>.katex</code> nodes equals the number of
+            <code>.formula</code> blocks, and <code>.katex-error</code> count is zero. A
+            double-backslash before an underscore silently degrades a formula to an error span
+            that grepping cannot reveal.
+          </li>
+          <li>Loads with HTTP 200 and <code>text/html</code> at <code>/app/static/PlannedUpgrades.html</code>.</li>
+          <li>The auto-generated card in <code>pages/About.py</code> resolves and uses this page's <code>&lt;title&gt;</code> as its label.</li>
+          <li>Theme toggle persists across reloads under its own <code>localStorage</code> key, <code>planned-theme</code>.</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="sec-head"><span class="num">09</span><h2>Per-upgrade verification gates</h2><span class="tag">run these when implementing</span></div>
+    <div id="verList"></div>
+  </section>
+</main>
+
+<footer>
+  <span id="footerLine"></span> · Generated 2026-09-23 · Registry is the source of truth
+</footer>
+
+<!-- ══════════════════════════════════════════════════════════════════
+     MACHINE-READABLE REGISTRY — the single source of truth.
+     Everything rendered above is derived from this block.
+     Rules: no raw newlines inside a string, no double quotes inside a
+     string, and bump meta.updated on every edit.
+     ══════════════════════════════════════════════════════════════════ -->
+<script type="application/json" id="upgrade-registry">
+{
+  "meta": {
+    "project": "STOCK_REACT_ASSIST",
+    "purpose": "Record planned upgrades precisely enough that a future session can implement them without re-deriving the reasoning, and update their status in place when done.",
+    "created": "2026-09-23",
+    "updated": "2026-09-23",
+    "scope": "upgrades only",
+    "readerNote": "If you are an assistant asked to work on planned upgrades in this project: parse this JSON, take entries whose status is planned and whose dependsOn ids are all done, respect priority order, read the whole entry before touching code, do not re-litigate alternativesRejected, resolve openQuestions with the user if they change the design, implement the steps in order, pass every item under verification, then flip status and append to discussion and bump meta.updated."
+  },
+  "upgrades": [
+    {
+      "id": "U1",
+      "title": "Hybrid lexical + BERT cross-encoder rerank",
+      "status": "planned",
+      "priority": "P1",
+      "area": "Vectorless RAG / Retrieval",
+      "effort": "M",
+      "dependsOn": [],
+      "summary": "Keep lexical_search as the cheap recall stage, then add a BERT cross-encoder between retrieval and prompt assembly so the top-k chunks injected into the LLM are chosen by semantic relevance rather than substring overlap.",
+      "problem": "lexical_search in Home.py scores a chunk purely by how many query terms appear in it as substrings. That makes it blind to three distinct failures. First, negation: a chunk stating that there is no material litigation scores identically to one describing real litigation, because the term is present either way. Second, paraphrase: a query term like revenue does not match a filing that says topline, and EBITDA margin does not match operating profitability. Third, word order and framing. Because the surviving chunks are injected verbatim into the analysis prompt, a bad ranking degrades both the generated commentary and the citations it produces.",
+      "recommendedApproach": "Two-stage retrieval. Stage one stays exactly as it is today: lexical_search returns a wide candidate set, RERANK_CANDIDATES defaulting to 100. Stage two is a BERT cross-encoder that scores every query-chunk pair jointly and reorders the candidates; the top RERANK_TOP_K, defaulting to 10, go on to format_rag_context unchanged. Only ORDER changes. Text is never summarised, rewritten or filtered by the model, so render_document_context keeps showing exactly what was fed to the LLM and the auditability claim in the module docstring stays true.",
+      "alternativesRejected": [
+        {
+          "name": "Option A - ONNX-quantised cross-encoder via onnxruntime",
+          "why": "Attractive because onnxruntime and tokenizers already arrive transitively through crewai and litellm, so no new top-level dependency would be needed and image size would stay roughly flat. Declined by the user on 2026-09-23 in favour of the standard transformers path."
+        },
+        {
+          "name": "Option C - Skip reranking and keep pure lexical scoring",
+          "why": "Zero new dependencies and zero latency, and honest about the vectorless design. Declined because the negation and paraphrase failures are precisely the cases that matter in regulatory filings, where no impairment and impairment must not be scored the same."
+        },
+        {
+          "name": "Bi-encoder sentence embeddings stored in a vector index",
+          "why": "This is vector RAG by definition rather than an upgrade to a vectorless design. Persisting or similarity-searching embeddings reintroduces the embedding job, the index lifecycle, the re-embed cost on every document change, and the opaque retrieval state that the current design exists to avoid."
+        }
+      ],
+      "steps": [
+        {
+          "n": 1,
+          "detail": "Add the CPU-only dependency pair to requirements.txt. Torch MUST come from the PyTorch CPU wheel index, because a plain install of torch pulls roughly 2.5 GB of CUDA wheels that a Streamlit Community Cloud container can never use. Pin transformers alongside it, using the same comment style as the rest of that file.",
+          "files": ["requirements.txt"],
+          "symbols": [],
+          "dependsOn": []
+        },
+        {
+          "n": 2,
+          "detail": "Rewrite the requirement-comment that this change falsifies. The file currently states that crewai pulls chromadb and lancedb but does NOT require torch or transformers, which keeps the Cloud image manageable. That sentence becomes untrue the moment this upgrade lands, so it must be replaced rather than left contradicting the file it documents.",
+          "files": ["requirements.txt"],
+          "symbols": [],
+          "dependsOn": ["1"]
+        },
+        {
+          "n": 3,
+          "detail": "Add the cached model loader to Home.py, next to _ensure_nltk_data. Use st.cache_resource with show_spinner=False so the roughly 90 MB model is downloaded and instantiated once per container, and import torch and transformers LAZILY inside the function body. That laziness is mandatory, not stylistic: Home.py is the entrypoint and re-executes on every rerun, so a module-level import would tax every single page load. Wrap the body in try/except and return None on any failure, mirroring the graceful degradation already used by _ensure_nltk_data and get_fx_rate.",
+          "files": ["Home.py"],
+          "symbols": ["_ensure_nltk_data", "_load_secrets_into_env", "llm"],
+          "dependsOn": ["2"]
+        },
+        {
+          "n": 4,
+          "detail": "Add rerank_chunks(query, candidates, top_k), returning the reordered candidate list. Call torch.set_num_threads once at load time, because Home.py already fans out with a ThreadPoolExecutor and an unconstrained torch will oversubscribe the container. Tokenise with max_length=512 and truncation=True. The chunks produced by chunk_text with max_chars=1800 and overlap=200 are roughly 450 tokens so normal pages fit, but the guard is what stops a pathological page from raising. If the model is None or inference raises, return the input order untouched.",
+          "files": ["Home.py"],
+          "symbols": ["lexical_search", "chunk_text", "format_rag_context"],
+          "dependsOn": ["3"]
+        },
+        {
+          "n": 5,
+          "detail": "Insert the rerank call at Step 4.6 of run_analysis, between lexical_search and format_rag_context. Add RERANK_CANDIDATES and RERANK_TOP_K as named module constants rather than inline literals, and extend the existing RAG console print so the before-and-after ordering is observable in the streamlit run console. Keep st.session_state.retrieved_chunks holding the FINAL reranked list, so render_document_context shows what was genuinely injected.",
+          "files": ["Home.py"],
+          "symbols": ["run_analysis", "lexical_search", "format_rag_context", "render_document_context"],
+          "dependsOn": ["4"]
+        },
+        {
+          "n": 6,
+          "detail": "Update the two places in Home.py that describe the pipeline as purely lexical: the module docstring explainer, which currently asserts there is no embedding model, and the render_document_context caption, which tells the user the chunks were retrieved by keyword scoring. Both become inaccurate the moment a cross-encoder is in the path, and they are the auditability promise of the whole feature rather than incidental prose.",
+          "files": ["Home.py"],
+          "symbols": ["module docstring", "render_document_context"],
+          "dependsOn": ["5"]
+        },
+        {
+          "n": 7,
+          "detail": "Refresh the two static reference docs whose counts this change invalidates. static/UIRendering.html documents Home.py at 58 symbols, and static/AllFunctionList.html carries verified per-file row counts including 114 rows for Home.py within a 451 total. New module constants and new functions drift every one of those numbers. Note that UIRendering.html mirrors its count in THREE places: the header source chip, the Function Reference aspect card and the footer. AllFunctionList.html derives its counts from its FILES array, so its data rows must be extended rather than its prose edited.",
+          "files": ["static/UIRendering.html", "static/AllFunctionList.html"],
+          "symbols": [],
+          "dependsOn": ["6"]
+        },
+        {
+          "n": 8,
+          "detail": "After verification passes, flip this entry's status from planned to done, append the outcome to its discussion array with the date, and bump meta.updated. This file is the single writer for upgrade status; do not track it anywhere else as well.",
+          "files": ["static/PlannedUpgrades.html"],
+          "symbols": [],
+          "dependsOn": ["7"]
+        }
+      ],
+      "verification": [
+        "get_errors on Home.py reports no problems.",
+        "AppTest.from_file('Home.py').run() completes with 0 exceptions, and the sidebar buttons for Analyze Stock, Run Persona Agents, Verify keys and Save Analysis are all still present.",
+        "Force the failure path: point the loader at a non-existent model id, restart, and confirm the app still runs with lexical ordering and no traceback. This is the single most important test, because the reranker must never be able to break the pipeline.",
+        "Assert that for a fixed corpus and query the reranked order differs from the lexical order on a known negation case: a chunk containing no material litigation should outrank a chunk asserting material litigation for a query about litigation, whereas lexical scoring treats the two as identical.",
+        "Measure the added wall-clock time of the rerank stage on CPU with the default candidate count. Budget is under 2 seconds; MiniLM-L6 is roughly 5 to 15 ms per query-chunk pair.",
+        "Confirm that with the reranker disabled the SET of chunks for the same top_k is unchanged from before the upgrade. Only order may differ, and no text may be rewritten.",
+        "Confirm render_document_context still renders raw chunk text with its file and page labels.",
+        "Confirm Home.py boot cost has not grown measurably, which proves torch is not being imported at module scope."
+      ],
+      "risks": [
+        "Image size and build time. Streamlit Community Cloud installs from requirements.txt on every rebuild, and torch is by far the largest dependency in that file even in CPU-only form. Expect materially longer cold builds and a larger image.",
+        "First-run model download. The roughly 90 MB of weights land in the HuggingFace cache directory, which is ephemeral on Cloud, so a container restart re-downloads them. If the Hub is unreachable the reranker must degrade to lexical order rather than fail the analysis.",
+        "CPU oversubscription. torch defaults to using every available core, and Home.py already runs two agents concurrently in a ThreadPoolExecutor.",
+        "Token truncation. Chunks longer than 512 tokens are silently truncated by the tokeniser, so the tail of an unusually long chunk would never influence its score.",
+        "Latency creep. RERANK_CANDIDATES is a direct multiplier on cost. Raising it to chase recall will raise rerank time linearly, on a CPU-only host."
+      ],
+      "decisions": [
+        { "date": "2026-09-23", "text": "Dependency path is Option B: transformers plus torch, running a MiniLM-class cross-encoder on CPU. Option A, the ONNX path, and Option C, skipping reranking, were both considered and declined." },
+        { "date": "2026-09-23", "text": "Reranking changes ORDER only. For the same top_k the injected text must remain byte-identical, so the auditability claim in the Home.py module docstring stays true." },
+        { "text": "The model is loaded through st.cache_resource and imported lazily, never at module scope." },
+        { "text": "Graceful degradation is mandatory: any failure in load or inference falls back to lexical order with no user-visible error." },
+        { "text": "The reranker sits between lexical_search and format_rag_context. It must not be merged into either, so both stages stay independently testable and independently disableable." }
+      ],
+      "openQuestions": [
+        "Should the rerank scores be surfaced in render_document_context, for example in the chunk expander header, or kept internal? Showing them strengthens the audit story but exposes a raw model score in a user-facing surface.",
+        "Should RERANK_CANDIDATES and RERANK_TOP_K be exposed in the sidebar, or stay as module constants? Sidebar controls make the latency-versus-recall trade-off tangible but invite users to make the app slow.",
+        "Is cross-encoder/ms-marco-MiniLM-L-6-v2 the right checkpoint, or is a finance-domain reranker worth the larger download for filing language?"
+      ],
+      "acceptanceCriteria": [
+        "Any reranker failure leaves the pipeline working with lexical ordering and no user-visible error.",
+        "For a fixed candidate set the number of injected chunks is unchanged and their text is unchanged; only their order may differ.",
+        "The rerank stage adds under 2 seconds on CPU at the default candidate count.",
+        "Home.py boot time increases by less than 0.5 seconds, demonstrating the lazy import works.",
+        "get_errors is clean on Home.py and AppTest reports 0 exceptions."
+      ],
+      "discussion": [
+        { "date": "2026-09-23", "who": "user", "text": "Asked what the advantages of using BERT in vectorless RAG are." },
+        { "date": "2026-09-23", "who": "assistant", "text": "Established the governing distinction: BERT used as a query-time scorer, meaning a cross-encoder, an extractive-QA head, a classifier or a NER tagger, is fully compatible with vectorless RAG. BERT used as a bi-encoder that produces persisted embeddings is simply vector RAG wearing a vectorless label." },
+        { "date": "2026-09-23", "who": "assistant", "text": "Recommended the hybrid shape: lexical recall plus cross-encoder rerank, with an extractive-QA head as a later option. Also flagged that requirements.txt deliberately notes crewai does not pull torch or transformers in order to keep the Cloud image manageable, and that this upgrade reverses that trade-off deliberately." },
+        { "date": "2026-09-23", "who": "user", "text": "Chose Option B, transformers plus torch, over the ONNX path. Locked." },
+        { "date": "2026-09-23", "who": "user", "text": "Locked the registry scope to upgrades only, so the four audit defects are excluded from this file." }
+      ]
+    },
+    {
+      "id": "U2",
+      "title": "Extractive-QA head for verbatim figures and page citations",
+      "status": "candidate",
+      "priority": "P2",
+      "area": "Vectorless RAG / Grounding",
+      "effort": "M",
+      "dependsOn": ["U1"],
+      "summary": "Add a span-extraction head so numeric answers such as revenue, debt or guidance are pulled verbatim from a page rather than paraphrased by the generative model.",
+      "problem": "generate_analysis asks the LLM to restate figures from the injected excerpts and to cite them as a file and page reference. Nothing verifies that the figure appears verbatim in the retrieved text, so a plausible-looking number can still be a hallucination that carries a convincing citation.",
+      "recommendedApproach": "Run a BERT extractive-QA model over the reranked top-k chunks to surface candidate answer spans for numeric questions, then present those spans as explicitly labelled evidence alongside the raw chunks. The generative model then cites a span instead of re-deriving the number from context.",
+      "alternativesRejected": [
+        {
+          "name": "Extractive-only answers",
+          "why": "Would remove the narrative analysis the app exists to produce. The QA head is an evidence aid, not a replacement for the generator."
+        }
+      ],
+      "steps": [],
+      "verification": [
+        "Every numeric claim in a generated analysis can be traced to a verbatim span in the injected chunks."
+      ],
+      "risks": [
+        "Adds a second model download and a second inference pass per query, on top of U1."
+      ],
+      "decisions": [],
+      "openQuestions": [
+        "Is a general SQuAD-style checkpoint adequate for financial tables, or does a table-aware approach become necessary?"
+      ],
+      "acceptanceCriteria": [
+        "Each numeric figure in the analysis maps to a quoted span plus a file and page reference."
+      ],
+      "discussion": [
+        { "date": "2026-09-23", "who": "assistant", "text": "Surfaced as a follow-on to U1 during the BERT discussion. Recorded as a candidate, deliberately unscheduled." }
+      ]
+    },
+    {
+      "id": "U3",
+      "title": "Bi-encoder sentence embeddings in a vector index",
+      "status": "rejected",
+      "priority": "-",
+      "area": "Vectorless RAG / Retrieval",
+      "effort": "-",
+      "dependsOn": [],
+      "summary": "Recorded so that it is not re-proposed: storing BERT bi-encoder embeddings and running similarity search is vector RAG, not an upgrade to a vectorless design.",
+      "problem": "It is a natural instinct, and it is frequently described as an improvement to a keyword retriever: embed the chunks with BERT, store the vectors, compare them. That is not an improvement to this design, it is a different design with a different cost structure and a different audit story.",
+      "recommendedApproach": "Do not implement. If semantic retrieval ever becomes a genuine requirement, the honest move is to rename the feature to vector RAG, introduce an embedding job and an index lifecycle, and remove the vectorless wording throughout Home.py. Keeping the vectorless label while adding vectors underneath it would make the documentation misleading.",
+      "alternativesRejected": [
+        {
+          "name": "Any persisted embedding index, including local or in-process ones",
+          "why": "Reintroduces the embedding cost, an index rebuild on every document change, and an opaque retrieval state that the current design deliberately avoids."
+        }
+      ],
+      "steps": [],
+      "verification": [],
+      "risks": [],
+      "decisions": [
+        { "date": "2026-09-23", "text": "Rejected. Semantic matching is to be obtained through a query-time cross-encoder instead, which keeps the corpus unindexed." }
+      ],
+      "openQuestions": [],
+      "acceptanceCriteria": [],
+      "discussion": [
+        { "date": "2026-09-23", "who": "assistant", "text": "Called out during the BERT discussion as the one reading that would silently convert vectorless RAG into vector RAG. Rejected and recorded here as a guard rail." }
+      ]
+    }
+  ]
+}
+</script>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ── Data ─────────────────────────────────────────────────────── */
+  var REG = { meta: {}, upgrades: [] };
+  try {
+    REG = JSON.parse(document.getElementById("upgrade-registry").textContent);
+  } catch (err) {
+    console.error("upgrade-registry JSON failed to parse:", err);
+  }
+  var UPS = REG.upgrades || [];
+
+  var STATUS_CLASS = {
+    "planned": "st-planned",
+    "in-progress": "st-inprogress",
+    "done": "st-done",
+    "candidate": "st-candidate",
+    "rejected": "st-rejected"
+  };
+  var STATUS_LABEL = {
+    "planned": "planned",
+    "in-progress": "in progress",
+    "done": "done",
+    "candidate": "candidate",
+    "rejected": "rejected"
+  };
+  var PRI_ORDER = { "P0": 0, "P1": 1, "P2": 2, "P3": 3, "-": 9 };
+
+  /* ── Helpers ──────────────────────────────────────────────────── */
+  function esc(s) {
+    return String(s == null ? "" : s)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+  }
+  function statusBadge(st) {
+    var cls = STATUS_CLASS[st] || "st-planned";
+    return '<span class="badge ' + cls + '">' + esc(STATUS_LABEL[st] || st) + '</span>';
+  }
+  function chips(arr, cls) {
+    if (!arr || !arr.length) return "";
+    return '<div class="chips">' + arr.map(function (x) {
+      return '<span class="chip ' + (cls || "") + '">' + esc(x) + '</span>';
+    }).join("") + "</div>";
+  }
+  function list(items, kind) {
+    if (!items || !items.length) {
+      return '<p class="note">None recorded.</p>';
+    }
+    var tag = kind === "check" ? "check" : "plain";
+    return '<ul class="' + tag + '">' + items.map(function (x) {
+      return "<li>" + esc(x) + "</li>";
+    }).join("") + "</ul>";
+  }
+  function card(title, bodyHtml, badgeHtml) {
+    return '<div class="card">' +
+      '<div class="card-top"><h3>' + esc(title) + "</h3>" +
+      (badgeHtml ? '<span class="spacer"></span>' + badgeHtml : "") +
+      '</div><div class="card-body">' + bodyHtml + "</div></div>";
+  }
+  function sortUps(arr) {
+    return arr.slice().sort(function (a, b) {
+      var pa = PRI_ORDER[a.priority] == null ? 9 : PRI_ORDER[a.priority];
+      var pb = PRI_ORDER[b.priority] == null ? 9 : PRI_ORDER[b.priority];
+      if (pa !== pb) return pa - pb;
+      return String(a.id).localeCompare(String(b.id));
+    });
+  }
+
+  /* ── Overview stats ───────────────────────────────────────────── */
+  function renderStats() {
+    var byStatus = {};
+    UPS.forEach(function (u) { byStatus[u.status] = (byStatus[u.status] || 0) + 1; });
+    var nDec = 0, nOq = 0;
+    UPS.forEach(function (u) {
+      nDec += (u.decisions || []).length;
+      nOq += (u.openQuestions || []).length;
+    });
+    var areas = {};
+    UPS.forEach(function (u) { if (u.area) areas[u.area] = 1; });
+
+    var stats = [
+      { k: "Registry entries", v: UPS.length, s: Object.keys(areas).length + " area(s) covered" },
+      { k: "Planned", v: byStatus["planned"] || 0, s: "ready to implement" },
+      { k: "In progress", v: byStatus["in-progress"] || 0, s: "verification not yet passed" },
+      { k: "Candidates", v: byStatus["candidate"] || 0, s: "ask before starting" },
+      { k: "Rejected", v: byStatus["rejected"] || 0, s: "recorded guard rails" },
+      { k: "Locked decisions", v: nDec, s: nOq + " open question(s)" }
+    ];
+    document.getElementById("stats").innerHTML = stats.map(function (s) {
+      return '<div class="stat"><div class="k">' + esc(s.k) + '</div>' +
+        '<div class="v">' + esc(s.v) + '</div>' +
+        '<div class="s">' + esc(s.s) + "</div></div>";
+    }).join("");
+
+    document.getElementById("chipReg").textContent =
+      "static/PlannedUpgrades.html · " + UPS.length + " entries";
+    document.getElementById("footerLine").textContent =
+      UPS.length + " registry entries · " + nDec + " locked decisions · updated " +
+      (REG.meta && REG.meta.updated ? REG.meta.updated : "—");
+  }
+
+  /* ── Registry tab ─────────────────────────────────────────────── */
+  var regFilter = "all";
+
+  function regMatches(u) {
+    if (regFilter !== "all" && u.status !== regFilter) return false;
+    var q = (document.getElementById("regSearch").value || "").trim().toLowerCase();
+    if (!q) return true;
+    var hay = [u.id, u.title, u.area, u.summary, u.problem, u.recommendedApproach]
+      .concat(u.verification || [], u.risks || [], u.openQuestions || [],
+              u.acceptanceCriteria || [])
+      .concat((u.steps || []).map(function (s) {
+        return s.detail + " " + (s.files || []).join(" ") + " " + (s.symbols || []).join(" ");
+      }))
+      .join(" ").toLowerCase();
+    return hay.indexOf(q) !== -1;
+  }
+
+  function renderRegistry() {
+    var shown = sortUps(UPS).filter(regMatches);
+    var host = document.getElementById("regList");
+
+    document.getElementById("regCount").textContent = shown.length + " / " + UPS.length + " entries";
+    document.getElementById("regTag").textContent =
+      UPS.length + " entries · " + (REG.meta && REG.meta.updated ? "updated " + REG.meta.updated : "");
+
+    if (!shown.length) {
+      host.innerHTML = '<div class="empty"><strong>No matching entries.</strong><br>' +
+        "Clear the search or pick another status filter.</div>";
+      return;
+    }
+
+    host.innerHTML = shown.map(function (u) {
+      var badges =
+        statusBadge(u.status) +
+        '<span class="pri">' + esc(u.priority || "—") + "</span>" +
+        '<span class="badge b-area">' + esc(u.area || "—") + "</span>" +
+        '<span class="pri">effort ' + esc(u.effort || "—") + "</span>";
+
+      var dep = (u.dependsOn && u.dependsOn.length)
+        ? '<p class="note"><strong>Depends on:</strong> <span class="dep">' +
+          esc(u.dependsOn.join(", ")) + "</span></p>"
+        : '<p class="note"><strong>Depends on:</strong> nothing — can start immediately.</p>';
+
+      var body =
+        '<p class="note">' + esc(u.summary || "") + "</p>" + dep +
+        '<dl class="kv">' +
+        "<dt>Problem</dt><dd>" + esc(u.problem || "—") + "</dd>" +
+        "<dt>Recommended approach</dt><dd>" + esc(u.recommendedApproach || "—") + "</dd>" +
+        "</dl>";
+
+      if (u.steps && u.steps.length) {
+        body += "<p class='note'><strong>" + u.steps.length + " implementation step(s).</strong> " +
+          "Full detail in the U1 tab.</p>";
+      }
+      if (u.alternativesRejected && u.alternativesRejected.length) {
+        body += '<p class="note"><strong>Alternatives rejected:</strong> ' +
+          esc(u.alternativesRejected.map(function (a) { return a.name; }).join(" · ")) + "</p>";
+      }
+      var nv = (u.verification || []).length;
+      var nr = (u.risks || []).length;
+      body += '<div class="impl"><span class="lbl">Gates:</span>' +
+        '<span class="chip">' + nv + " verification</span>" +
+        '<span class="chip">' + nr + " risk</span>" +
+        '<span class="chip">' + (u.decisions || []).length + " decision</span>" +
+        '<span class="chip">' + (u.openQuestions || []).length + " question</span></div>";
+
+      return card(u.id + " · " + u.title, body, badges);
+    }).join("");
+  }
+
+  document.getElementById("regSearch").addEventListener("input", renderRegistry);
+  Array.prototype.forEach.call(document.querySelectorAll(".fbtn[data-f]"), function (b) {
+    b.addEventListener("click", function () {
+      regFilter = b.getAttribute("data-f");
+      Array.prototype.forEach.call(document.querySelectorAll(".fbtn[data-f]"), function (x) {
+        x.classList.toggle("on", x === b);
+      });
+      renderRegistry();
+    });
+  });
+
+  /* ── U1 detail tab ────────────────────────────────────────────── */
+  function renderU1() {
+    var u = UPS.filter(function (x) { return x.id === "U1"; })[0];
+    var host = document.getElementById("u1Body");
+    if (!u) {
+      host.innerHTML = '<div class="empty">U1 is not present in the registry.</div>';
+      return;
+    }
+
+    var html = '<div class="hero" style="--pa:var(--accent-2); --pa-soft:var(--accent-soft)">' +
+      "<h2>" + esc(u.id) + " · " + esc(u.title) + "</h2>" +
+      "<p>" + esc(u.summary) + "</p>" +
+      '<div class="chips" style="margin-top:10px">' +
+      statusBadge(u.status) +
+      '<span class="pri">' + esc(u.priority) + "</span>" +
+      '<span class="badge b-area">' + esc(u.area) + "</span>" +
+      '<span class="pri">effort ' + esc(u.effort) + "</span>" +
+      '<span class="pri">' + (u.steps || []).length + " steps</span>" +
+      "</div></div>";
+
+    html += card("Why this is needed", "<p class='note'>" + esc(u.problem) + "</p>");
+    html += card("Recommended approach", "<p class='note'>" + esc(u.recommendedApproach) + "</p>");
+
+    /* Scoring contrast */
+    html += card("The scoring contrast", "" +
+      "<p class='note'>Today the only signal is term overlap, which is symmetric under negation and blind to paraphrase:</p>" +
+      '<div class="formula">$$\\text{lex}(q,c) \\;=\\; \\sum_{t \\in T(q)} \\mathbf{1}\\,[\\,t \\subseteq c\\,]$$</div>' +
+      "<p class='note'>The cross-encoder reads the query and the chunk together in one forward pass, so polarity, order and implication all reach the score:</p>" +
+      '<div class="formula">$$s(q,c) \\;=\\; \\text{CrossEncoder}(q,\\,c)$$</div>',
+      '<span class="badge st-candidate">why it works</span>');
+
+    /* Alternatives */
+    var alt = (u.alternativesRejected || []).map(function (a) {
+      return "<tr><td><strong>" + esc(a.name) + "</strong></td><td>" + esc(a.why) + "</td></tr>";
+    }).join("");
+    html += card("Alternatives rejected — do not re-open",
+      '<table class="tbl"><thead><tr><th style="width:34%">Option</th><th>Why it was declined</th></tr></thead>' +
+      "<tbody>" + alt + "</tbody></table>",
+      '<span class="badge st-rejected">decided</span>');
+
+    /* Steps */
+    var steps = (u.steps || []).map(function (s) {
+      var dep = (s.dependsOn && s.dependsOn.length)
+        ? '<div class="step-dep">after step ' + esc(s.dependsOn.join(", ")) + "</div>" : "";
+      var files = (s.files && s.files.length) ? '<div style="margin-top:8px">' + chips(s.files) + "</div>" : "";
+      var syms = (s.symbols && s.symbols.length) ? '<div style="margin-top:6px">' + chips(s.symbols, "by") + "</div>" : "";
+      return "<li>" + esc(s.detail) + dep + files + syms + "</li>";
+    }).join("");
+    html += card("Implementation steps", '<ol class="steps">' + steps + "</ol>",
+      '<span class="badge st-planned">' + (u.steps || []).length + " ordered steps</span>");
+
+    /* Verification */
+    html += card("Verification gate", list(u.verification, "check"),
+      '<span class="badge st-done">must all pass</span>');
+
+    /* Risks */
+    html += card("Risks to manage", list(u.risks), '<span class="badge st-candidate">watch</span>');
+
+    /* Acceptance */
+    html += card("Acceptance criteria", list(u.acceptanceCriteria, "check"));
+
+    /* Decisions */
+    var dec = (u.decisions || []).map(function (d) {
+      return "<tr><td class='mono'>" + esc(d.date || "—") + "</td><td>" + esc(d.text) + "</td></tr>";
+    }).join("");
+    html += card("Locked decisions",
+      '<table class="tbl"><thead><tr><th style="width:16%">Date</th><th>Decision</th></tr></thead><tbody>' +
+      dec + "</tbody></table>");
+
+    /* Open questions */
+    html += card("Open questions — resolve before implementing", list(u.openQuestions),
+      '<span class="badge st-candidate">needs input</span>');
+
+    /* Discussion log */
+    var disc = (u.discussion || []).map(function (d) {
+      return "<tr><td class='mono'>" + esc(d.date || "—") + "</td><td>" + esc(d.who || "—") +
+        "</td><td>" + esc(d.text) + "</td></tr>";
+    }).join("");
+    html += card("Discussion log — append-only",
+      '<table class="tbl"><thead><tr><th style="width:12%">Date</th><th style="width:12%">Who</th>' +
+      "<th>Note</th></tr></thead><tbody>" + disc + "</tbody></table>");
+
+    host.innerHTML = html;
+  }
+
+  /* ── Roadmap tab ──────────────────────────────────────────────── */
+  function renderRoadmap() {
+    var host = document.getElementById("roadList");
+    var ordered = sortUps(UPS);
+
+    var html = ordered.map(function (u) {
+      var blocked = (u.dependsOn || []).filter(function (id) {
+        var dep = UPS.filter(function (x) { return x.id === id; })[0];
+        return !dep || dep.status !== "done";
+      });
+      var gate = blocked.length
+        ? '<span class="dep">blocked by ' + esc(blocked.join(", ")) + "</span>"
+        : '<span class="chip">unblocked</span>';
+
+      var body = '<p class="note">' + esc(u.summary) + "</p>" +
+        '<dl class="kv">' +
+        "<dt>Priority</dt><dd>" + esc(u.priority) + " · effort " + esc(u.effort) + "</dd>" +
+        "<dt>Area</dt><dd>" + esc(u.area) + "</dd>" +
+        "<dt>Gate</dt><dd>" + gate + "</dd>" +
+        "<dt>Scope</dt><dd>" +
+        (u.steps || []).length + " steps · " +
+        (u.verification || []).length + " verification checks · " +
+        (u.risks || []).length + " risks · " +
+        (u.openQuestions || []).length + " open questions</dd>" +
+        "</dl>";
+
+      return '<div class="phase"><div class="phase-top">' +
+        "<h3>" + esc(u.id) + " · " + esc(u.title) + "</h3>" +
+        '<span class="spacer"></span>' + statusBadge(u.status) +
+        "</div><div class='phase-body'>" + body + "</div></div>";
+    }).join("");
+
+    host.innerHTML = html;
+  }
+
+  /* ── Decisions & open questions tab ──────────────────────────── */
+  function renderDecisions() {
+    var allDec = [], allOq = [];
+    sortUps(UPS).forEach(function (u) {
+      (u.decisions || []).forEach(function (d) { allDec.push({ id: u.id, date: d.date, text: d.text }); });
+      (u.openQuestions || []).forEach(function (q) { allOq.push({ id: u.id, text: q }); });
+    });
+
+    document.getElementById("decList").innerHTML = allDec.length
+      ? allDec.map(function (d) {
+          return card(d.id + " · locked decision",
+            '<p class="note">' + esc(d.text) + "</p>",
+            '<span class="badge st-done">' + esc(d.date || "no date") + "</span>");
+        }).join("")
+      : '<div class="empty">No decisions recorded.</div>';
+
+    document.getElementById("oqList").innerHTML = allOq.length
+      ? allOq.map(function (q, i) {
+          return card("Question " + (i + 1) + " · " + q.id,
+            '<p class="note">' + esc(q.text) + "</p>",
+            '<span class="badge st-candidate">needs input</span>');
+        }).join("")
+      : '<div class="empty">No open questions recorded.</div>';
+  }
+
+  /* ── Per-upgrade verification tab ────────────────────────────── */
+  function renderVerificationGates() {
+    var host = document.getElementById("verList");
+    var withGates = sortUps(UPS).filter(function (u) {
+      return (u.verification || []).length || (u.acceptanceCriteria || []).length;
+    });
+    if (!withGates.length) {
+      host.innerHTML = '<div class="empty">No per-upgrade gates recorded yet.</div>';
+      return;
+    }
+    host.innerHTML = withGates.map(function (u) {
+      var body = "";
+      if ((u.verification || []).length) {
+        body += "<h4 style='margin:2px 0 6px; font-size:13px'>Verification</h4>" +
+          list(u.verification, "check");
+      }
+      if ((u.acceptanceCriteria || []).length) {
+        body += "<h4 style='margin:14px 0 6px; font-size:13px'>Acceptance criteria</h4>" +
+          list(u.acceptanceCriteria, "check");
+      }
+      return card(u.id + " · " + u.title, body, statusBadge(u.status));
+    }).join("");
+  }
+
+  /* ── Tabs ─────────────────────────────────────────────────────── */
+  function initTabs() {
+    Array.prototype.forEach.call(document.querySelectorAll(".tab"), function (t) {
+      t.addEventListener("click", function () {
+        Array.prototype.forEach.call(document.querySelectorAll(".tab"), function (x) {
+          x.classList.toggle("active", x === t);
+        });
+        var target = t.getAttribute("data-p");
+        Array.prototype.forEach.call(document.querySelectorAll(".panel"), function (p) {
+          p.classList.toggle("active", p.id === target);
+        });
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      });
+    });
+  }
+
+  /* ── Theme ────────────────────────────────────────────────────── */
+  function initTheme() {
+    var root = document.documentElement;
+    var saved = localStorage.getItem("planned-theme");
+    if (saved) root.dataset.theme = saved;
+    document.getElementById("themeBtn").addEventListener("click", function () {
+      root.dataset.theme = root.dataset.theme === "dark" ? "light" : "dark";
+      localStorage.setItem("planned-theme", root.dataset.theme);
+    });
+  }
+
+  /* ── Search shortcut + KaTeX ─────────────────────────────────── */
+  function initShortcuts() {
+    document.addEventListener("keydown", function (e) {
+      var tag = (e.target.tagName || "").toLowerCase();
+      if (e.key === "/" && tag !== "input" && tag !== "textarea") {
+        e.preventDefault();
+        document.querySelector('.tab[data-p="p-reg"]').click();
+        document.getElementById("regSearch").focus();
+      }
+    });
+  }
+
+  function initKatex() {
+    if (typeof window.renderMathInElement !== "function") return;
+    window.renderMathInElement(document.body, {
+      delimiters: [
+        { left: "$$", right: "$$", display: true },
+        { left: "\\(", right: "\\)", display: false }
+      ],
+      throwOnError: false
+    });
+  }
+
+  /* ── Boot ─────────────────────────────────────────────────────── */
+  document.addEventListener("DOMContentLoaded", function () {
+    initTheme();
+    initTabs();
+    renderStats();
+    renderRegistry();
+    renderU1();
+    renderRoadmap();
+    renderDecisions();
+    renderVerificationGates();
+    initShortcuts();
+    initKatex();
+  });
+})();
+</script>
+</body>
+</html>
