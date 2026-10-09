@@ -2,7 +2,7 @@
 # Equivalent to the course's `pip install ... --user` cells, minus --user
 # (pip refuses --user inside a virtual environment).
 tenacity==8.2.3
-ibm-watsonx-ai==1.0.8
+ibm-watsonx-ai==1.3.39
 ibm-watson-machine-learning==1.0.367
 langchain-ibm==0.1.7
 langchain-community==0.2.10
