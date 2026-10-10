@@ -5,8 +5,9 @@ from ibm_watsonx_ai.metanames import GenTextParamsMetaNames as GenParams
 #%%
 # Model parameters
 PARAMETERS = {
+    GenParams.TEMPERATURE: 0.1,
     GenParams.DECODING_METHOD: "greedy",
-    GenParams.MAX_NEW_TOKENS: 256,
+    GenParams.MAX_NEW_TOKENS: 1024,
 }
 
 # watsonx credentials

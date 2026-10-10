@@ -1,8 +1,26 @@
 #%%
 import os
+from pathlib import Path
+from dotenv import load_dotenv
+
+load_dotenv(Path(__file__).resolve().parent.parent / ".env")  # must come first
+
 from langchain_ibm import ChatWatsonx
+from pydantic import BaseModel, Field
+from langchain_core.output_parsers import JsonOutputParser
 from langchain_core.prompts import PromptTemplate
 from config import PARAMETERS, LLAMA_MODEL_ID, GRANITE_MODEL_ID, MISTRAL_MODEL_ID
+
+#%%
+# Define JSON output structure
+class AIResponse(BaseModel):
+    summary: str = Field(description="Summary of the user's message")
+    sentiment: int = Field(description="Sentiment score from 0 (negative) to 100 (positive)")
+    response: str = Field(description="Suggested response to the user")
+
+#%%
+# JSON output parser
+json_parser = JsonOutputParser(pydantic_object=AIResponse)
 
 # %%
 # Function to initialize a model
@@ -40,18 +58,22 @@ mistral_template = PromptTemplate(
 )
 
 # %%
-def get_ai_response(model, template, system_prompt, user_prompt):
-    chain = template | model
-    return chain.invoke({'system_prompt':system_prompt, 'user_prompt':user_prompt})
+def get_ai_response(model, system_prompt, user_prompt):
+    structured = model.with_structured_output(AIResponse)
+    result = structured.invoke([
+        ("system", system_prompt),
+        ("human", user_prompt),
+    ])
+    return result.model_dump()
 
 # %%
 def llama_response(system_prompt, user_prompt):
-    return get_ai_response(llama_llm, llama_template, system_prompt, user_prompt)
+    return get_ai_response(llama_llm, system_prompt, user_prompt)
 
 def granite_response(system_prompt, user_prompt):
-    return get_ai_response(granite_llm, granite_template, system_prompt, user_prompt)
+    return get_ai_response(granite_llm, system_prompt, user_prompt)
 
 def mistral_response(system_prompt, user_prompt):
-    return get_ai_response(mistral_llm, mistral_template, system_prompt, user_prompt)
+    return get_ai_response(mistral_llm, system_prompt, user_prompt)
 
 # %%
