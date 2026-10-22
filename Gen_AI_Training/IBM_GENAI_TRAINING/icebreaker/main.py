@@ -118,4 +118,4 @@ def main():
     process_linkedin(linkedin_url, api_key, mock=use_mock)
 
 if __name__ == "__main__":
-    main()``
+    main()
