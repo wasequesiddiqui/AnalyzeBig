@@ -21,6 +21,7 @@ EMBEDDING_MODEL_ID = "ibm/granite-embedding-278m-multilingual"
 # Profile lookup configuration
 # Uses the free JSONPlaceholder API through profile_lookup.py.
 # The API returns sample user data, not real LinkedIn data.
+PROXYCURL_API_KEY = os.getenv("PROXYCURL_API_KEY", "").strip() or None
 
 def get_profile_context():
     """Fetch a sample profile and format it as text."""

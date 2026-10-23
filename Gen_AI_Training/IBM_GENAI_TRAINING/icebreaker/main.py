@@ -100,16 +100,16 @@ def main():
     
     # Use command line arguments or prompt user for input
     linkedin_url = args.url or input("Enter LinkedIn profile URL (or press Enter to use mock data): ")
-    use_mock = args.mock or not linkedin_url
     
     if args.model:
         from modules.llm_interface import change_llm_model
         change_llm_model(args.model)
     
     api_key = args.api_key or config.PROXYCURL_API_KEY
+    use_mock = args.mock or not linkedin_url or not api_key
     
-    if not use_mock and not api_key:
-        api_key = input("Enter ProxyCurl API key: ")
+    if not api_key and not args.mock:
+        logger.info(f"No Proxycurl API key found; using mock data from {config.MOCK_DATA_URL}")
     
     # Use a default URL for mock data if none provided
     if use_mock and not linkedin_url:
