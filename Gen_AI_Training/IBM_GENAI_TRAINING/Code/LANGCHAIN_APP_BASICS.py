@@ -226,7 +226,7 @@ parameters = {
 }
 
 credentials = Credentials(
-    url="https://eu-de.ml.cloud.ibm.com",
+    url=os.environ["WATSONX_URL"],
     api_key=os.environ["WATSONX_APIKEY"],
 )
 
