@@ -1,0 +1,180 @@
+<section class="card">
+  <h3>In one breath</h3>
+  <p class="lede">This folder has a single 124-line file. It builds a tiny database that stores <em>meaning</em> instead of rows, drops 14 grocery phrases into it, and then asks: <em>"which three items are closest in meaning to the word <code>apple</code>?"</em> That is the whole idea behind every RAG (retrieval-augmented generation) system in this repository - only the size changes.</p>
+  <ul class="tight">
+    <li><b>Create</b> a collection - a named bucket that knows how to turn text into numbers.</li>
+    <li><b>Fill</b> it with short texts plus a small label (metadata) for each.</li>
+    <li><b>Query</b> it with plain English and get back the nearest matches, with a distance for each.</li>
+  </ul>
+</section>
+
+<section class="card analogy">
+  <h3>Think of a kirana shop's stock register</h3>
+  <p>A traditional shopkeeper writes items in a register: <code>item 1 = apples</code>, <code>item 2 = bananas</code>. To find something you must read every line, and you only find it if the spelling matches.</p>
+  <p>A <b>vector database</b> is the modern version of that register. The shopkeeper first writes a <em>description card</em> for every item (384 numbers describing taste, colour, type). Now if a customer says <em>"something red and fruity"</em>, the shopkeeper does not need the exact word - they compare descriptions and hand over the three closest cards: apples, red fruit, golden apple.</p>
+  <p class="small">That is why "golden apple" is found even though it does not contain the word "fresh". Similarity is measured on meaning, not spelling.</p>
+</section>
+
+<section class="card">
+  <h3>Pipeline - click any box to jump to the code</h3>
+  <div class="pipeline">
+    <svg viewBox="0 0 900 210" role="img" aria-label="Flow: grocery texts are embedded into vectors, stored in a ChromaDB collection, queried with the word apple, ranked by cosine distance, and the top three are printed">
+      <defs>
+        <marker id="head" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0 0 L10 5 L0 10 z" fill="#9aa7c2"/>
+        </marker>
+      </defs>
+      <a class="node" href="#chromadb-f1"><g>
+        <rect x="8" y="26" width="150" height="62" rx="10"/>
+        <text x="83" y="52" text-anchor="middle">texts[14]</text>
+        <text class="sub" x="83" y="70" text-anchor="middle">plain grocery phrases</text>
+      </g></a>
+      <path class="arrow" d="M160 57 H205"/>
+      <a class="node" href="#chromadb-f1"><g>
+        <rect x="207" y="20" width="170" height="74" rx="10"/>
+        <text x="292" y="48" text-anchor="middle">embedding function</text>
+        <text class="sub" x="292" y="66" text-anchor="middle">all-MiniLM-L6-v2</text>
+        <text class="sub" x="292" y="81" text-anchor="middle">text to 384 numbers</text>
+      </g></a>
+      <path class="arrow" d="M379 57 H424"/>
+      <a class="node" href="#chromadb-f1"><g>
+        <rect x="426" y="14" width="196" height="86" rx="10"/>
+        <text x="524" y="40" text-anchor="middle">collection</text>
+        <text class="sub" x="524" y="58" text-anchor="middle">vectors + metadata</text>
+        <text class="sub" x="524" y="73" text-anchor="middle">ids: food_1 ... food_14</text>
+        <text class="sub" x="524" y="88" text-anchor="middle">metric: cosine</text>
+      </g></a>
+      <path class="arrow" d="M624 57 H669"/>
+      <a class="node" href="#chromadb-f1"><g>
+        <rect x="671" y="26" width="220" height="62" rx="10"/>
+        <text x="781" y="52" text-anchor="middle">query: "apple"</text>
+        <text class="sub" x="781" y="70" text-anchor="middle">n_results = 3</text>
+      </g></a>
+
+      <a class="node" href="#chromadb-f1"><g>
+        <rect x="671" y="130" width="220" height="58" rx="10"/>
+        <text x="781" y="154" text-anchor="middle">ranked by cosine distance</text>
+        <text class="sub" x="781" y="172" text-anchor="middle">smallest distance wins</text>
+      </g></a>
+      <path class="arrow" d="M781 90 V126"/>
+      <a class="node" href="#chromadb-f1"><g>
+        <rect x="426" y="130" width="196" height="58" rx="10"/>
+        <text x="524" y="154" text-anchor="middle">top 3 printed</text>
+        <text class="sub" x="524" y="172" text-anchor="middle">id · text · score</text>
+      </g></a>
+      <path class="arrow" d="M669 159 H626"/>
+      <a class="node" href="#chromadb-f1"><g>
+        <rect x="207" y="130" width="170" height="58" rx="10"/>
+        <text x="292" y="154" text-anchor="middle">collection.get()</text>
+        <text class="sub" x="292" y="172" text-anchor="middle">sanity check: 14 rows</text>
+      </g></a>
+      <path class="arrow" d="M424 159 H381"/>
+      <path class="arrow" d="M292 122 V186" stroke-dasharray="4 4"/>
+    </svg>
+  </div>
+  <p class="small">Dashed arrow = the read-back check that runs before the search.</p>
+</section>
+
+<section class="card">
+  <h3>Before you run it</h3>
+  <div class="grid2">
+    <div>
+      <p><b>1. Install the two packages</b></p>
+      <div class="code-wrap"><pre class="code" data-lang="bash" data-highlight="false"><code>pip install chromadb sentence-transformers</code></pre></div>
+      <p><b>2. Run the file from its own folder</b></p>
+      <div class="code-wrap"><pre class="code" data-lang="bash" data-highlight="false"><code>cd ChromaDB
+python similarity_search.py</code></pre></div>
+    </div>
+    <div>
+      <p><b>What you should see</b></p>
+      <div class="code-wrap"><pre class="code" data-lang="text" data-highlight="false"><code>Collection recreated: my_grocery_collection
+Collection contents:
+Number of documents: 14
+Query results for 'apple':
+Top 3 similar documents to "apple":
+ - ID: food_1, Text: "fresh red apples", Score: 0.28
+ - ID: food_13, Text: "golden apple", Score: 0.32
+ - ID: food_14, Text: "red fruit", Score: 0.41</code></pre></div>
+      <p class="small">Scores are distances, so <b>smaller</b> means a better match. Your exact numbers can be slightly different between model versions.</p>
+    </div>
+  </div>
+  <div class="callout info"><b>No API key here</b>The embedding model runs on your own machine. The only slow moment is the first run, when the ~90 MB model is downloaded and cached.</div>
+</section>
+
+<!-- CODE:ChromaDB/similarity_search.py -->
+
+<section class="card glossary-card" id="glossary-chromadb">
+  <h3>Glossary - every acronym in this tab</h3>
+  <p class="small">Skim once now, come back whenever a term feels unfamiliar.</p>
+  <div class="glossary-filter"><input type="search" placeholder="Filter terms, e.g. HNSW" aria-label="Filter glossary terms"></div>
+  <div class="table-wrap">
+    <table class="glossary">
+      <thead><tr><th>Term</th><th>Full form</th><th>What it means here</th></tr></thead>
+      <tbody class="glossary-body">
+        <tr class="gtr"><td>ANN<span>Approximate Nearest Neighbour</span></td><td>Approximate Nearest Neighbour</td><td>A family of shortcuts that finds <em>almost</em> the closest vectors very quickly instead of checking every single one. HNSW is one such shortcut.</td></tr>
+        <tr class="gtr"><td>API<span>Application Programming Interface</span></td><td>Application Programming Interface</td><td>A published set of functions you are allowed to call. <code>collection.add()</code> and <code>collection.query()</code> are the ChromaDB API.</td></tr>
+        <tr class="gtr"><td>CPU<span>Central Processing Unit</span></td><td>Central Processing Unit</td><td>The everyday processor of your laptop. The MiniLM model used here is small enough to run on it, which is why this demo needs no GPU.</td></tr>
+        <tr class="gtr"><td>HNSW<span>Hierarchical Navigable Small World</span></td><td>Hierarchical Navigable Small World</td><td>The graph structure ChromaDB uses to find neighbours fast. The <code>hnsw:space</code> key you see in the metadata tells it which distance formula to use.</td></tr>
+        <tr class="gtr"><td>ID<span>Identifier</span></td><td>Identifier</td><td>The unique name of a stored row, e.g. <code>food_7</code>. Two rows cannot share an ID.</td></tr>
+        <tr class="gtr"><td>JSON<span>JavaScript Object Notation</span></td><td>JavaScript Object Notation</td><td>A text format for nested data (<code>{"key": "value"}</code>). The metadata dictionaries here follow the same shape.</td></tr>
+        <tr class="gtr"><td>kNN<span>k-Nearest Neighbours</span></td><td>k-Nearest Neighbours</td><td>"Return the k closest items." <code>n_results=3</code> is a request for 3-NN.</td></tr>
+        <tr class="gtr"><td>LLM<span>Large Language Model</span></td><td>Large Language Model</td><td>A model that writes text, such as Granite or Llama. This tab does not use one - it only retrieves. Retrieval plus an LLM is called RAG.</td></tr>
+        <tr class="gtr"><td>MB<span>Megabyte</span></td><td>Megabyte</td><td>A unit of file size. The MiniLM model is roughly 90 MB.</td></tr>
+        <tr class="gtr"><td>NLP<span>Natural Language Processing</span></td><td>Natural Language Processing</td><td>The field that teaches computers to handle human language. Embeddings are its most-used building block.</td></tr>
+        <tr class="gtr"><td>RAM<span>Random Access Memory</span></td><td>Random Access Memory</td><td>Fast, temporary memory. <code>chromadb.Client()</code> keeps the collection in RAM, so it vanishes when Python exits.</td></tr>
+        <tr class="gtr"><td>RAG<span>Retrieval-Augmented Generation</span></td><td>Retrieval-Augmented Generation</td><td>Find relevant text with a vector database, then let an LLM answer using that text. This file is the "retrieval" half.</td></tr>
+        <tr class="gtr"><td>SQL<span>Structured Query Language</span></td><td>Structured Query Language</td><td>The classic language for normal databases. Vector databases answer a different question: "what is <em>similar</em>?" instead of "what matches exactly?"</td></tr>
+        <tr class="gtr"><td>UI<span>User Interface</span></td><td>User Interface</td><td>Whatever the user sees and touches. Here it is the terminal output.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="card quiz-card" id="quiz-chromadb">
+  <div class="quiz-head">
+    <div>
+      <h3>Check your understanding - 22 MCQs</h3>
+      <p class="small">Click an option to lock it in. Correct answers turn green, your wrong pick turns rose, and the reason appears under the question. Progress is stored in this browser only.</p>
+    </div>
+    <div class="quiz-score"><b>0 / 22</b><span class="muted">0 answered</span></div>
+  </div>
+  <div class="qbar"><i></i></div>
+  <div class="qcontrols">
+    <button class="qchip" type="button" data-filter="all" aria-pressed="true">All</button>
+    <button class="qchip" type="button" data-filter="unanswered" aria-pressed="false">Unanswered</button>
+    <button class="qchip" type="button" data-filter="wrong" aria-pressed="false">Wrong</button>
+    <button class="qchip" type="button" data-filter="easy" aria-pressed="false">Easy</button>
+    <button class="qchip" type="button" data-filter="medium" aria-pressed="false">Medium</button>
+    <button class="qchip" type="button" data-filter="hard" aria-pressed="false">Hard</button>
+    <button class="qchip" type="button" data-action="shuffle">Shuffle</button>
+    <button class="qchip" type="button" data-action="retry">Retry wrong only</button>
+    <button class="qchip" type="button" data-action="reset">Reset</button>
+  </div>
+  <div class="quiz-list"></div>
+  <script type="application/json" class="quiz">
+  [
+    {"q":"What does an embedding model actually produce for a sentence?","opts":["A shorter summary of the sentence","A list of numbers (a vector) that represents its meaning","A database table with one column per word","A hash code used as the row ID"],"a":1,"why":"An embedding is a fixed-length list of numbers. `all-MiniLM-L6-v2` produces 384 of them. The numbers are not readable on their own - only distances between them are meaningful. A summary would still be text, and a hash is not comparable by distance.","topic":"embedding","diff":"easy"},
+    {"q":"Why is the same embedding model used for documents and for the query?","opts":["To save disk space","So both live in the same coordinate system and can be compared","Because ChromaDB refuses other models","Because the query is stored as a document"],"a":1,"why":"Distances only make sense when both sides were measured by the same ruler. If documents were embedded by one model and the query by another, the two vectors would sit in unrelated spaces and the ranking would be meaningless. ChromaDB enforces this by binding one embedding function to the collection.","topic":"embedding","diff":"medium"},
+    {"q":"With `hnsw:space` set to cosine, what does a distance of 0 mean?","opts":["The two vectors are unrelated","The vectors point in exactly the same direction","The vectors have the same length but opposite meaning","The document was not found"],"a":1,"why":"Cosine distance measures the angle between vectors, not their size. Identical direction gives distance 0; perpendicular is 1; opposite is 2. So 0 is the best possible match, and a large value is a poor match.","topic":"cosine","diff":"easy"},
+    {"q":"In this file, `n_results=3` means...","opts":["Skip the first 3 results","Return the 3 nearest neighbours","Return results with distance below 3","Embed the query 3 times"],"a":1,"why":"n_results is top-k: the number of nearest neighbours kept after ranking. It is unrelated to a distance threshold, and the query is embedded only once per call.","topic":"query","diff":"easy"},
+    {"q":"You run the script twice. Why does it call `delete_collection` first?","opts":["To free RAM for the model download","So the demo always starts from an empty, known state","Because ChromaDB cannot update documents","To reset the API key"],"a":1,"why":"Deleting first makes the run repeatable: 14 documents in, 14 documents out, no duplicates from the previous run. It has nothing to do with the model or with authentication.","topic":"collection","diff":"easy"},
+    {"q":"What happens to the collection when the Python process ends?","opts":["It is written to disk next to the script","It is uploaded to IBM Cloud","It disappears because `chromadb.Client()` is in-memory","It becomes read-only"],"a":2,"why":"`chromadb.Client()` keeps everything in RAM, so the data dies with the process. A persistent setup would use `chromadb.PersistentClient(path=...)`. Nothing is uploaded automatically.","topic":"client","diff":"medium"},
+    {"q":"Why must `ids` be strings?","opts":["ChromaDB stores them as keys, and keys are strings","Numbers would collide with distances","Python lists cannot hold integers","They are printed with an f-string"],"a":0,"why":"Document IDs act as primary keys, and ChromaDB requires string IDs. That is why `load_food_data` in the Food_Recommender folder converts numeric `food_id` values with `str()`. The f-string is only how this file builds them.","topic":"ids","diff":"medium"},
+    {"q":"Which three lists are passed to `collection.add()`?","opts":["documents, metadatas, ids","queries, results, scores","texts, embeddings, labels","names, values, distances"],"a":0,"why":"ChromaDB needs the text (documents), optional labels (metadatas) and the unique name (ids) for every row. You never pass embeddings - the collection's embedding function creates them during the call.","topic":"collection","diff":"easy"},
+    {"q":"What kind of values may appear inside `metadatas`?","opts":["Anything JSON can hold, including nested lists","Only strings, numbers and booleans","Only strings","Only numbers"],"a":1,"why":"ChromaDB metadata must be scalar: string, integer, float or boolean. A list such as ingredients must be joined into one string, which is exactly what `populate_similarity_collection` does in the Food_Recommender tab.","topic":"metadata","diff":"medium"},
+    {"q":"`collection.get()` is best described as...","opts":["A similarity search with k=10","A read of every stored row, without ranking","A delete followed by a re-insert","A way to download the model"],"a":1,"why":"get() fetches stored rows by ID or in bulk and does no similarity maths. It is the cheapest way to confirm ingestion worked before you trust a search.","topic":"read","diff":"easy"},
+    {"q":"Why print `len(all_items['documents'])` before searching?","opts":["To warm up the model","To prove the insert worked, so a later failure is clearly in the query path","Because the search needs the count","To trigger embedding generation"],"a":1,"why":"It separates two failure modes. If the count is 14, the data path is fine and any problem belongs to the query. If it is 0, nothing was inserted and searching is pointless.","topic":"debugging","diff":"medium"},
+    {"q":"The printed value is called `score`, but it is really...","opts":["A percentage between 0 and 100","A cosine distance, where smaller is better","A probability produced by the model","The number of matching words"],"a":1,"why":"The value comes straight from `results['distances']`, so it is a distance: 0 is perfect, larger is worse. To display a percentage you must convert it with `1 - distance`, as the Food_Recommender tab does.","topic":"cosine","diff":"medium"},
+    {"q":"Why does the search read `results['ids'][0][i]` and not `results['ids'][i]`?","opts":["ChromaDB returns one list per query, and `[0]` picks the first query","The extra `[0]` skips a header row","IDs are always nested twice by mistake","The first element is the collection name"],"a":0,"why":"Querying supports several query texts at once, so every returned field is a list-of-lists: outer index = query, inner index = hit. With a single query, `[0]` always refers to that one query.","topic":"query","diff":"hard"},
+    {"q":"What does `min(3, len(results['ids'][0]))` protect against?","opts":["A collection with fewer than 3 matches","A missing API key","A model that returns long text","Duplicate IDs"],"a":0,"why":"You can ask for 3 results and receive fewer - for example from a tiny collection or after filtering. `min` keeps the loop inside the returned list so it never raises IndexError.","topic":"query","diff":"medium"},
+    {"q":"Which line proves that no API key is required for this tab?","opts":["`import chromadb`","The local SentenceTransformer embedding function","`client.delete_collection(...)`","`print(f\"Error: {error}\")`"],"a":1,"why":"The embedding function runs the `all-MiniLM-L6-v2` model on the local CPU. Nothing in this file contacts a cloud service, so no credentials exist to configure.","topic":"embedding","diff":"easy"},
+    {"q":"What will `metadata={\"hnsw:space\": \"cosine\"}` change?","opts":["The number of dimensions stored","The way distances between vectors are computed","The colour of the console output","How many documents can be stored"],"a":1,"why":"It selects the metric used by the index. With cosine, distance is angle-based. With l2 (the default) it would be straight-line distance, and the same search would rank things differently and print different numbers.","topic":"cosine","diff":"medium"},
+    {"q":"The collection is empty and you call `query`. What does the guard prevent?","opts":["A network timeout","Indexing an empty list such as `results['ids'][0]`","The model being downloaded twice","Deleting the collection"],"a":1,"why":"An empty result has `ids: [[]]`, so checking `results['ids'][0]` length stops the loop before it tries to read a row that is not there. The guard also prints a friendly message.","topic":"debugging","diff":"medium"},
+    {"q":"`main()` in this file...","opts":["Runs the entire demo","Is never called, so it does nothing","Creates the collection","Deletes the collection"],"a":1,"why":"Nothing calls `main()`. The demo is the straight-line code at module level. The function is a leftover placeholder containing only `pass`, which is worth noticing so you do not assume it does work.","topic":"structure","diff":"medium"},
+    {"q":"Why would you prefer a collection over a Python list of strings for this task?","opts":["Lists cannot store 14 items","The collection can rank by meaning without you writing comparison code","A list cannot hold text","ChromaDB compresses text"],"a":1,"why":"With a list you would have to invent your own similarity rule. The collection stores vectors, knows the metric and returns the nearest neighbours for you - that is the entire service it provides.","topic":"collection","diff":"easy"},
+    {"q":"Which change makes the demo survive a restart with the same data?","opts":["Increase n_results","Replace `chromadb.Client()` with `chromadb.PersistentClient(path=...)`","Remove the `hnsw:space` metadata","Set `collection_name` to a longer string"],"a":1,"why":"The persistent client writes the index to a folder on disk, so it can be reopened later. Increasing n_results only returns more matches, and the metadata key affects distance maths, not storage.","topic":"client","diff":"hard"},
+    {"q":"What is the correct mental model for the 14 grocery texts in this demo?","opts":["Training data for a new model","Documents whose meaning is captured as vectors","Query strings","SQL rows with fixed columns"],"a":1,"why":"No training happens here. Each text is embedded once and stored with its vector and metadata. The model itself was trained long before, by someone else.","topic":"embedding","diff":"easy"},
+    {"q":"A colleague says \"the third result has score 0.41, so it is 41% correct\". What is wrong?","opts":["Nothing, that is how distance works","0.41 is a distance, not a probability or percentage","Scores above 0.4 are always invalid","The score belongs to the second result"],"a":1,"why":"Cosine distance is not calibrated as a confidence. 0.41 means \"this far away\", and even 1 - 0.41 = 0.59 is a similarity value rather than a probability. Treat scores as a ranking signal only.","topic":"cosine","diff":"hard"}
+  ]
+  </script>
+</section>

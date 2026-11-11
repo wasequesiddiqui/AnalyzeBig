@@ -1,0 +1,754 @@
+{
+  "folder": "genai_flask_app",
+  "files": {
+    "genai_flask_app/config.py": {
+      "purpose": "One tiny settings module: generation parameters, the two environment values the app needs, and the three model ids. Imported by model.py so no other file repeats a string.",
+      "run": "imported by model.py - not run on its own",
+      "meta": [
+        "25 lines",
+        "no secrets stored",
+        "single source of settings"
+      ],
+      "sections": [
+        {
+          "title": "Settings only",
+          "start": "import os",
+          "why": "Nothing here performs work. It is a dictionary of decisions: how creative the model may be, where it lives, and which model ids exist."
+        }
+      ],
+      "notes": [
+        {
+          "at": "from ibm_watsonx_ai.metanames import GenTextParamsMetaNames as GenParams",
+          "lines": 1,
+          "title": "The alias that keeps lines short",
+          "text": "`GenTextParamsMetaNames` is a long name used many times, so it is aliased to `GenParams`. Using the constants instead of raw strings means a typo becomes an AttributeError instead of a silently ignored parameter.",
+          "kind": "crit"
+        },
+        {
+          "at": "GenParams.TEMPERATURE: 0.1,",
+          "lines": 1,
+          "title": "Low temperature for a help desk",
+          "text": "0.1 keeps answers close to the model's most likely wording. For a customer-support assistant that is exactly right; for brainstorming you would raise it."
+        },
+        {
+          "at": "GenParams.DECODING_METHOD: \"greedy\",",
+          "lines": 1,
+          "title": "Greedy decoding",
+          "text": "Greedy always picks the most probable next token, so the same prompt tends to produce the same answer. It pairs naturally with a very low temperature - both are saying \"be predictable\".",
+          "kind": "crit"
+        },
+        {
+          "at": "GenParams.MAX_NEW_TOKENS: 1024,",
+          "lines": 1,
+          "title": "Room for a structured answer",
+          "text": "The model must return three JSON fields (summary, sentiment, response). 1024 tokens leaves room without inviting an essay. Too small a cap truncates the JSON and the parser fails."
+        },
+        {
+          "at": "CREDENTIALS = {",
+          "lines": 4,
+          "title": "Only two values, no API key",
+          "text": "Inside IBM's Skills Network environment the platform injects the key, so only `url` and `project_id` are read here. On your own machine you would need a third entry and a corresponding change where the client is created.",
+          "kind": "watch"
+        },
+        {
+          "at": "\"url\": os.environ[\"WATSONX_URL\"],",
+          "lines": 2,
+          "title": "Square brackets fail fast",
+          "text": "A missing variable raises KeyError at import time, so a misconfigured deployment dies immediately with a clear reason instead of failing on the first user request."
+        },
+        {
+          "at": "LLAMA_MODEL_ID = \"meta-llama/llama-4-maverick-17b-128e-instruct-fp8\"",
+          "lines": 3,
+          "title": "Three models, three ids",
+          "text": "These strings are the exact model names watsonx knows. `-instruct` means instruction-tuned (good at following prompts), and `fp8` describes the compressed numeric format used to serve it.",
+          "kind": "crit"
+        }
+      ]
+    },
+    "genai_flask_app/model.py": {
+      "purpose": "Turns three watsonx chat models into three Python functions that all return the same shape: a dictionary with summary, sentiment and response. Pydantic defines the shape, and `with_structured_output` makes the model fill it.",
+      "run": "imported by app.py and llm_test.py",
+      "meta": [
+        "79 lines",
+        "ChatWatsonx",
+        "pydantic + structured output"
+      ],
+      "sections": [
+        {
+          "title": ".env loading before the model imports",
+          "start": "load_dotenv(Path(__file__).resolve().parent.parent / \".env\")",
+          "why": "The path points one folder above this file. Loading first means every later `os.environ[...]` read succeeds."
+        },
+        {
+          "title": "The response contract: AIResponse",
+          "start": "class AIResponse(BaseModel):",
+          "why": "Three named fields with descriptions. This class is the difference between \"a wall of text\" and data the web page can render."
+        },
+        {
+          "title": "Parser and the model factory",
+          "start": "json_parser = JsonOutputParser(pydantic_object=AIResponse)",
+          "why": "One factory creates a `ChatWatsonx` client for any model id, so adding a fourth model is a one-line change."
+        },
+        {
+          "title": "Three clients created at import time",
+          "start": "llama_llm = initialize_model(LLAMA_MODEL_ID)",
+          "why": "Importing this module builds three clients. Cheap here, but it happens even if you only use one model."
+        },
+        {
+          "title": "Prompt templates that are never used",
+          "start": "llama_template = PromptTemplate(",
+          "why": "Hand-written chat formats for three model families. `with_structured_output` builds its own messages, so these are leftovers - worth reading, but they have no effect."
+        },
+        {
+          "title": "get_ai_response(): the real work",
+          "start": "def get_ai_response(model, system_prompt, user_prompt):",
+          "why": "Wrap the model in a schema, send two messages, return a plain dictionary. Every wrapper below is three lines because of this function."
+        },
+        {
+          "title": "Three thin wrappers",
+          "start": "def llama_response(system_prompt, user_prompt):",
+          "why": "`app.py` dispatches on a string; these wrappers keep that dispatch readable."
+        }
+      ],
+      "notes": [
+        {
+          "at": "load_dotenv(Path(__file__).resolve().parent.parent / \".env\")",
+          "lines": 1,
+          "title": "Explicit path, not guesswork",
+          "text": "`Path(__file__).resolve()` gives the absolute location of model.py, `.parent.parent` goes up to the training root, and the result is joined with `.env`. This works no matter which folder you run Flask from - unlike a bare `load_dotenv()`.",
+          "kind": "crit"
+        },
+        {
+          "at": "from langchain_ibm import ChatWatsonx",
+          "lines": 1,
+          "title": "Chat model, not completion model",
+          "text": "`ChatWatsonx` takes a list of messages with roles. That is why the code below passes `(\"system\", ...)` and `(\"human\", ...)` tuples instead of one long string."
+        },
+        {
+          "at": "summary: str = Field(description=\"Summary of the user's message\")",
+          "lines": 3,
+          "title": "Field descriptions are prompts",
+          "text": "Each `description` is sent to the model as part of the schema, so it must say what the field means. Vague descriptions produce inconsistent values - for example a sentiment written as \"positive\" instead of a number.",
+          "kind": "crit"
+        },
+        {
+          "at": "sentiment: int = Field(description=\"Sentiment score from 0 (negative) to 100 (positive)\")",
+          "lines": 1,
+          "title": "Typing the field is half the battle",
+          "text": "Declaring `int` makes the library ask for an integer and validate it. Note that nothing stops the model returning 140 - validate ranges yourself if the UI depends on 0-100.",
+          "kind": "crit"
+        },
+        {
+          "at": "json_parser = JsonOutputParser(pydantic_object=AIResponse)",
+          "lines": 1,
+          "title": "Created, then never used",
+          "text": "This parser could turn JSON text into an `AIResponse`. But `get_ai_response` uses `with_structured_output` instead, which handles parsing internally. The object is harmless dead code - a good example of two ways to do one job.",
+          "kind": "watch"
+        },
+        {
+          "at": "def initialize_model(model_id):",
+          "lines": 7,
+          "title": "One factory, three clients",
+          "text": "Passing only the model id keeps the URL, project and parameters identical across models, so a comparison between Llama, Granite and Mistral is fair.",
+          "kind": "crit"
+        },
+        {
+          "at": "llama_llm = initialize_model(LLAMA_MODEL_ID)",
+          "lines": 3,
+          "title": "Three eager clients",
+          "text": "All three are created when the module is imported, even if the user only ever picks one. `ChatWatsonx` construction is light (it does not call the model), so the waste is small - but it is worth noticing in a bigger app."
+        },
+        {
+          "at": "llama_template = PromptTemplate(",
+          "lines": 6,
+          "title": "Model-specific chat syntax",
+          "text": "`<|begin_of_text|>` and `<|header_start|>` are Llama 3/4 control tokens. Mistral uses `[INST] ... [/INST]`. Historically you had to format prompts yourself; chat clients now do it for you, which is why these templates are unused.",
+          "kind": "watch"
+        },
+        {
+          "at": "def get_ai_response(model, system_prompt, user_prompt):",
+          "lines": 1,
+          "title": "The whole idea in one signature",
+          "text": "Any chat model in, a dictionary out. Because all three wrappers call this, the web layer never needs to know which model produced the answer.",
+          "kind": "crit"
+        },
+        {
+          "at": "structured = model.with_structured_output(AIResponse)",
+          "lines": 1,
+          "title": "Schema enforcement, not hope",
+          "text": "`with_structured_output` wraps the model so that its answer must match `AIResponse`. The library injects the schema into the prompt and validates the reply, retrying or raising when the model drifts.",
+          "kind": "crit"
+        },
+        {
+          "at": "(\"system\", system_prompt),",
+          "lines": 3,
+          "title": "Two messages, two roles",
+          "text": "The system message carries the policy (\"reply with only JSON\"), the human message carries the user text. Keeping policy out of the user turn makes prompt-injection harder.",
+          "kind": "crit"
+        },
+        {
+          "at": "return result.model_dump()",
+          "lines": 1,
+          "title": "Pydantic object to plain dict",
+          "text": "`model_dump()` converts the validated object into a dictionary, which `jsonify` can serialise. Return the object itself and Flask would raise \"not JSON serializable\".",
+          "kind": "crit"
+        },
+        {
+          "at": "def llama_response(system_prompt, user_prompt):",
+          "lines": 6,
+          "title": "Three names, one behaviour",
+          "text": "Each wrapper exists so `app.py` can map a dropdown value to a callable. If you add a fourth model, add a fourth wrapper and one more branch in app.py.",
+          "kind": "info"
+        }
+      ]
+    },
+    "genai_flask_app/app.py": {
+      "purpose": "The Flask server: one route serves the HTML page, another accepts JSON, validates it, dispatches to the chosen model, times the call and returns the structured answer or an error with the right HTTP status.",
+      "run": "python app.py   then open http://127.0.0.1:5000",
+      "meta": [
+        "45 lines",
+        "two routes",
+        "debug=True"
+      ],
+      "sections": [
+        {
+          "title": "Imports and the app object",
+          "start": "import os",
+          "why": "`Flask(__name__)` is the application; the two `@app.route` decorators below attach URLs to functions."
+        },
+        {
+          "title": "GET / - serve the page",
+          "start": "@app.route('/', methods=['GET'])",
+          "why": "Flask looks for `templates/index.html` automatically, which is why the file lives in that exact folder."
+        },
+        {
+          "title": "POST /generate - the API",
+          "start": "@app.route('/generate', methods=['POST'])",
+          "why": "This is the endpoint JavaScript calls. It reads JSON, validates, picks a model and returns JSON."
+        },
+        {
+          "title": "Validation and dispatch",
+          "start": "data = request.json",
+          "why": "Two guards: reject incomplete requests with 400, and reject unknown model names. Never trust a browser form."
+        },
+        {
+          "title": "Timing, errors and the dev server",
+          "start": "result['duration'] = time.time() - start_time",
+          "why": "The duration is added for the UI, exceptions become 500 responses, and `debug=True` enables auto-reload during development."
+        }
+      ],
+      "notes": [
+        {
+          "at": "import os",
+          "lines": 1,
+          "title": "An unused import",
+          "text": "`os` is never used in this file - configuration lives in `config.py`. Harmless, but it suggests the file was copied from a script that did read environment variables."
+        },
+        {
+          "at": "from model import llama_response, granite_response, mistral_response",
+          "lines": 1,
+          "title": "Importing the module runs it",
+          "text": "Importing `model` executes all of model.py, including creating three chat clients and loading `.env`. That is why the first request is not the first thing to touch credentials.",
+          "kind": "crit"
+        },
+        {
+          "at": "app = Flask(__name__)",
+          "lines": 1,
+          "title": "The app object",
+          "text": "`__name__` tells Flask where to find `templates/` and `static/`. Change it to a string and Flask may not find your HTML - a classic confusing 404.",
+          "kind": "crit"
+        },
+        {
+          "at": "return render_template('index.html')",
+          "lines": 1,
+          "title": "Template rendering",
+          "text": "Flask reads `templates/index.html` and returns it as HTML. The path is relative to the templates folder, not the project root."
+        },
+        {
+          "at": "data = request.json",
+          "lines": 1,
+          "title": "None when the body is not JSON",
+          "text": "If the client forgets `Content-Type: application/json`, `request.json` is `None`, and the very next line raises AttributeError on `None.get`. `request.get_json(silent=True) or {}` is the safer form.",
+          "kind": "watch"
+        },
+        {
+          "at": "if not user_message or not model:",
+          "lines": 1,
+          "title": "Validate at the boundary",
+          "text": "This one line rejects empty messages and a blank model. The second element of the returned tuple, `400`, is the HTTP status that tells the browser \"you sent something wrong\" - not a server crash.",
+          "kind": "crit"
+        },
+        {
+          "at": "system_prompt = (",
+          "lines": 5,
+          "title": "The policy prompt",
+          "text": "Five sentences that set behaviour: be helpful and concise, do not claim tools you do not have, admit uncertainty, and answer with one JSON object. Pairing this with `with_structured_output` is belt and braces.",
+          "kind": "crit"
+        },
+        {
+          "at": "start_time = time.time()",
+          "lines": 1,
+          "title": "Measure the model, not the network",
+          "text": "The timer starts after validation but before the model call, so `duration` reflects the LLM round trip. `time.time()` is wall-clock seconds; for precise profiling use `time.perf_counter()`.",
+          "kind": "crit"
+        },
+        {
+          "at": "if model == 'llama':",
+          "lines": 7,
+          "title": "String dispatch",
+          "text": "The dropdown sends `llama`, `granite` or `mistral`. Anything else returns 400 instead of silently defaulting - which is exactly what protects you from a typo in the front end.",
+          "kind": "crit"
+        },
+        {
+          "at": "result['duration'] = time.time() - start_time",
+          "lines": 1,
+          "title": "Mutating the model's dictionary",
+          "text": "`result` is a plain dict from `model_dump()`, so adding a key is safe. The front end reads `data.duration` and prints it under the bubble."
+        },
+        {
+          "at": "return jsonify(result)",
+          "lines": 1,
+          "title": "Dict to JSON response",
+          "text": "`jsonify` sets the content type and serialises the dict. Returning a dict directly also works in modern Flask, but jsonify is explicit.",
+          "kind": "crit"
+        },
+        {
+          "at": "except Exception as e:",
+          "lines": 1,
+          "title": "500 means \"my fault\"",
+          "text": "Model failures, auth problems and parsing errors all land here. Returning the raw message is convenient in a lab; in production you would log the traceback and return a generic message, because exception text can leak internal details.",
+          "kind": "watch"
+        },
+        {
+          "at": "app.run(debug=True)",
+          "lines": 1,
+          "title": "Never ship debug=True",
+          "text": "Debug mode shows an interactive traceback in the browser and auto-reloads code. That traceback can expose variables and source. Use an environment flag (or a real WSGI server) outside the lab."
+        }
+      ]
+    },
+    "genai_flask_app/capital.py": {
+      "purpose": "A ten-line-ish notebook script that asks two different watsonx models the same trivial question (\"What is the capital of Canada?\") using the raw `ModelInference` client. Useful for comparing models without any LangChain layer.",
+      "run": "python capital.py",
+      "meta": [
+        "52 lines",
+        "raw SDK",
+        "two models, one question"
+      ],
+      "sections": [
+        {
+          "title": "Credentials, parameters and the first model",
+          "start": "credentials = Credentials(",
+          "why": "The lowest-level way to call watsonx: credentials object, parameter dictionary, `ModelInference`, then `generate`."
+        },
+        {
+          "title": "Ask Granite",
+          "start": "text = \"\"\"",
+          "why": "One prompt, one call, one print. The prompt says \"Only reply with the answer\" to keep evaluation simple.",
+          "occ": 1
+        },
+        {
+          "title": "Swap the model and ask again",
+          "start": "model = ModelInference(",
+          "occ": 2,
+          "why": "The only change is `model_id`. Because the prompt and parameters are identical, the two outputs are directly comparable."
+        }
+      ],
+      "notes": [
+        {
+          "at": "load_dotenv(override=True)",
+          "lines": 1,
+          "title": "Environment first",
+          "text": "Without this, the three `os.environ[...]` reads below raise KeyError. `override=True` makes the local `.env` authoritative over any stale shell value."
+        },
+        {
+          "at": "credentials = Credentials(",
+          "lines": 3,
+          "title": "The credentials object",
+          "text": "`api_key` (with an underscore) is the SDK spelling. Note it differs from `apikey` used by the LangChain wrapper - one of the most common copy-paste errors."
+        },
+        {
+          "at": "params = {",
+          "lines": 4,
+          "title": "Greedy plus a token cap",
+          "text": "`greedy` decoding makes the answer deterministic, and 100 tokens is plenty for a capital city. Greedy plus a short cap is the standard recipe for a factual smoke test.",
+          "kind": "crit"
+        },
+        {
+          "at": "model = ModelInference(",
+          "lines": 1,
+          "title": "The client object",
+          "text": "Constructing `ModelInference` performs the IAM token exchange, so authentication problems surface here rather than at `generate`.",
+          "kind": "crit",
+          "occ": 1
+        },
+        {
+          "at": "print(model.generate(text)['results'][0]['generated_text'])",
+          "lines": 1,
+          "title": "Unpacking the response",
+          "text": "`generate` returns `{'results': [{'generated_text': ...}], ...}`. The indexing looks noisy but is stable: first result list, first item, generated text. Print `model.generate(text)` once to see token counts and stop reason too.",
+          "kind": "crit",
+          "occ": 1
+        },
+        {
+          "at": "model_id='meta-llama/llama-4-maverick-17b-128e-instruct-fp8',",
+          "lines": 1,
+          "title": "Same code, different brain",
+          "text": "Swapping the id is the entire change. `meta-llama/...` is an open-weight model hosted on watsonx; `fp8` is the quantised format that keeps it affordable to serve.",
+          "kind": "crit"
+        },
+        {
+          "at": "text = \"\"\"",
+          "lines": 4,
+          "title": "\"Only reply with the answer\"",
+          "text": "Instruction-tuned models like to explain. This phrasing suppresses the explanation so the two outputs can be compared directly. It is a prompt trick, not a guarantee.",
+          "kind": "info",
+          "occ": 1
+        },
+        {
+          "at": "# %%",
+          "lines": 1,
+          "title": "Notebook cell markers",
+          "text": "`# %%` tells VS Code / Jupyter where cells begin. Running the whole file still works - the markers are comments.",
+          "kind": "info",
+          "occ": 1
+        }
+      ]
+    },
+    "genai_flask_app/llm_test.py": {
+      "purpose": "A 16-line smoke test that calls all three model wrappers with the same prompt and prints each answer. Useful for spotting which model is slow, wordy or broken - though it currently crashes on the print lines (see the note).",
+      "run": "python llm_test.py",
+      "meta": [
+        "16 lines",
+        "calls three models",
+        "prints .content"
+      ],
+      "sections": [
+        {
+          "title": "One function, three calls",
+          "start": "from model import llama_response, granite_response, mistral_response",
+          "why": "No framework, no server: just call each wrapper and print the result."
+        }
+      ],
+      "notes": [
+        {
+          "at": "def call_all_models(system_prompt, user_prompt):",
+          "lines": 1,
+          "title": "Same question, three models",
+          "text": "Passing the same system and user prompt to all three makes the comparison fair. In a real evaluation you would also record latency and token usage."
+        },
+        {
+          "at": "print(\"Llama Response:\\n\", llama_result.content)",
+          "lines": 1,
+          "title": "This line will fail - and why",
+          "text": "`llama_response` returns `result.model_dump()`, which is a **dictionary**, and dictionaries have no `.content`. The correct form is `llama_result['response']` (or `['summary']`). Expect AttributeError until you fix it.",
+          "kind": "watch"
+        },
+        {
+          "at": "call_all_models(\"You are a helpful assistant who provides concise and accurate answers\"",
+          "lines": 1,
+          "title": "Three paid calls per run",
+          "text": "Each invocation is a separate model request, so this costs three times one. Handy with free credits, worth knowing before you put it in a loop."
+        },
+        {
+          "at": "print(\"\\nMistral Response:\\n\", mistral_result.content)",
+          "lines": 1,
+          "title": "The last line of an unfinished comparison",
+          "text": "There is no try/except here: the first failing model stops the script, so you may never see the third answer. Wrapping each call in its own try would let the test report all three."
+        }
+      ]
+    },
+    "genai_flask_app/templates/index.html": {
+      "purpose": "The single page: header, welcome screen, message list, loading animation, and the input form with a model dropdown and a textarea. Every element the JavaScript touches has an id.",
+      "meta": [
+        "115 lines",
+        "no template variables",
+        "loads fonts from a CDN"
+      ],
+      "sections": [
+        {
+          "title": "Head: fonts, stylesheet, viewport",
+          "start": "<!DOCTYPE html>",
+          "why": "Three assets are linked: a Google font (needs internet), the local CSS, and - at the bottom - the local JavaScript."
+        },
+        {
+          "title": "Header and the welcome screen",
+          "start": "<div class=\"header\">",
+          "why": "The clear button starts hidden and the welcome screen is shown until the first message arrives."
+        },
+        {
+          "title": "Message area and loading indicator",
+          "start": "<div class=\"messages-area\">",
+          "why": "`messagesContainer` is empty on purpose - JavaScript fills it. `messagesEnd` is the invisible anchor used for scrolling."
+        },
+        {
+          "title": "The input form: model, textarea, send",
+          "start": "<form id=\"chatForm\" class=\"chat-form\">",
+          "why": "This form is the only thing the user interacts with. Its `submit` event is intercepted by JavaScript, so the page never reloads."
+        },
+        {
+          "title": "Loading the script",
+          "start": "<script src=\"/static/script.js\"></script>",
+          "why": "The script is the last element so every element it looks up already exists when it runs."
+        }
+      ],
+      "notes": [
+        {
+          "at": "<link href=\"https://fonts.googleapis.com/css2?family=IBM+Plex+Sans",
+          "lines": 1,
+          "title": "A CDN dependency",
+          "text": "IBM Plex Sans is fetched from Google. Without internet the page still works but falls back to the system font. The CSS also lists fallbacks for exactly this reason.",
+          "kind": "info"
+        },
+        {
+          "at": "<div id=\"welcomeScreen\" class=\"welcome-screen\">",
+          "lines": 1,
+          "title": "An id for every hook",
+          "text": "JavaScript finds elements by id. Renaming this id without updating script.js silently breaks the welcome screen - the page still loads, it just never hides the greeting.",
+          "kind": "crit"
+        },
+        {
+          "at": "<div id=\"loadingIndicator\" class=\"loading-indicator\" style=\"display: none;\">",
+          "lines": 1,
+          "title": "Hidden by default",
+          "text": "The three-dot animation is in the DOM from the start and toggled with `style.display`. Cheaper than creating and destroying elements on every request."
+        },
+        {
+          "at": "<select id=\"modelSelect\" class=\"model-select\">",
+          "lines": 5,
+          "title": "The values the server expects",
+          "text": "`value=\"llama\"`, `\"granite\"`, `\"mistral\"` must match the `if model == ...` branches in app.py. This is the contract between front end and back end.",
+          "kind": "crit"
+        },
+        {
+          "at": "<textarea ",
+          "lines": 5,
+          "title": "Enter to send, Shift+Enter for a newline",
+          "text": "The placeholder documents the shortcut, and script.js implements it by checking `e.shiftKey`. Without that check, multi-line messages would be impossible.",
+          "kind": "crit"
+        },
+        {
+          "at": "<button type=\"submit\" id=\"sendButton\" class=\"send-button\">",
+          "lines": 1,
+          "title": "type=submit matters",
+          "text": "Because the button submits the form, pressing Enter in the textarea also submits. JavaScript listens for `submit` on the form, not for a click on this button, so both paths work.",
+          "kind": "crit"
+        },
+        {
+          "at": "<script src=\"/static/script.js\"></script>",
+          "lines": 1,
+          "title": "Why at the bottom",
+          "text": "The script queries `document.getElementById` at load time. Placing it after the markup guarantees those elements exist. (A `DOMContentLoaded` listener would also work - and this script uses one anyway.)"
+        }
+      ]
+    },
+    "genai_flask_app/static/script.js": {
+      "purpose": "The browser side of the chat: keep the message list, intercept the form, POST to /generate, render bubbles with model badge and duration, show a typing indicator, and clear the chat.",
+      "meta": [
+        "243 lines",
+        "no framework",
+        "one fetch call"
+      ],
+      "sections": [
+        {
+          "title": "State and DOM references",
+          "start": "let messages = [];",
+          "why": "Two state variables and a handful of cached elements. Everything else is a function over those."
+        },
+        {
+          "title": "Initialisation",
+          "start": "document.addEventListener('DOMContentLoaded', function() {",
+          "why": "Runs once the page is parsed: sets a default model, wires events, and disables the send button."
+        },
+        {
+          "title": "Submit and keyboard handling",
+          "start": "function setupEventListeners() {",
+          "why": "`preventDefault()` stops the browser from reloading the page - the single most important line in a single-page form."
+        },
+        {
+          "title": "sendMessage(): the network call",
+          "start": "async function sendMessage(content, model) {",
+          "why": "Optimistic UI: the user's message is shown immediately, then the response is awaited, and the loading state is always cleared in `finally`."
+        },
+        {
+          "title": "displayMessage(): building a bubble",
+          "start": "function displayMessage(message) {",
+          "why": "Creates DOM from a template string, picking an avatar, a model badge and a duration. Note the use of `innerHTML`."
+        },
+        {
+          "title": "Loading state and clearing",
+          "start": "function setLoadingState(loading) {",
+          "why": "One function flips every visual indicator, so the UI can never be half-loading."
+        }
+      ],
+      "notes": [
+        {
+          "at": "let messages = [];",
+          "lines": 2,
+          "title": "Client-side history only",
+          "text": "The array is used to render bubbles. It is **not** sent to the server, so each request is independent - the model sees no conversation history. Multi-turn memory would need to send this array along."
+        },
+        {
+          "at": "const modelSelect = document.getElementById('modelSelect');",
+          "lines": 1,
+          "title": "Cache elements once",
+          "text": "Looking up the same element on every keystroke is wasteful. Caching at load time is a simple, effective habit."
+        },
+        {
+          "at": "modelSelect.value = 'llama3';",
+          "lines": 1,
+          "title": "A real bug: the option does not exist",
+          "text": "The dropdown offers `llama`, not `llama3`. Assigning a value with no matching option sets the select to empty, so a user who never touches the dropdown sends `model: \"\"` and the server replies 400 \"Missing message or model selection\". Fix: set `'llama'` or delete the line.",
+          "kind": "crit"
+        },
+        {
+          "at": "chatForm.addEventListener('submit', handleSubmit);",
+          "lines": 1,
+          "title": "Listen to submit, not click",
+          "text": "Catching `submit` covers the button click, the Enter key and any future submit path. Catching a button click would miss the keyboard."
+        },
+        {
+          "at": "if (!content || isLoading) return;",
+          "lines": 1,
+          "title": "Cheap double-submit guard",
+          "text": "An empty message or a request already in flight exits immediately. The button is also disabled, but this guard protects against Enter-key races."
+        },
+        {
+          "at": "if (e.key === 'Enter' && !e.shiftKey) {",
+          "lines": 1,
+          "title": "Enter sends, Shift+Enter breaks the line",
+          "text": "`preventDefault()` stops a newline being inserted when Enter alone is pressed; with Shift held, the default newline goes through. Small detail, big usability difference.",
+          "kind": "crit"
+        },
+        {
+          "at": "const newHeight = Math.min(messageInput.scrollHeight, 128);",
+          "lines": 2,
+          "title": "Auto-growing textarea, capped",
+          "text": "`scrollHeight` measures the content, and `Math.min(..., 128)` stops the box from eating the screen. Beyond that height the textarea scrolls internally."
+        },
+        {
+          "at": "const response = await fetch('/generate', {",
+          "lines": 8,
+          "title": "The fetch call",
+          "text": "A relative URL keeps the app portable. The JSON header is mandatory - without it Flask cannot parse the body and `request.json` becomes None. The body matches what app.py expects: `message` and `model`.",
+          "kind": "crit"
+        },
+        {
+          "at": "const data = await response.json();",
+          "lines": 1,
+          "title": "Parse once",
+          "text": "Both success and error responses are JSON, so parsing before branching keeps the code simple. Note that `response.ok` is never checked - the code relies on the presence of `data.error` instead.",
+          "kind": "watch"
+        },
+        {
+          "at": "if (data.error) {",
+          "lines": 1,
+          "title": "Errors rendered as chat bubbles",
+          "text": "A failed request becomes a normal assistant bubble saying \"Error: ...\". The user sees the problem in context instead of a silent nothing. Good pattern; just remember the message text comes from the server."
+        },
+        {
+          "at": "duration: data.duration,",
+          "lines": 1,
+          "title": "Showing the model's latency",
+          "text": "`app.py` measured the call and put the seconds here. Seeing \"2.41s\" next to an answer is a cheap way to make performance visible."
+        },
+        {
+          "at": "} finally {",
+          "lines": 3,
+          "title": "finally clears the spinner",
+          "text": "Whether the request succeeded, returned an error or the network died, the loading state is reset. Without `finally`, one failure would leave the UI stuck forever.",
+          "kind": "crit"
+        },
+        {
+          "at": "messageEl.innerHTML = `",
+          "lines": 20,
+          "title": "Template string UI",
+          "text": "The whole bubble is one template literal with conditional fragments (`modelBadge`, `duration`). Readable, but see the next note for the security consequence."
+        },
+        {
+          "at": "<div class=\"message-text\">${message.content}</div>",
+          "lines": 1,
+          "title": "XSS in one interpolation",
+          "text": "`message.content` is model output inserted with `innerHTML`. If a reply contains `<img src=x onerror=...>`, the browser executes it. Use `textContent` for the message body, or escape before interpolating.",
+          "kind": "crit"
+        },
+        {
+          "at": "messagesEnd.scrollIntoView({ behavior: 'smooth' });",
+          "lines": 1,
+          "title": "Scroll to a sentinel, not to a number",
+          "text": "An empty div at the end of the list is scrolled into view. This works regardless of message height and is more robust than computing `scrollHeight`."
+        },
+        {
+          "at": "function clearChat() {",
+          "lines": 7,
+          "title": "Clearing resets every piece of state",
+          "text": "Array emptied, DOM emptied, welcome screen shown, clear button hidden, loading reset. Forgetting one of these is how \"ghost\" states appear after a clear."
+        }
+      ]
+    },
+    "genai_flask_app/static/styles.css": {
+      "purpose": "The visual layer: a reset, a sticky glass header, a centred chat column and message bubbles. Only the first 60 lines are shown here - enough to see the structure and the techniques that matter.",
+      "meta": [
+        "excerpt: lines 1-60 of 545",
+        "plain CSS",
+        "no framework"
+      ],
+      "sections": [
+        {
+          "title": "Reset, body and layout containers",
+          "start": "/* Reset and Base Styles */",
+          "why": "Three rules set the foundation: a universal reset, a full-height body that does not scroll, and a flex column that fills the page."
+        }
+      ],
+      "notes": [
+        {
+          "at": "* {",
+          "lines": 4,
+          "title": "The universal reset",
+          "text": "`margin: 0; padding: 0; box-sizing: border-box;` removes browser defaults and makes width include padding. The last part prevents the classic \"my 100% wide box overflows\" bug.",
+          "kind": "crit"
+        },
+        {
+          "at": "height: 100vh;",
+          "lines": 2,
+          "title": "One screen, internal scrolling",
+          "text": "`height: 100vh` plus `overflow: hidden` on the body means the page itself never scrolls; the message area scrolls inside. That is what makes a chat app feel like an app. On mobile browsers `100vh` can overshoot - CSS `dvh` is the modern fix.",
+          "occ": 1
+        },
+        {
+          "at": ".font-ibm-plex {",
+          "lines": 3,
+          "title": "A class that duplicates body",
+          "text": "This repeats the family already set on `body`. Harmless, but redundant: the `<body class=\"font-ibm-plex\">` in index.html has no effect beyond what body already does.",
+          "kind": "watch"
+        },
+        {
+          "at": ".app-container {",
+          "lines": 6,
+          "title": "min-height, not height",
+          "text": "`min-height: 100vh` lets the container grow if content needs more room, while `display: flex; flex-direction: column` lets the message area take the remaining space."
+        },
+        {
+          "at": "position: sticky;",
+          "lines": 4,
+          "title": "Sticky header with a blur",
+          "text": "`position: sticky; top: 0` keeps the header visible, `z-index: 10` keeps it above messages, and `backdrop-filter: blur(16px)` creates the frosted-glass effect. The rgba background is semi-transparent on purpose - without it the blur would be invisible.",
+          "kind": "crit"
+        },
+        {
+          "at": "max-width: 1024px;",
+          "lines": 2,
+          "title": "Centring a column",
+          "text": "`max-width` plus `margin: 0 auto` is the classic way to centre content and stop it stretching on a wide monitor. The same pattern repeats on every inner container.",
+          "kind": "crit"
+        },
+        {
+          "at": "justify-content: space-between;",
+          "lines": 1,
+          "title": "Title left, button right",
+          "text": "`display: flex` with `space-between` pushes the title and the clear button to opposite ends without any float or absolute positioning."
+        }
+      ]
+    }
+  }
+}

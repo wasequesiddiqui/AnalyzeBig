@@ -1,0 +1,156 @@
+<section class="card">
+  <h3>In one breath</h3>
+  <p class="lede">A complete little web product: an HTML chat page, a JavaScript front end that posts your message, a Flask server that picks one of three watsonx models, and a Pydantic schema that forces every model to answer with the same three fields - <code>summary</code>, <code>sentiment</code>, <code>response</code>. Two extra scripts (<code>capital.py</code>, <code>llm_test.py</code>) show how to call the same models without any web layer.</p>
+  <div class="grid2">
+    <div class="callout info"><b>Who talks to whom</b>Browser (index.html + script.js) -&gt; <code>POST /generate</code> -&gt; app.py -&gt; model.py -&gt; watsonx. The answer travels back the same path as JSON.</div>
+    <div class="callout try"><b>Why structured output</b>Instead of hoping the model writes JSON, you give it a schema. The library injects the schema, validates the reply and converts it into a Python object. No string parsing, no <code>json.loads</code> on model prose.</div>
+  </div>
+</section>
+
+<section class="card analogy">
+  <h3>Think of a coaching-class notice board</h3>
+  <p>Students (the browser) do not walk into the principal's office (the model) directly. They fill a form and drop it at the front desk (Flask). The desk checks the form is complete, decides which teacher should answer, carries the question in, and pins the answer back on the board in a fixed format so everyone can read it.</p>
+  <ul class="tight">
+    <li><b>Front desk</b> = the two Flask routes. One hands out the notice board, one accepts a form.</li>
+    <li><b>Form validation</b> = <code>if not user_message or not model</code> plus the 400 status code.</li>
+    <li><b>Fixed answer format</b> = the <code>AIResponse</code> Pydantic model.</li>
+    <li><b>Three teachers</b> = Llama, Granite and Mistral - same question, different styles.</li>
+  </ul>
+</section>
+
+<section class="card">
+  <h3>Pipeline - click any box to jump to the code</h3>
+  <div class="pipeline">
+    <svg viewBox="0 0 900 210" role="img" aria-label="Flow: the browser form posts JSON to Flask, Flask validates and dispatches to a model wrapper, the wrapper calls watsonx with a schema, and a structured dictionary returns to the page">
+      <defs><marker id="head" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#9aa7c2"/></marker></defs>
+      <a class="node" href="#flask-f6"><g><rect x="6" y="20" width="150" height="64" rx="10"/><text x="81" y="44" text-anchor="middle">index.html</text><text class="sub" x="81" y="62" text-anchor="middle">form: model + text</text></g></a>
+      <path class="arrow" d="M158 52 H198"/>
+      <a class="node" href="#flask-f7"><g><rect x="200" y="20" width="160" height="64" rx="10"/><text x="280" y="44" text-anchor="middle">script.js</text><text class="sub" x="280" y="62" text-anchor="middle">fetch /generate</text></g></a>
+      <path class="arrow" d="M362 52 H402"/>
+      <a class="node" href="#flask-f1"><g><rect x="404" y="14" width="170" height="76" rx="10"/><text x="489" y="38" text-anchor="middle">app.py</text><text class="sub" x="489" y="56" text-anchor="middle">POST route</text><text class="sub" x="489" y="72" text-anchor="middle">validate, dispatch</text></g></a>
+      <path class="arrow" d="M576 52 H616"/>
+      <a class="node" href="#flask-f2"><g><rect x="618" y="14" width="170" height="76" rx="10"/><text x="703" y="38" text-anchor="middle">model.py</text><text class="sub" x="703" y="56" text-anchor="middle">with_structured_output</text><text class="sub" x="703" y="72" text-anchor="middle">AIResponse schema</text></g></a>
+      <a class="node" href="#flask-f3"><g><rect x="800" y="14" width="94" height="76" rx="10"/><text x="847" y="42" text-anchor="middle">watsonx</text><text class="sub" x="847" y="60" text-anchor="middle">chat model</text><text class="sub" x="847" y="74" text-anchor="middle">3 ids</text></g></a>
+      <path class="arrow" d="M790 52 H796" stroke-dasharray="4 4"/>
+      <a class="node" href="#flask-f2"><g><rect x="618" y="122" width="170" height="66" rx="10"/><text x="703" y="146" text-anchor="middle">model_dump()</text><text class="sub" x="703" y="164" text-anchor="middle">pydantic to dict</text></g></a>
+      <path class="arrow" d="M703 92 V118"/>
+      <a class="node" href="#flask-f1"><g><rect x="404" y="122" width="170" height="66" rx="10"/><text x="489" y="146" text-anchor="middle">jsonify</text><text class="sub" x="489" y="164" text-anchor="middle">+ duration, status 200</text></g></a>
+      <path class="arrow" d="M616 155 H576"/>
+      <a class="node" href="#flask-f7"><g><rect x="200" y="122" width="160" height="66" rx="10"/><text x="280" y="146" text-anchor="middle">data.response</text><text class="sub" x="280" y="164" text-anchor="middle">innerHTML bubble</text></g></a>
+      <path class="arrow" d="M402 155 H362"/>
+      <a class="node" href="#flask-f6"><g><rect x="6" y="122" width="150" height="66" rx="10"/><text x="81" y="146" text-anchor="middle">user sees reply</text><text class="sub" x="81" y="164" text-anchor="middle">+ model + seconds</text></g></a>
+      <path class="arrow" d="M198 155 H158"/>
+      <a class="node" href="#flask-f4"><g><rect x="6" y="196" width="330" height="12" rx="6"/><text x="171" y="205" text-anchor="middle" class="sub">errors: 400 bad request · 500 model failure</text></g></a>
+    </svg>
+  </div>
+</section>
+
+<section class="card">
+  <h3>Before you run it</h3>
+  <div class="grid2">
+    <div>
+      <div class="code-wrap"><pre class="code" data-lang="bash" data-highlight="false"><code>cd genai_flask_app
+pip install flask langchain-ibm ibm-watsonx-ai python-dotenv
+python app.py
+# open http://127.0.0.1:5000</code></pre></div>
+      <p class="small"><code>.env</code> lives one folder above, at the training root, because <code>model.py</code> resolves <code>parent.parent</code>.</p>
+    </div>
+    <div>
+      <p><b>What the page does</b></p>
+      <ul class="tight">
+        <li>Pick Llama, Granite or Mistral from the dropdown.</li>
+        <li>Type a message; Enter sends, Shift+Enter adds a newline.</li>
+        <li>Each reply shows the model name and the seconds it took.</li>
+        <li>Clear Chat resets the conversation.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="callout warn"><b>Two known defects to fix while learning</b><code>script.js</code> sets the dropdown to a value that does not exist (<code>llama3</code>), so the first request can fail with 400. And <code>llm_test.py</code> prints <code>.content</code> on a dictionary, which raises AttributeError. Both are marked in the code below.</div>
+</section>
+
+<!-- CODE:genai_flask_app/app.py -->
+<!-- CODE:genai_flask_app/model.py -->
+<!-- CODE:genai_flask_app/config.py -->
+<!-- CODE:genai_flask_app/capital.py -->
+<!-- CODE:genai_flask_app/llm_test.py -->
+<!-- CODE:genai_flask_app/templates/index.html -->
+<!-- CODE:genai_flask_app/static/script.js -->
+<!-- CODE:genai_flask_app/static/styles.css -->
+
+<section class="card glossary-card" id="glossary-flask">
+  <h3>Glossary - every acronym in this tab</h3>
+  <div class="glossary-filter"><input type="search" placeholder="Filter terms, e.g. XSS" aria-label="Filter glossary terms"></div>
+  <div class="table-wrap">
+    <table class="glossary">
+      <thead><tr><th>Term</th><th>Full form</th><th>What it means here</th></tr></thead>
+      <tbody class="glossary-body">
+        <tr class="gtr"><td>API<span>Application Programming Interface</span></td><td>Application Programming Interface</td><td>The <code>/generate</code> endpoint is a small API: JSON in, JSON out.</td></tr>
+        <tr class="gtr"><td>CDN<span>Content Delivery Network</span></td><td>Content Delivery Network</td><td>The Google Fonts link in index.html. Fast, but it needs internet; the CSS lists fallback fonts.</td></tr>
+        <tr class="gtr"><td>CSS<span>Cascading Style Sheets</span></td><td>Cascading Style Sheets</td><td>styles.css: layout, colours and the sticky glass header.</td></tr>
+        <tr class="gtr"><td>DOM<span>Document Object Model</span></td><td>Document Object Model</td><td>The browser's live tree of elements. script.js creates one node per chat bubble and appends it to the container.</td></tr>
+        <tr class="gtr"><td>HTML<span>HyperText Markup Language</span></td><td>HyperText Markup Language</td><td>index.html: the page structure with ids that JavaScript binds to.</td></tr>
+        <tr class="gtr"><td>HTTP<span>HyperText Transfer Protocol</span></td><td>HyperText Transfer Protocol</td><td>The request/response protocol. Status codes matter: 200 ok, 400 bad request, 500 server error.</td></tr>
+        <tr class="gtr"><td>JS<span>JavaScript</span></td><td>JavaScript</td><td>The language running in the browser tab, in script.js.</td></tr>
+        <tr class="gtr"><td>JSON<span>JavaScript Object Notation</span></td><td>JavaScript Object Notation</td><td>The body format both directions: <code>{"message": "...", "model": "llama"}</code>.</td></tr>
+        <tr class="gtr"><td>LLM<span>Large Language Model</span></td><td>Large Language Model</td><td>The three watsonx chat models behind the dropdown.</td></tr>
+        <tr class="gtr"><td>REST<span>Representational State Transfer</span></td><td>Representational State Transfer</td><td>The style of the API: a URL per resource and an HTTP method per action (GET for the page, POST for generation).</td></tr>
+        <tr class="gtr"><td>SDK<span>Software Development Kit</span></td><td>Software Development Kit</td><td>Python packages that wrap the HTTP API: <code>langchain-ibm</code>, <code>ibm-watsonx-ai</code>.</td></tr>
+        <tr class="gtr"><td>UI<span>User Interface</span></td><td>User Interface</td><td>The chat page: bubbles, dropdown, loading dots.</td></tr>
+        <tr class="gtr"><td>URL<span>Uniform Resource Locator</span></td><td>Uniform Resource Locator</td><td><code>/</code>, <code>/generate</code>, <code>/static/script.js</code> - each URL is a route or a file.</td></tr>
+        <tr class="gtr"><td>UX<span>User Experience</span></td><td>User Experience</td><td>How the app <em>feels</em>: optimistic message display, typing indicator, auto-growing textarea, always-cleared spinner.</td></tr>
+        <tr class="gtr"><td>XSS<span>Cross-Site Scripting</span></td><td>Cross-Site Scripting</td><td>Injecting HTML or JavaScript through data. Inserting model output with <code>innerHTML</code> is the classic XSS hole in this file.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="card quiz-card" id="quiz-flask">
+  <div class="quiz-head">
+    <div>
+      <h3>Check your understanding - 24 MCQs</h3>
+      <p class="small">Front end, back end and the model layer - plus three questions about the defects planted in this folder.</p>
+    </div>
+    <div class="quiz-score"><b>0 / 24</b><span class="muted">0 answered</span></div>
+  </div>
+  <div class="qbar"><i></i></div>
+  <div class="qcontrols">
+    <button class="qchip" type="button" data-filter="all" aria-pressed="true">All</button>
+    <button class="qchip" type="button" data-filter="unanswered" aria-pressed="false">Unanswered</button>
+    <button class="qchip" type="button" data-filter="wrong" aria-pressed="false">Wrong</button>
+    <button class="qchip" type="button" data-filter="easy" aria-pressed="false">Easy</button>
+    <button class="qchip" type="button" data-filter="medium" aria-pressed="false">Medium</button>
+    <button class="qchip" type="button" data-filter="hard" aria-pressed="false">Hard</button>
+    <button class="qchip" type="button" data-action="shuffle">Shuffle</button>
+    <button class="qchip" type="button" data-action="retry">Retry wrong only</button>
+    <button class="qchip" type="button" data-action="reset">Reset</button>
+  </div>
+  <div class="quiz-list"></div>
+  <script type="application/json" class="quiz">
+  [
+    {"q":"Which route serves the chat page itself?","opts":["POST /generate","GET /","GET /static/script.js","POST /"],"a":1,"why":"The GET route on `/` calls `render_template('index.html')`. `/generate` is the JSON API, and `/static/...` is served automatically by Flask from the static folder.","topic":"flask","diff":"easy"},
+    {"q":"Why does the JavaScript call `e.preventDefault()` on submit?","opts":["To stop the model from answering twice","To stop the browser's default full-page reload so the fetch can run","To disable the send button","To clear the textarea"],"a":1,"why":"A form submit normally navigates to the action URL, reloading the page and losing the chat state. preventDefault keeps everything in one page, which is what makes it feel like an app.","topic":"frontend","diff":"easy"},
+    {"q":"The server returns 400. What does that mean?","opts":["The model failed","The request was incomplete or invalid - the client's fault","The server crashed","The answer was too long"],"a":1,"why":"400 is a client error: missing message, missing model, or an unknown model name. 500 is used for exceptions while calling the model.","topic":"http","diff":"medium"},
+    {"q":"Which line can raise AttributeError if the client forgets the JSON content type?","opts":["`data = request.json`","`user_message = data.get('message')`","`start_time = time.time()`","`app.run(debug=True)`"],"a":1,"why":"`request.json` is None when the body is not JSON, so `.get` on None fails. `request.get_json(silent=True) or {}` avoids the crash.","topic":"flask","diff":"hard"},
+    {"q":"Why is `debug=True` dangerous outside development?","opts":["It makes models slower","It shows an interactive traceback in the browser, exposing internals, and auto-reloads code","It disables JSON output","It blocks the /generate route"],"a":1,"why":"The Werkzeug debugger can reveal source and variables, and it is not meant for untrusted users. Use a real WSGI server and an environment flag in production.","topic":"security","diff":"medium"},
+    {"q":"What does `with_structured_output(AIResponse)` actually do?","opts":["Trains a new model","Wraps the model so its answer must match the schema, and returns a validated object","Compresses the prompt","Caches the answer"],"a":1,"why":"The library injects the schema into the prompt and validates the returned data against it. You get an AIResponse instance instead of free text, which is why `model_dump()` can follow.","topic":"structured","diff":"medium"},
+    {"q":"Why does `model_dump()` exist in the return path?","opts":["To convert the Pydantic object into a plain dictionary Flask can serialise","To compress the JSON","To remove empty fields","To log the request"],"a":0,"why":"`jsonify` cannot serialise a Pydantic object directly. `model_dump()` produces a dict with the three fields, which jsonify turns into JSON.","topic":"structured","diff":"medium"},
+    {"q":"What are the three fields of AIResponse?","opts":["question, answer, confidence","summary, sentiment, response","model, duration, error","context, query, score"],"a":1,"why":"The schema asks for a short summary of the user message, a 0-100 sentiment score and a suggested response. Every model wrapper returns exactly these keys.","topic":"structured","diff":"easy"},
+    {"q":"Why does the Field description for `sentiment` matter?","opts":["It is only documentation","It is sent to the model as part of the schema, so it steers what value is produced","It validates the range automatically","It sets the temperature"],"a":1,"why":"Schema and field descriptions are part of the prompt the library builds. A vague description yields inconsistent values. Note it does not enforce 0-100 - add a validator if you need that.","topic":"structured","diff":"hard"},
+    {"q":"Why does model.py use `Path(__file__).resolve().parent.parent / \".env\"`?","opts":["To create a new .env file","To load the .env from the folder above, regardless of the current working directory","To encrypt the .env","To read the JSON schema"],"a":1,"why":"A plain `load_dotenv()` looks in the current working directory, which depends on where you launched Flask. Resolving the module's own path makes it deterministic.","topic":"config","diff":"medium"},
+    {"q":"Which model id is NOT one of the three configured here?","opts":["meta-llama/llama-4-maverick-17b-128e-instruct-fp8","ibm/granite-4-h-small","mistralai/mistral-small-3-1-24b-instruct-2503","ibm/granite-embedding-278m-multilingual"],"a":3,"why":"The granite embedding model is an embedding model, not a chat model, and does not appear in config.py. The other three are the chat models behind the dropdown.","topic":"config","diff":"medium"},
+    {"q":"`GenParams` is an alias for what?","opts":["A dictionary of API keys","`GenTextParamsMetaNames`, the constant names for generation parameters","A Flask extension","A Pydantic base class"],"a":1,"why":"Importing `GenTextParamsMetaNames as GenParams` keeps lines short while still using named constants, so a typo raises AttributeError instead of being silently ignored.","topic":"config","diff":"easy"},
+    {"q":"In script.js, `modelSelect.value = 'llama3'` causes a problem because...","opts":["llama3 is slower","no option has that value, so the select becomes empty and the request sends an empty model","it disables the dropdown","it changes the CSS class"],"a":1,"why":"The options are llama, granite, mistral. Assigning a non-existent value leaves the select with no selection, so `model` is \"\" and app.py returns 400. This is a real bug in the file.","topic":"bug","diff":"hard"},
+    {"q":"In llm_test.py, why does `llama_result.content` fail?","opts":["The model returned nothing","llama_response returns a dict from model_dump(), and dicts have no .content attribute","The import is wrong","The content is encrypted"],"a":1,"why":"The wrappers return `result.model_dump()`, a plain dictionary. Use `llama_result['response']` or `['summary']`. A quick print of the object would have revealed the type immediately.","topic":"bug","diff":"medium"},
+    {"q":"What is the security problem with `${message.content}` inside innerHTML?","opts":["It is slower","Model output is inserted as HTML, so a crafted reply can run script (XSS)","It breaks the layout","It removes whitespace"],"a":1,"why":"innerHTML parses its string as HTML. Use textContent for untrusted text, or escape `<`, `>`, `&`. The same rule applies to any user-supplied value rendered this way.","topic":"security","diff":"medium"},
+    {"q":"Why is the script tag placed at the end of index.html?","opts":["To make it download faster","So all elements it looks up already exist in the DOM","Because Flask requires it","To avoid CORS"],"a":1,"why":"The script runs immediately and queries element ids at the top. Placing it after the markup (or waiting for DOMContentLoaded) guarantees they exist - this file does both, which is belt and braces.","topic":"frontend","diff":"medium"},
+    {"q":"What happens in `sendMessage` if the network request throws?","opts":["The spinner stays forever","The catch block renders an error bubble and finally clears the loading state","The page reloads","The message array is cleared"],"a":1,"why":"The try/catch/finally structure means every path ends with `setLoadingState(false)`. Without finally, a failed request would leave the UI disabled.","topic":"frontend","diff":"medium"},
+    {"q":"Why does app.py add `result['duration']` instead of returning only the model fields?","opts":["To change the schema","So the UI can show how long the model took","Because jsonify requires it","To satisfy Pydantic"],"a":1,"why":"`result` is a plain dict, so a fourth key is allowed. The front end reads `data.duration` and prints the seconds under the bubble - a cheap latency display.","topic":"flask","diff":"easy"},
+    {"q":"Which statement about the three chat clients is true?","opts":["They are created lazily on first request","They are all created when model.py is imported","Only llama is created","They are created per request inside generate()"],"a":1,"why":"The three `initialize_model(...)` calls run at import time. Construction is light, but it happens even if the user never picks that model - worth knowing in a larger app.","topic":"model","diff":"medium"},
+    {"q":"Why are the hand-written `llama_template` / `granite_template` / `mistral_template` unused?","opts":["They are broken","`with_structured_output` builds the chat messages itself, so explicit control-token formatting is unnecessary","They are used in app.py","They must be enabled by a flag"],"a":1,"why":"Chat clients translate `(\"system\", ...)` and `(\"human\", ...)` tuples into the right tokens for the model. The templates document how it used to be done and were left behind.","topic":"model","diff":"hard"},
+    {"q":"`capital.py` compares two models. What keeps the comparison fair?","opts":["The same credentials and parameters, with only model_id changed","Different prompts for each model","Random temperature","A separate .env"],"a":0,"why":"Same prompt, same greedy decoding, same token cap; only the model id differs. Change anything else and you can no longer attribute the difference to the model.","topic":"models","diff":"medium"},
+    {"q":"Where does the browser send the model choice?","opts":["In a cookie","In the JSON body as `model`","In the URL path","In a header"],"a":1,"why":"`JSON.stringify({message: content, model: model})` puts it in the body, and app.py reads `data.get('model')`. The server maps that string to one of three wrappers.","topic":"frontend","diff":"easy"},
+    {"q":"Which line proves the system prompt tries to prevent tool use?","opts":["\"You do not have access to tools, live data, or forecasts, so never call functions.\"","\"Provide a helpful and concise response.\"","\"Always reply with ONLY a single JSON object\"","\"You are an AI assistant helping with customer inquiries.\""],"a":0,"why":"That sentence explicitly denies tools and forecasting. It matters because the endpoint has no tool access, and a model that tries to call a nonexistent function produces a confusing failure.","topic":"prompt","diff":"medium"},
+    {"q":"What is the correct HTTP status for an unexpected exception while calling the model?","opts":["200","400","500","302"],"a":2,"why":"500 signals a server-side failure. 400 would wrongly blame the user, 302 is a redirect, and 200 would hide the failure from the browser and any monitoring tool.","topic":"http","diff":"easy"}
+  ]
+  </script>
+</section>

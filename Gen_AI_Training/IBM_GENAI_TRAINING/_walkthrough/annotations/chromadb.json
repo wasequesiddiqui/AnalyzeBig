@@ -1,0 +1,198 @@
+{
+  "folder": "ChromaDB",
+  "files": {
+    "ChromaDB/similarity_search.py": {
+      "purpose": "Creates a small in-memory ChromaDB collection of 14 grocery items, then asks for the three items whose meaning is closest to the word \"apple\". This is the smallest complete example of a vector database in the whole repository: create, fill, query, read.",
+      "run": "python similarity_search.py   (run from inside the ChromaDB folder)",
+      "meta": ["needs chromadb + sentence-transformers", "downloads the MiniLM model on first run", "no API key needed"],
+      "sections": [
+        {
+          "title": "Imports and the embedding model",
+          "start": "import chromadb",
+          "why": "Before you can store text in a vector database, some model has to convert text into numbers. ChromaDB ships a wrapper that does exactly that."
+        },
+        {
+          "title": "Client, collection name and the empty main() stub",
+          "start": "client = chromadb.Client()",
+          "why": "The client is the connection to the database. Here it is in-memory, like writing on a whiteboard instead of a register - everything is gone when the program ends."
+        },
+        {
+          "title": "Delete-then-create: start from a clean slate",
+          "start": "client.delete_collection(name=collection_name)",
+          "why": "Running a demo twice should give the same answer. Deleting first removes yesterday's data, so duplicates can never pile up."
+        },
+        {
+          "title": "The grocery catalogue (14 short texts)",
+          "start": "texts = [",
+          "why": "These are the \"documents\". For ChromaDB a document is just a string; meaning is added later by the embedding model."
+        },
+        {
+          "title": "Unique IDs and ingestion",
+          "start": "ids = [f\"food_",
+          "why": "Every stored vector needs a name. IDs must be unique strings, otherwise ChromaDB refuses the insert."
+        },
+        {
+          "title": "Reading data back",
+          "start": "all_items = collection.get()",
+          "why": "A quick sanity check that the insert really happened before trusting the search."
+        },
+        {
+          "title": "The similarity search function",
+          "start": "def perform_similarity_search",
+          "why": "This is the heart of retrieval: embed the query with the same model, compare against every stored vector, keep the closest few."
+        },
+        {
+          "title": "Run it",
+          "start": "perform_similarity_search(collection, all_items)",
+          "occ": 2,
+          "why": "The last line actually starts the demo. Everything above only defined things."
+        }
+      ],
+      "notes": [
+        {
+          "at": "from chromadb.utils import embedding_functions",
+          "lines": 1,
+          "title": "Why a second import?",
+          "text": "`chromadb` is the database itself; `embedding_functions` is the toolbox of ready-made text-to-number converters. Keeping them separate means you can swap the model without touching the database code."
+        },
+        {
+          "at": "ef = embedding_functions.SentenceTransformerEmbeddingFunction(",
+          "lines": 3,
+          "title": "The embedding function: your text-to-numbers machine",
+          "text": "`all-MiniLM-L6-v2` is a small open model that turns any sentence into 384 numbers. Think of it as a clerk who reads every dish and writes 384 ratings for it (how sweet, how fruity, how savoury...). Similar dishes get similar ratings. It downloads once (~90 MB) and then runs on your CPU, so no internet and no API key are needed later.",
+          "kind": "crit"
+        },
+        {
+          "at": "client = chromadb.Client()",
+          "lines": 1,
+          "title": "In-memory client",
+          "text": "`chromadb.Client()` keeps everything in RAM. Close the program and the collection disappears. For homework demos that is a feature, not a bug: you never leave half-broken data behind. In a real product you would use `chromadb.PersistentClient(path=...)`."
+        },
+        {
+          "at": "collection_name = \"my_grocery_collection\"",
+          "lines": 1,
+          "title": "One string, used everywhere",
+          "text": "Two other lines refer to this same name (delete and create). Keeping it in a variable means you cannot accidentally delete one collection and create another with a slightly different spelling."
+        },
+        {
+          "at": "def main():",
+          "lines": 6,
+          "title": "A stub that does nothing",
+          "text": "`main()` only contains `pass` inside a `try`. It is a placeholder the course leaves for you. Note that it is never called anywhere in this file, so it has zero effect. Its `except Exception as error` is a reminder of the pattern used at the bottom of the file: catch broadly, print, move on.",
+          "kind": "watch"
+        },
+        {
+          "at": "client.delete_collection(name=collection_name)",
+          "lines": 1,
+          "title": "Destructive on purpose",
+          "text": "This deletes the collection if it exists. There is no `try`/`except` around it, so on a *truly* fresh client ChromaDB may raise an error saying the collection does not exist. If you hit that, wrap it the way `_walkthrough`'s sibling project (Food_Recommender) does: `try: client.delete_collection(...) except: pass`.",
+          "kind": "watch"
+        },
+        {
+          "at": "collection = client.create_collection(",
+          "lines": 8,
+          "title": "Create the collection, with its rules",
+          "text": "Three things are decided here: the **name**, some **metadata** (a description and the distance metric), and the **embedding function** that will be used for every insert and every query. Binding the model to the collection is what guarantees that documents and queries are converted the same way.",
+          "kind": "crit"
+        },
+        {
+          "at": "\"hnsw:space\": \"cosine\"",
+          "lines": 1,
+          "title": "The measuring tape: cosine distance",
+          "text": "`hnsw:space` picks how \"closeness\" is measured. `cosine` compares the *direction* of two vectors and ignores their length, which is exactly what you want for text. Distance 0 = same direction (very similar), 2 = opposite. With 14 grocery items, the top matches usually sit between 0 and 1.",
+          "kind": "crit"
+        },
+        {
+          "at": "texts = [",
+          "lines": 15,
+          "title": "The mini catalogue",
+          "text": "Fourteen phrases, some deliberately tricky: \"fresh red apples\", \"golden apple\" and \"red fruit\" are near-duplicates in meaning, while \"whole wheat bread\" is a different kind of food. A good search should rank all three apple-ish rows above the bread, even though only one of them contains the exact word \"apple\"."
+        },
+        {
+          "at": "ids = [f\"food_{index + 1}\" for index, _ in enumerate(texts)]",
+          "lines": 1,
+          "title": "List comprehension for IDs",
+          "text": "`enumerate` gives `(0, text), (1, text), ...`. The `_` says \"I do not need this value\". Adding 1 turns 0-based indexes into human-friendly IDs: `food_1` ... `food_14`. ChromaDB requires strings, and an f-string guarantees that.",
+          "kind": "crit"
+        },
+        {
+          "at": "collection.add(",
+          "lines": 5,
+          "title": "Insert documents, metadata and IDs together",
+          "text": "Three parallel lists: `documents[i]` is the text, `metadatas[i]` is extra searchable/filterable data about it, `ids[i]` is its name. ChromaDB embeds each document with `ef` automatically - you never call `encode()` yourself. The metadata list is built with a comprehension so every row gets the same two tags."
+        },
+        {
+          "at": "metadatas=[{\"source\": \"grocery_store\", \"category\": \"food\"} for _ in texts]",
+          "lines": 1,
+          "title": "Metadata = the label on the jar",
+          "text": "Metadata values must be simple (string, number, boolean) - never lists or `None`. Here every item is tagged `food`. In a bigger app you would store `calories`, `cuisine`, `price` here and then filter on them during search, exactly like the Food_Recommender tab does."
+        },
+        {
+          "at": "all_items = collection.get()",
+          "lines": 1,
+          "title": "Read without any similarity maths",
+          "text": "`get()` returns everything stored. It is the equivalent of `SELECT *` and is useful for debugging: if this prints 14, your ingestion worked and any later problem is in the query path, not the data path."
+        },
+        {
+          "at": "print(f\"Number of documents: {len(all_items['documents'])}\")",
+          "lines": 1,
+          "title": "The cheapest test you can write",
+          "text": "One number tells you whether the insert succeeded. Beginners often skip this and then spend an hour debugging a \"bad search\" that is really an empty database."
+        },
+        {
+          "at": "def perform_similarity_search(collection, all_items):",
+          "lines": 1,
+          "title": "One function, one job",
+          "text": "It takes the collection and an object it never actually uses (`all_items` is passed but ignored). That is harmless here, but it is a good habit to notice: unused parameters make readers hunt for a hidden dependency that does not exist.",
+          "kind": "watch"
+        },
+        {
+          "at": "query_term = \"apple\"",
+          "lines": 1,
+          "title": "One word is enough",
+          "text": "The query is plain text, not a vector. The collection's embedding function converts it behind the scenes, using the same model that embedded the 14 items - the single most important rule of vector search."
+        },
+        {
+          "at": "results = collection.query(",
+          "lines": 4,
+          "title": "The actual search call",
+          "text": "`query_texts=[...]` is a list because you may ask several questions at once. `n_results=3` says \"give me the three nearest neighbours\". Under the hood ChromaDB compares the query vector against all 14 stored vectors using cosine distance and sorts them.",
+          "kind": "crit"
+        },
+        {
+          "at": "if not results or not results['ids'] or len(results['ids'][0]) == 0:",
+          "lines": 4,
+          "title": "Always guard a search result",
+          "text": "ChromaDB wraps answers in a list-per-query, so `results['ids'][0]` is the answer to the first (only) query. If the collection is empty this is an empty list, and indexing it blindly would crash. This guard prints a friendly message and returns early."
+        },
+        {
+          "at": "for i in range(min(3, len(results['ids'][0]))):",
+          "lines": 1,
+          "title": "Why min(3, ...)?",
+          "text": "You asked for 3, but a tiny collection might return fewer. `min` takes whatever is smaller, so the loop can never ask for a row that does not exist."
+        },
+        {
+          "at": "score = results['distances'][0][i]",
+          "lines": 1,
+          "title": "Distance, not percentage",
+          "text": "This is a **distance**: smaller is better, 0 means identical. Do not print it as a match percentage. Convert with `1 - distance` first if you want a similarity score the way Food_Recommender does.",
+          "kind": "crit"
+        },
+        {
+          "at": "text = results['documents'][0][i]",
+          "lines": 5,
+          "title": "Defensive text printing",
+          "text": "ChromaDB can technically return an empty document. The `if not text` branch prints \"Text not available\" so the output stays neat instead of showing `None`. `{score:.4f}` rounds to four decimals to keep columns aligned."
+        },
+        {
+          "at": "except Exception as error:",
+          "lines": 1,
+          "occ": 2,
+          "title": "Catch-all at the boundary",
+          "text": "A one-line script should not dump a traceback at a learner. Catching `Exception` here keeps the console readable. In production code you would log the traceback instead of hiding it.",
+          "kind": "watch"
+        }
+      ]
+    }
+  }
+}

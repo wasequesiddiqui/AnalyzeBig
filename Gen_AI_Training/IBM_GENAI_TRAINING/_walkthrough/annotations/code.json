@@ -1,0 +1,1367 @@
+{
+  "folder": "Code",
+  "files": {
+    "Code/LANGCHAIN_APP_BASICS.py": {
+      "purpose": "The beginner's front door to IBM watsonx.ai. It first runs a two-stage \"handshake\" that proves your API key, region and project actually work, then walks through the basic LangChain pieces: calling a model directly, wrapping it as an LLM object, prompt templates, chat templates, chains and JSON output.",
+      "run": "python LANGCHAIN_APP_BASICS.py   (needs WATSONX_URL, WATSONX_APIKEY, WATSONX_PROJECT_ID in .env)",
+      "meta": [
+        "416 lines",
+        "prints a pass/fail handshake",
+        "exit code 0 = credentials work"
+      ],
+      "sections": [
+        {
+          "title": "The long docstring: what a handshake test is",
+          "start": "\"\"\"Handshake test:",
+          "why": "This explains the single biggest beginner trap with watsonx.ai: most failures are credential or region problems, not code bugs. Read this once - the rest of the file is just the code version of it."
+        },
+        {
+          "title": "Imports",
+          "start": "import os",
+          "why": "Two layers are imported on purpose: the low-level IBM SDK and the LangChain wrapper around it. Running both isolates where a problem lives."
+        },
+        {
+          "title": "Loading .env and the three required settings",
+          "start": "load_dotenv(override=True)",
+          "occ": 1,
+          "why": "Everything after this can assume the three WATSONX_* values exist in the environment - or fail with a message that names exactly what is missing."
+        },
+        {
+          "title": "read_settings() - fail fast with a clear message",
+          "start": "def read_settings():",
+          "why": "One small function replaces three scattered `os.environ[...]` lookups, and it can list *all* missing names at once."
+        },
+        {
+          "title": "Stage 1 - the raw IBM SDK",
+          "start": "def handshake_with_sdk(settings):",
+          "why": "This is the same code path LangChain uses internally. If stage 1 passes, credentials, region, project and model access are all proven good."
+        },
+        {
+          "title": "Stage 2 - the LangChain wrapper",
+          "start": "def handshake_with_langchain(settings):",
+          "why": "Same handshake, but through `langchain-ibm`. If stage 1 passes and stage 2 fails, the problem is the wrapper or its version - not your key."
+        },
+        {
+          "title": "Custom steps - calling the model directly",
+          "start": "model_id = \"ibm/granite-4-h-small\"",
+          "why": "The handshake returns a string. This section shows the normal way to ask a question and read the answer."
+        },
+        {
+          "title": "generate() versus generate_text()",
+          "start": "msg = model.generate(\"In today's sales meeting, we \")",
+          "why": "`generate` returns a whole dictionary of results; `generate_text` returns just the text. Knowing which one you called saves you from confusing output."
+        },
+        {
+          "title": "The LangChain LLM object",
+          "start": "llama_llm = WatsonxLLM(",
+          "why": "This object behaves like every other LangChain model, so the same prompt code works with a different provider later."
+        },
+        {
+          "title": "PromptTemplate - fill in the blanks",
+          "start": "prompt = PromptTemplate.from_template(\"Tell me one {adjective} joke about {topic}\")",
+          "why": "Templates separate the fixed instruction from the changing data. `{adjective}` and `{topic}` are placeholders filled from a dictionary."
+        },
+        {
+          "title": "ChatPromptTemplate - roles and variables",
+          "start": "prompt = ChatPromptTemplate.from_messages([",
+          "occ": 1,
+          "why": "Chat models expect a list of messages with roles (`system`, `user`), not one blob of text. This is the modern way to talk to an instruct model."
+        },
+        {
+          "title": "MessagesPlaceholder - injecting a list of messages",
+          "start": "prompt = ChatPromptTemplate.from_messages([",
+          "occ": 2,
+          "why": "Useful when the number of messages is not known in advance, for example a chat history of unknown length."
+        },
+        {
+          "title": "Chaining with the pipe operator",
+          "start": "chain = prompt | llama_llm",
+          "why": "`|` glues components: the prompt's output becomes the model's input. This is the single most important idea in LangChain."
+        },
+        {
+          "title": "Structured output with JsonOutputParser",
+          "start": "json_parser = JsonOutputParser()",
+          "why": "Models write prose by default. To get a Python dictionary you must ask for JSON clearly, then parse it - and be ready for the model to add extra text anyway."
+        },
+        {
+          "title": "main() - run both stages",
+          "start": "def main():",
+          "why": "Runs stage 1, stops on failure, then runs stage 2. The return value becomes the process exit code."
+        },
+        {
+          "title": "The __main__ guard",
+          "start": "if __name__ == \"__main__\":",
+          "why": "Importing this file from a notebook or test must not fire network calls, so the work only happens when the file is executed directly."
+        }
+      ],
+      "notes": [
+        {
+          "at": "Talking to watsonx.ai is a multi-step negotiation",
+          "lines": 4,
+          "title": "Why three steps, not one call",
+          "text": "Your API key is exchanged for a short-lived IAM token, that token resolves the project, and only then is the model invoked. Reading the error message tells you which link broke: `BXNIM0415E` means the key itself, `WSCPA404PE` means the project id, and an invalid URL means the region.",
+          "kind": "info"
+        },
+        {
+          "at": "import os",
+          "lines": 2,
+          "title": "Two imports that look unused",
+          "text": "`os` is used immediately below to read environment variables. `warnings` is imported but never used in this file - harmless, and a small reminder that imports are not proof of use."
+        },
+        {
+          "at": "from ibm_watson_machine_learning.foundation_models.extensions.langchain import WatsonxLLM",
+          "lines": 1,
+          "title": "The old import that gets overwritten",
+          "text": "This line imports a `WatsonxLLM` from the legacy `ibm_watson_machine_learning` package, and the very next line imports a different `WatsonxLLM` from `langchain_ibm`. Python keeps the **last** one, so the first is dead code. It survives as a reminder of how the package was renamed.",
+          "kind": "watch"
+        },
+        {
+          "at": "load_dotenv(override=True)",
+          "occ": 1,
+          "lines": 1,
+          "title": "Why override=True matters",
+          "text": "By default python-dotenv never overwrites a variable that already exists in your shell. That produces the classic \"I edited .env but nothing changed\" bug, because an old machine-level value silently wins. `override=True` makes the file authoritative.",
+          "kind": "crit"
+        },
+        {
+          "at": "REQUIRED_VARS = (\"WATSONX_APIKEY\", \"WATSONX_PROJECT_ID\", \"WATSONX_URL\")",
+          "lines": 1,
+          "title": "One list, two consumers",
+          "text": "`read_settings` loops over this tuple to build the error message, and the rest of the file reads the same names. Keeping them in one place means the validation can never drift from what is actually used.",
+          "kind": "crit"
+        },
+        {
+          "at": "PROMPT = \"Reply with exactly two words: handshake ok\"",
+          "lines": 1,
+          "title": "A deliberately boring prompt",
+          "text": "The goal is connectivity, not creativity. A tiny prompt plus a tiny token cap makes the check fast and cheap. If you see text come back at all, the whole chain works."
+        },
+        {
+          "at": "settings = {name: os.getenv(name) for name in REQUIRED_VARS}",
+          "lines": 1,
+          "title": "Dictionary comprehension",
+          "text": "Reads all three names into a dictionary in one pass. `os.getenv` returns `None` for an unset variable and `\"\"` for an empty one, so the falsy check below catches both cases with one condition."
+        },
+        {
+          "at": "raise SystemExit(f\"Missing values in .env: {', '.join(missing)}\")",
+          "lines": 1,
+          "title": "Why SystemExit and not ValueError",
+          "text": "This is a command-line script, so the right behaviour is to stop with a clear message and a non-zero exit code, without a traceback. A traceback would suggest a code bug; there is none - just a missing line in `.env`.",
+          "kind": "crit"
+        },
+        {
+          "at": "credentials = Credentials(url=settings[\"WATSONX_URL\"], api_key=settings[\"WATSONX_APIKEY\"])",
+          "lines": 1,
+          "title": "Constructing credentials does no network I/O",
+          "text": "`Credentials` is just a value object. The first real network call happens inside `ModelInference(...)`, which exchanges the key for an IAM token and resolves the project.",
+          "kind": "crit"
+        },
+        {
+          "at": "model = ModelInference(",
+          "occ": 1,
+          "lines": 2,
+          "title": "The first real network step",
+          "text": "Beginners expect `generate_text` to be the first call that can fail, but construction already talks to IBM twice. That is why key and project errors appear here, before any text is generated - a very useful early signal."
+        },
+        {
+          "at": "params={\"max_new_tokens\": 16},",
+          "lines": 1,
+          "title": "Cap the output",
+          "text": "Without a cap the model can keep writing up to its own default limit, so a trivial check could take many seconds. Sixteen tokens is plenty to prove the pipe is open.",
+          "kind": "crit",
+          "occ": 1
+        },
+        {
+          "at": "return model.generate_text(prompt=PROMPT)",
+          "lines": 1,
+          "title": "Returns a plain string",
+          "text": "`generate_text` is the convenience wrapper: no dictionary, no metadata, just text. If this returns anything, stage 1 is done."
+        },
+        {
+          "at": "apikey=settings[\"WATSONX_APIKEY\"],",
+          "lines": 1,
+          "title": "Note the spelling: apikey",
+          "text": "In `langchain-ibm` 0.1.7 the keyword is `apikey`; later releases use `api_key` and also add a `ChatWatsonx` class. This is the version-sensitive surface the module docstring warns about - if you upgrade, expect to change the import and the keyword together.",
+          "kind": "watch"
+        },
+        {
+          "at": "return llm.invoke(PROMPT)",
+          "lines": 1,
+          "title": "invoke is the standard LangChain verb",
+          "text": "Every LangChain component has `invoke` (one input, one output), plus async and batch variants. Because this wrapper is a text-completion LLM, the return value is a string, not a message object."
+        },
+        {
+          "at": "parameters = {",
+          "lines": 5,
+          "title": "The three knobs you will use most",
+          "text": "`max_new_tokens` caps length, `min_new_tokens` prevents an empty answer, `temperature` controls randomness (0 = repeatable, higher = creative). Same names in every IBM model."
+        },
+        {
+          "at": "print(model.generate_text(prompt=\"Explain what a foundation model is in two sentences.\"))",
+          "lines": 1,
+          "title": "A foundation model in one line of code",
+          "text": "A foundation model is a large, pre-trained model you reuse instead of training your own - like renting a fully equipped kitchen instead of building one for every dish. This line is the smallest possible useful call to one."
+        },
+        {
+          "at": "msg = model.generate(\"In today's sales meeting, we \")",
+          "lines": 4,
+          "title": "Completion continues your sentence",
+          "text": "This is a *completion* model call: you give the beginning of a sentence and the model continues it. `generate` returns `{'results': [{'generated_text': ...}, ...]}` - a list because you may send several prompts at once.",
+          "kind": "crit"
+        },
+        {
+          "at": "print(msg['results'][0]['generated_text'])",
+          "lines": 1,
+          "title": "Reading the nested dictionary",
+          "text": "`[0]` picks the first prompt, then `['generated_text']` picks the text. Print `msg` itself once to see token counts and stop reason - useful when an answer looks truncated.",
+          "kind": "crit"
+        },
+        {
+          "at": "llama_llm = WatsonxLLM(",
+          "lines": 6,
+          "title": "Hard-coded URL versus environment variable",
+          "text": "Here the URL is typed as `https://eu-de.ml.cloud.ibm.com` while stage 1 and stage 2 read it from `.env`. If your project lives in another region, this block fails even though the handshake passed. Prefer `os.environ[\"WATSONX_URL\"]`.",
+          "kind": "watch"
+        },
+        {
+          "at": "prompt = PromptTemplate.from_template(\"Tell me one {adjective} joke about {topic}\")",
+          "lines": 3,
+          "title": "from_template reads the variables for you",
+          "text": "You do not list `input_variables`; LangChain scans the braces. The call below returns a prompt *object*, and this file never prints it, so nothing visible happens - it is a demonstration, not output.",
+          "kind": "watch"
+        },
+        {
+          "at": "(\"system\", \"You are a helpful assistant\"),",
+          "lines": 5,
+          "title": "System message = permanent instruction",
+          "text": "The `system` message sets behaviour for the whole conversation; `user` messages carry the request. `{topic}` inside a message is still a normal template variable - roles and templating work together.",
+          "occ": 1
+        },
+        {
+          "at": "MessagesPlaceholder(\"msgs\")",
+          "lines": 1,
+          "title": "A slot for many messages",
+          "text": "A placeholder expands to a whole list of messages at run time, which is how chat history is inserted. The key in your input dictionary must match the placeholder name exactly."
+        },
+        {
+          "at": "input_ = {\"msgs\": [HumanMessage(content=\"What is the day after Tuesday?\")]}",
+          "lines": 1,
+          "title": "Message objects, not plain strings",
+          "text": "`HumanMessage` carries the role for you. Plain strings also work in many places, but message objects are explicit and survive refactoring better."
+        },
+        {
+          "at": "chain = prompt | llama_llm",
+          "lines": 2,
+          "title": "The pipe operator",
+          "text": "`prompt | llm` creates a Runnable sequence: format the template, then send it. `chain.invoke(input_)` runs both steps. Note that `prompt` here is still the `MessagesPlaceholder` template defined just above - order of execution matters when you reuse variable names.",
+          "kind": "crit"
+        },
+        {
+          "at": "format_instructions = \"\"\"RESPONSE FORMAT:",
+          "lines": 10,
+          "title": "Tell the model exactly what you want",
+          "text": "Models drift towards extra commentary. Spelling out the exact JSON shape, and forbidding markdown, is the cheapest fix. It is not a guarantee - that is why a parser is still needed."
+        },
+        {
+          "at": "partial_variables={\"format_instructions\": format_instructions},",
+          "lines": 1,
+          "title": "partial_variables pre-fill a slot",
+          "text": "The big instruction block is fixed, so it is baked in once instead of being passed on every call. Only `movie_name` remains for the caller to supply.",
+          "kind": "crit"
+        },
+        {
+          "at": "movie_chain = prompt_template | llama_llm | json_parser",
+          "lines": 3,
+          "title": "A three-stage chain",
+          "text": "Prompt to model to parser. The parser turns JSON text into a dictionary, so `result['title']` works below. If the model prints an apology instead of JSON, this step raises - and that is information, not a mystery.",
+          "kind": "crit"
+        },
+        {
+          "at": "settings = read_settings()",
+          "lines": 1,
+          "title": "Read config once, pass it down",
+          "text": "Both stages receive the same dictionary, so they cannot disagree about which project or region is being tested."
+        },
+        {
+          "at": "print(f\"      response: {handshake_with_sdk(settings)!r}\")",
+          "lines": 1,
+          "title": "!r shows invisible problems",
+          "text": "`!r` prints the `repr`, so an empty string shows as `''` instead of a blank line. Handy when a model \"answers\" with nothing at all."
+        },
+        {
+          "at": "print(f\"      FAILED: {type(exc).__name__}: {exc}\")",
+          "lines": 1,
+          "title": "Catch broad, report precisely",
+          "text": "The SDK raises several unrelated exception types for what the user experiences as one question. Printing the class name plus the original message keeps IBM's error id (like `BXNIM0415E`) visible without a wall of traceback.",
+          "kind": "crit",
+          "occ": 1
+        },
+        {
+          "at": "return 1",
+          "lines": 1,
+          "title": "Early exit on stage 1",
+          "text": "Returning here means stage 2 never runs, so a second error can never be confused with the first problem wearing a different hat.",
+          "kind": "info",
+          "occ": 1
+        },
+        {
+          "at": "raise SystemExit(main())",
+          "lines": 1,
+          "title": "Exit codes for scripts and pipelines",
+          "text": "`main()` returns 0 or 1; `SystemExit(value)` turns that into the process exit code. Shell scripts and CI jobs can then do `if python LANGCHAIN_APP_BASICS.py; then ...`.",
+          "kind": "crit"
+        }
+      ]
+    },
+    "Code/advanced_retrievers.py": {
+      "purpose": "A LlamaIndex playground that builds several indexes over ten AI/ML sentences and compares five retrieval strategies: plain vector search, BM25 keyword search, document-summary retrieval (LLM and embeddings), and hierarchical auto-merging. It is the \"why retrieval is not just one algorithm\" file.",
+      "run": "python advanced_retrievers.py   (works offline with MockLLM if watsonx credentials are absent)",
+      "meta": [
+        "382 lines",
+        "LlamaIndex + BM25 + rerank",
+        "falls back to MockLLM"
+      ],
+      "sections": [
+        {
+          "title": "Imports - three ecosystems at once",
+          "start": "import os",
+          "why": "LlamaIndex for indexing, sentence-transformers for embeddings, IBM watsonx for generation. Every smart retrieval feature below comes from one of these three."
+        },
+        {
+          "title": "Optional scipy",
+          "start": "from scipy import stats",
+          "why": "Some fusion techniques need statistics helpers. The file degrades gracefully instead of crashing when scipy is missing."
+        },
+        {
+          "title": "create_watsonx_llm() - and its mock fallback",
+          "start": "def create_watsonx_llm():",
+          "why": "Reads three environment variables, validates them together, and falls back to `MockLLM` so a classroom demo still runs without credentials."
+        },
+        {
+          "title": "Global Settings - the embedding model and the LLM",
+          "start": "embed_model = HuggingFaceEmbedding(",
+          "why": "`Settings` is LlamaIndex's global switchboard. Once set, every index and query engine uses these models unless you pass an explicit one.",
+          "occ": 1
+        },
+        {
+          "title": "Sample documents and demo queries",
+          "start": "SAMPLE_DOCUMENTS = [",
+          "why": "Ten short, hand-written sentences plus a dictionary of queries. Keeping queries fixed makes results comparable between runs - a good habit for any retrieval experiment."
+        },
+        {
+          "title": "The lab class - three indexes over the same data",
+          "start": "class AdvancedRetrieversLab:",
+          "why": "Vector, document-summary and keyword indexes are built side by side, so you can see that the index choice changes what can be answered."
+        },
+        {
+          "title": "1. Vector index retriever",
+          "start": "vector_retriever = VectorIndexRetriever(",
+          "why": "The default: embed the query, find nearest chunks. Shown twice, because `as_retriever()` is the shorter form you will use daily."
+        },
+        {
+          "title": "2. BM25 keyword retriever",
+          "start": "bm25_retriever = BM25Retriever.from_defaults(",
+          "why": "Keyword matching with saturation and length normalisation. It shines when the user types exact jargon that embeddings blur together."
+        },
+        {
+          "title": "3. Document summary retrievers",
+          "start": "doc_summary_retriever_llm = DocumentSummaryIndexLLMRetriever(",
+          "why": "Instead of chunks, this searches one summary per document. Great for \"which document is about X\", weaker for pinpointing a sentence."
+        },
+        {
+          "title": "4. Auto-merging retriever",
+          "start": "node_parser = HierarchicalNodeParser.from_defaults(",
+          "why": "Small chunks retrieve precisely; parents provide context. The retriever merges siblings back into a parent when enough of them match."
+        },
+        {
+          "title": "Running the last demo",
+          "start": "query = DEMO_QUERIES[\"advanced\"]",
+          "why": "Every demo follows the same three lines: pick a query, retrieve, print. Compare which sentences come back."
+        }
+      ],
+      "notes": [
+        {
+          "at": "from llama_index.core import (",
+          "lines": 8,
+          "title": "Three kinds of index from one package",
+          "text": "`VectorStoreIndex` stores embeddings, `DocumentSummaryIndex` stores LLM summaries, `KeywordTableIndex` stores keyword-to-document links. Same documents, three different lenses.",
+          "kind": "crit"
+        },
+        {
+          "at": "from llama_index.retrievers.bm25 import BM25Retriever",
+          "lines": 1,
+          "title": "BM25 lives in its own package",
+          "text": "It needs the `PyStemmer` package for word stemming, which is why the BM25 demo is wrapped in `try`/`except ImportError` a few hundred lines below.",
+          "kind": "info"
+        },
+        {
+          "at": "SCIPY_AVAILABLE = False",
+          "lines": 3,
+          "title": "Optional dependency pattern",
+          "text": "Try the import, set a flag, keep going. Compare this with a hard import that would crash the whole file just because one optional statistics package is absent."
+        },
+        {
+          "at": "url = os.getenv(\"WATSONX_URL\")",
+          "lines": 3,
+          "title": "getenv, not environ here",
+          "text": "`os.getenv` returns `None` instead of raising, because the function wants to build its own combined error message listing every missing name at once."
+        },
+        {
+          "at": "missing = [",
+          "lines": 8,
+          "title": "Collect all problems, then report once",
+          "text": "Looping over a dictionary of name to value and filtering falsy entries produces a list like `['WATSONX_APIKEY']`. One message instead of three frustrating retries.",
+          "kind": "crit"
+        },
+        {
+          "at": "from llama_index.core.llms.mock import MockLLM",
+          "lines": 1,
+          "title": "The classroom safety net",
+          "text": "`MockLLM` returns canned text without any network call. It keeps a demo alive without credentials, but its summaries are meaningless - never mistake it for a working model.",
+          "kind": "watch"
+        },
+        {
+          "at": "Settings.llm = llm",
+          "lines": 2,
+          "title": "Global defaults",
+          "text": "Once these two lines run, `VectorStoreIndex.from_documents(...)` with no model arguments still works. Convenient for demos; risky in a big app where a stray default can silently override intent.",
+          "kind": "crit",
+          "occ": 1
+        },
+        {
+          "at": "embed_model = HuggingFaceEmbedding(",
+          "lines": 2,
+          "occ": 2,
+          "title": "Copy-paste duplication",
+          "text": "The whole embedding-plus-LLM block appears twice in this file, so the model is loaded twice and the second load replaces the first. It works, but it wastes startup time - a good example of why long notebook-style files are hard to maintain.",
+          "kind": "watch"
+        },
+        {
+          "at": "self.nodes = SentenceSplitter().get_nodes_from_documents(self.documents)",
+          "lines": 1,
+          "title": "Documents versus nodes",
+          "text": "A `Document` is the whole file; nodes are its chunks. Retrievers return nodes, so chunking settings decide what granularity of answer you can get."
+        },
+        {
+          "at": "self.document_summary_index = DocumentSummaryIndex.from_documents(self.documents)",
+          "lines": 1,
+          "title": "This one calls the LLM at build time",
+          "text": "A summary index asks the model to summarise every document while building. With `MockLLM` that is instant but fake; with a real model it costs tokens and time.",
+          "kind": "crit"
+        },
+        {
+          "at": "vector_retriever = VectorIndexRetriever(",
+          "lines": 4,
+          "title": "Top-k vector retrieval",
+          "text": "`similarity_top_k=3` means keep the three chunks with the highest cosine similarity to the query embedding. No keywords, no synonyms hard-coded - just proximity in meaning.",
+          "kind": "crit"
+        },
+        {
+          "at": "alt_retriever = lab.vector_index.as_retriever(similarity_top_k=3)",
+          "lines": 1,
+          "title": "Two ways to the same object",
+          "text": "`as_retriever()` builds the same retriever with fewer imports. Prefer it in application code; use the explicit class when you need unusual options."
+        },
+        {
+          "at": "import Stemmer",
+          "lines": 1,
+          "title": "Stemming: bugs to bug",
+          "text": "A stemmer reduces words to their root so \"learning\" and \"learn\" match. Without it, BM25 misses obvious word forms. `Stemmer.Stemmer(\"english\")` comes from the `PyStemmer` package.",
+          "kind": "crit"
+        },
+        {
+          "at": "bm25_retriever = BM25Retriever.from_defaults(",
+          "lines": 5,
+          "title": "BM25 in five lines",
+          "text": "Give it the nodes, the k, and a language. BM25 scores exact term overlap with two corrections: term frequency saturates, and long documents are penalised. That is why it beats plain TF-IDF."
+        },
+        {
+          "at": "found_terms = [term for term in query_terms if term in text_lower]",
+          "lines": 4,
+          "title": "Human-readable proof",
+          "text": "Printing which query words were found makes the difference visible: BM25 should rank the sentence containing all three query terms first, even if a vector search prefers a semantically similar sentence with none of them.",
+          "occ": 1
+        },
+        {
+          "at": "print(\"- k1 ≈ 1.2: Term frequency saturation (how quickly scores plateau)\")",
+          "lines": 3,
+          "title": "The two BM25 dials",
+          "text": "`k1` controls how fast repeated words stop helping; `b` controls how strongly long documents are penalised (0 = not at all, 1 = fully). Defaults 1.2 and 0.75 suit most English text.",
+          "kind": "crit"
+        },
+        {
+          "at": "print(\"⚠️ BM25Retriever requires 'pip install PyStemmer'\")",
+          "lines": 2,
+          "title": "Graceful degradation",
+          "text": "If PyStemmer is missing, the demo falls back to vector search and still teaches the concepts. Notice the honest label: it does not pretend the numbers came from BM25.",
+          "kind": "info"
+        },
+        {
+          "at": "doc_summary_retriever_llm = DocumentSummaryIndexLLMRetriever(",
+          "lines": 1,
+          "title": "choice_top_k, not similarity_top_k",
+          "text": "The LLM-based variant asks the model which documents sound relevant, so the parameter is named `choice_top_k`. The embedding variant below keeps `similarity_top_k` because it compares vectors.",
+          "kind": "crit"
+        },
+        {
+          "at": "doc_summary_retriever_embedding = DocumentSummaryIndexEmbeddingRetriever(",
+          "lines": 1,
+          "title": "Same index, cheaper retriever",
+          "text": "Embedding-based selection avoids an LLM call per query. Use it when latency or cost matters and your summaries are descriptive enough."
+        },
+        {
+          "at": "except Exception as e:",
+          "lines": 1,
+          "title": "Why the demos are wrapped in try",
+          "text": "These blocks call a real model through a real network. A single failure should not abort the whole teaching script, so the error is printed in short form and the next demo continues.",
+          "kind": "watch",
+          "occ": 2
+        },
+        {
+          "at": "chunk_sizes=[512, 256, 128]",
+          "lines": 1,
+          "title": "Three levels of zoom",
+          "text": "The parser creates big parents, medium children and small leaves. Retrieval starts at the leaves (precise) and can merge upwards (contextual).",
+          "kind": "crit"
+        },
+        {
+          "at": "docstore.add_documents(hier_nodes)",
+          "lines": 1,
+          "title": "The docstore holds every level",
+          "text": "Merging needs the parent text, which is only available if parents were stored. That is why the hierarchical nodes go into a `SimpleDocumentStore` before the index is built."
+        },
+        {
+          "at": "auto_merging_retriever = AutoMergingRetriever(",
+          "lines": 4,
+          "title": "Merge when enough siblings agree",
+          "text": "If most children of one parent are retrieved, the retriever returns the parent instead of the fragments. You get a complete paragraph rather than three overlapping slivers.",
+          "kind": "crit"
+        },
+        {
+          "at": "print(f\"Auto-merged to {len(nodes)} nodes\")",
+          "lines": 1,
+          "title": "Fewer, bigger results",
+          "text": "Compare this count with the vector retriever's 3. A smaller number of larger nodes is exactly what merging is supposed to produce.",
+          "kind": "info"
+        },
+        {
+          "at": "print(\"=\" * 60)",
+          "lines": 1,
+          "occ": 4,
+          "title": "A notebook-style separator",
+          "text": "The file is organised as numbered demos, each starting with a banner. It is meant to be run cell by cell in Jupyter, where `#%%` marks a cell boundary."
+        }
+      ]
+    },
+    "Code/langchain_context_retreival.py": {
+      "purpose": "A tour of six retrieval styles on real files: plain similarity, top-1, MMR for diversity, score threshold, multi-query (an LLM rewrites your question), self-query (metadata filters), and parent-document retrieval (small search, big context). It also shows the Chroma reset trick.",
+      "run": "python langchain_context_retreival.py   (downloads companypolicies.txt and a PDF on first run)",
+      "meta": [
+        "239 lines",
+        "six retriever types",
+        "@lru_cache model factories",
+        "downloads sample files"
+      ],
+      "sections": [
+        {
+          "title": "Header, imports and environment",
+          "start": "import logging",
+          "why": "One import per retriever type, which is itself a map of the file: MMR, score threshold, multi-query, self-query, parent-document."
+        },
+        {
+          "title": "Config - read once, at import time",
+          "start": "WATSONX_URL = os.environ[",
+          "why": "Square brackets mean a missing variable fails immediately with a KeyError instead of a confusing error much later."
+        },
+        {
+          "title": "Model factories with lru_cache",
+          "start": "def get_llm() -> WatsonxLLM:",
+          "why": "Creating a watsonx client is slow. Caching it means the first call pays, and every later call reuses the same object."
+        },
+        {
+          "title": "The embedding factory and its truncation trap",
+          "start": "def get_embeddings() -> WatsonxEmbeddings:",
+          "why": "One parameter in here silently decides how much of each chunk the model actually reads - a bug that is very hard to spot from output alone."
+        },
+        {
+          "title": "Helpers - splitting and resetting",
+          "start": "def split_documents(",
+          "why": "Two small utilities used repeatedly below: one makes chunks, the other empties a Chroma collection so old documents do not pollute a new experiment."
+        },
+        {
+          "title": "Download a text file and build a vector store",
+          "start": "if not os.path.exists(TXT_FILE):",
+          "why": "The file is fetched only when missing, so repeated runs are fast. Then it is chunked and embedded into Chroma."
+        },
+        {
+          "title": "Five basic retriever variants",
+          "start": "query = \"email policy\"",
+          "why": "Same query, same store, five different behaviours. This section is the best place to feel what each search option does."
+        },
+        {
+          "title": "Switch to a PDF and rebuild the store",
+          "start": "pdf_data = PyPDFLoader(",
+          "why": "A realistic workflow: load another document, clear the old embeddings, re-index. Chunk size also grows from 200 to 500 characters."
+        },
+        {
+          "title": "Multi-query retriever",
+          "start": "multi_query_retriever = MultiQueryRetriever.from_llm(",
+          "why": "The LLM writes several paraphrases of your question and the results are merged. More recall, more cost."
+        },
+        {
+          "title": "Self-query retriever with movie metadata",
+          "start": "movie_docs = [",
+          "why": "The LLM turns \"rated higher than 8.5\" into a metadata filter plus a semantic query. This is how natural language becomes a database filter."
+        },
+        {
+          "title": "Parent-document retriever",
+          "start": "parent_splitter = CharacterTextSplitter(",
+          "why": "Search with tiny chunks, but return the big parent chunk. Precision in search, context in the answer."
+        }
+      ],
+      "notes": [
+        {
+          "at": "from langchain.retrievers.multi_query import MultiQueryRetriever",
+          "lines": 1,
+          "title": "Import paths are version-sensitive",
+          "text": "`langchain.retrievers` re-exports several classes; some tutorials import the same class from `langchain_core` or `langchain_community`. If an import fails after an upgrade, check the package that owns the class now."
+        },
+        {
+          "at": "load_dotenv(override=True)",
+          "lines": 1,
+          "title": "Load before reading",
+          "text": "This line must run before any `os.environ[...]` access below, otherwise the values are not in the environment yet and you get a KeyError."
+        },
+        {
+          "at": "WATSONX_APIKEY = os.environ[\"WATSONX_APIKEY\"]  # missing before -> WMLClientError",
+          "lines": 1,
+          "title": "The comment records a real bug",
+          "text": "Someone forgot this line before, and the result was a `WMLClientError` from deep inside the SDK rather than a clear \"variable missing\". Now it fails at the top of the file.",
+          "kind": "watch"
+        },
+        {
+          "at": "LLM_MODEL_ID = \"mistralai/mistral-small-3-1-24b-instruct-2503\"",
+          "lines": 2,
+          "title": "Two different models, two different jobs",
+          "text": "`-instruct` chat model for answering, `granite-embedding` for vectors. Using an embedding model for chat (or the reverse) is a common and confusing mistake.",
+          "kind": "crit"
+        },
+        {
+          "at": "@lru_cache(maxsize=1)",
+          "lines": 1,
+          "title": "Cache the expensive object",
+          "text": "`@lru_cache(maxsize=1)` memoises the function on its arguments. Called with none, it creates the model on the first call and hands back the same object afterwards - fast, and it keeps one connection instead of many.",
+          "kind": "crit",
+          "occ": 1
+        },
+        {
+          "at": "GenParams.MAX_NEW_TOKENS: 256,  # max tokens in the output",
+          "lines": 2,
+          "title": "Reading the generation knobs",
+          "text": "`MAX_NEW_TOKENS` caps answer length; `TEMPERATURE` controls randomness. These come from `GenTextParamsMetaNames`, so a typo in the enum name is caught by Python rather than silently ignored by the API."
+        },
+        {
+          "at": "EmbedTextParamsMetaNames.TRUNCATE_INPUT_TOKENS: 512,",
+          "lines": 1,
+          "title": "The comment that saves you",
+          "text": "This was 3, which cut every chunk to three tokens before embedding - the search then looked at the first three words only. 512 is a sane limit for chunk sizes of a few hundred characters. In `Gradio/qbot.py` the same value is still 3, and that tab shows the consequence.",
+          "kind": "watch"
+        },
+        {
+          "at": "return splitter.split_documents(data)",
+          "lines": 1,
+          "title": "Recursive splitting",
+          "text": "`RecursiveCharacterTextSplitter` tries paragraph breaks first, then sentence breaks, then characters. That keeps sentences intact more often than a blind fixed-width cut.",
+          "kind": "crit"
+        },
+        {
+          "at": "ids = vectordb.get()[\"ids\"]",
+          "lines": 3,
+          "title": "How to empty a Chroma store",
+          "text": "Chroma has no \"drop everything\" call, so you fetch all ids and delete them in one go. The `if ids` guard avoids a pointless call on an already-empty collection.",
+          "kind": "crit"
+        },
+        {
+          "at": "urllib.request.urlretrieve(URL, TXT_FILE)",
+          "lines": 1,
+          "title": "Download only when needed",
+          "text": "Guarded by `os.path.exists`, so a second run reuses the local file. If you are offline the first time, this line is where the script stops."
+        },
+        {
+          "at": "chunks_txt = split_documents(txt_data, chunk_size=200, chunk_overlap=20)",
+          "lines": 1,
+          "title": "Chunk size drives everything",
+          "text": "200 characters is small - good for pinpoint answers, bad for context. `chunk_overlap=20` repeats a little text so a sentence cut at a boundary still appears whole in one of the chunks.",
+          "kind": "crit"
+        },
+        {
+          "at": "docs = vectordb.as_retriever(search_kwargs={\"k\": 1}).invoke(query)",
+          "lines": 1,
+          "title": "Top-1 versus default",
+          "text": "The default retriever returns about four documents; `k: 1` forces exactly one. Fewer chunks means less context for the model but no wasted prompt space.",
+          "kind": "crit"
+        },
+        {
+          "at": "docs = vectordb.as_retriever(search_type=\"mmr\").invoke(query)",
+          "lines": 1,
+          "title": "MMR = maximal marginal relevance",
+          "text": "MMR first finds a good match, then penalises documents that are too similar to what was already picked. The result is diverse coverage instead of four near-copies of the same paragraph.",
+          "kind": "crit"
+        },
+        {
+          "at": "search_kwargs={\"score_threshold\": 0.4},",
+          "lines": 3,
+          "title": "Return nothing rather than nonsense",
+          "text": "With `similarity_score_threshold` you ask for documents above a similarity bar. A high bar can legitimately return zero results - that is the feature, not a bug, and your UI must handle it.",
+          "kind": "crit"
+        },
+        {
+          "at": "reset_vectordb(vectordb)  # drop the previous document's embeddings",
+          "lines": 1,
+          "title": "Mixing two documents is a silent bug",
+          "text": "Without this reset, queries would search the PDF and the company policy at the same time, and the top hit could come from the wrong file entirely. Clearing first makes the experiment honest."
+        },
+        {
+          "at": "logging.getLogger(\"langchain.retrievers.multi_query\").setLevel(logging.INFO)",
+          "lines": 1,
+          "title": "See the generated queries",
+          "text": "MultiQueryRetriever logs the paraphrases it invents. Without this line you see only merged results and cannot tell whether the LLM wrote useful variants.",
+          "kind": "crit"
+        },
+        {
+          "at": "multi_query_retriever = MultiQueryRetriever.from_llm(",
+          "lines": 4,
+          "title": "One question, several searches",
+          "text": "The LLM rewrites \"What does the paper say about langchain?\" into a few variations, each is searched, and the union is returned. It improves recall when your phrasing differs from the document's wording.",
+          "kind": "crit"
+        },
+        {
+          "at": "metadata={\"year\": 1993, \"rating\": 7.7, \"genre\": \"science fiction\"},",
+          "lines": 1,
+          "title": "Metadata makes filtering possible",
+          "text": "These small dictionaries are what the self-query retriever will filter on. Notice that one movie has no `director` and another no `genre` - real data is inconsistent, and the retriever must cope.",
+          "kind": "crit"
+        },
+        {
+          "at": "AttributeInfo(",
+          "lines": 6,
+          "title": "Describe each field to the LLM",
+          "text": "`AttributeInfo` tells the model what each metadata key means and what type it holds. Vague descriptions produce wrong filters - for example treating a year as a string and comparing alphabetically.",
+          "kind": "crit",
+          "occ": 1
+        },
+        {
+          "at": "structured_query_translator=ChromaTranslator(),",
+          "lines": 1,
+          "title": "Translate the plan into Chroma's language",
+          "text": "The LLM produces a generic query plan; the translator converts it into the exact `where` syntax Chroma understands. Swap the vector store and you swap the translator.",
+          "kind": "crit"
+        },
+        {
+          "at": "print(self_query_retriever.invoke(\"Movies rated higher than 8.5\"))",
+          "lines": 1,
+          "title": "No embeddings needed for the filter",
+          "text": "The rating filter is a numeric comparison done by the database. Semantic similarity still picks within the filtered set, so both mechanisms cooperate."
+        },
+        {
+          "at": "from langchain.retrievers import ParentDocumentRetriever",
+          "lines": 3,
+          "title": "Three pieces of the same trick",
+          "text": "A parent splitter (big chunks), a child splitter (small chunks) and a docstore that keeps parents in memory. Search happens on children; the answer comes from parents."
+        },
+        {
+          "at": "vectordb = Chroma(",
+          "lines": 2,
+          "title": "This line will fail - find out why",
+          "text": "It calls `watsonx_embedding()`, a function that is **not defined anywhere in this file** (it lives in `Gradio/qbot.py`). Expect a `NameError`. The correct call here is `get_embeddings()`. A good exercise: fix it and run the parent-document section.",
+          "kind": "watch"
+        },
+        {
+          "at": "retriever.add_documents(txt_data)",
+          "lines": 1,
+          "title": "One call, two stores",
+          "text": "`add_documents` splits into parents and children, writes parents to the docstore, embeds children into the vector store, and records the parent id on each child so the link survives the round trip.",
+          "kind": "crit"
+        },
+        {
+          "at": "sub_docs = vectordb.similarity_search(\"smoking policy\")",
+          "lines": 1,
+          "title": "Child chunks are what you see here",
+          "text": "This prints a ~200-character snippet because the vector store only holds children. Compare it with the next call, which returns the full parent and therefore much more context.",
+          "kind": "crit"
+        }
+      ]
+    },
+    "Code/RAG_BASIC.py": {
+      "purpose": "The classic first RAG script: download a company-policy text file, split it, embed it into Chroma with HuggingFace embeddings, then answer questions with a watsonx Llama model using `RetrievalQA` - first plain, then with a custom prompt, and finally as a chat loop that remembers earlier turns.",
+      "run": "python RAG_BASIC.py   (downloads companyPolicies.txt, then asks questions)",
+      "meta": [
+        "186 lines",
+        "RetrievalQA + memory",
+        "interactive input() loop"
+      ],
+      "sections": [
+        {
+          "title": "Warning suppression and imports",
+          "start": "def warn(*args, **kwargs):",
+          "why": "A single assignment silences every library warning in the file. Convenient in class, dangerous in production."
+        },
+        {
+          "title": "Download the company policy file",
+          "start": "filename = 'companyPolicies.txt'",
+          "why": "The knowledge base of this demo is one plain text file about mobile, vehicle and smoking policies."
+        },
+        {
+          "title": "Read it and split it into chunks",
+          "start": "loader = TextLoader(filename)",
+          "why": "Retrieval works on chunks. One thousand characters with zero overlap is a simple starting point."
+        },
+        {
+          "title": "Embed the chunks into Chroma",
+          "start": "embeddings = HuggingFaceEmbeddings()",
+          "why": "`Chroma.from_documents` embeds and stores in one line. From here the document is searchable."
+        },
+        {
+          "title": "Configure the watsonx model",
+          "start": "parameters = {",
+          "why": "Greedy decoding, 130 to 256 new tokens, temperature 0.5. These numbers decide answer length and randomness."
+        },
+        {
+          "title": "Create the LLM object",
+          "start": "llm = WatsonxLLM(",
+          "why": "Same wrapper as everywhere else in the repo, pointed at a Llama 4 model."
+        },
+        {
+          "title": "RetrievalQA - the one-line RAG chain",
+          "start": "qa = RetrievalQA.from_chain_type(llm=llm,",
+          "why": "This chain does three jobs at once: embed the question, fetch top chunks, and ask the model to answer using them.",
+          "occ": 1
+        },
+        {
+          "title": "A custom prompt that forbids guessing",
+          "start": "prompt_template = \"\"\"Use the information from the document",
+          "why": "The default prompt is generic. This one names the two placeholders and explicitly allows \"I do not know\"."
+        },
+        {
+          "title": "Conversation memory and the chat loop",
+          "start": "memory = ConversationBufferMemory(",
+          "why": "Follow-up questions like \"List points in it\" only make sense with history. This section keeps a list of past question/answer pairs.",
+          "occ": 1
+        },
+        {
+          "title": "The interactive qa() function",
+          "start": "def qa():",
+          "why": "A while-loop around the chain so a learner can keep asking until they type quit. Notice it never ends on its own."
+        }
+      ],
+      "notes": [
+        {
+          "at": "warnings.warn = warn",
+          "lines": 1,
+          "title": "A global monkey-patch",
+          "text": "This replaces the `warnings.warn` function with an empty one for the whole process, then adds a filter. It hides deprecation notices - including ones that are warning you a package will be removed. Fine for a demo, bad in a shared codebase.",
+          "kind": "watch"
+        },
+        {
+          "at": "from langchain.chains import RetrievalQA, ConversationalRetrievalChain",
+          "lines": 1,
+          "title": "Two chains, two levels of memory",
+          "text": "`RetrievalQA` answers a single question. `ConversationalRetrievalChain` adds history so a follow-up can refer to \"it\" and still be understood.",
+          "kind": "crit"
+        },
+        {
+          "at": "from ibm_watsonx_ai.foundation_models import Model",
+          "lines": 1,
+          "title": "Imported but not used",
+          "text": "`Model` and `ModelTypes` are imported here but the script builds a `WatsonxLLM` instead. Unused imports are harmless at run time, but they mislead readers about what is happening.",
+          "kind": "watch"
+        },
+        {
+          "at": "wget.download(url, out=filename)",
+          "lines": 2,
+          "title": "wget downloads with a progress bar",
+          "text": "`wget.download(url, out=filename)` saves the file and prints a progress bar. It always overwrites, so running twice re-downloads - unlike the `os.path.exists` check in the context-retrieval file.",
+          "kind": "info"
+        },
+        {
+          "at": "contents = file.read()",
+          "lines": 2,
+          "title": "Printing the whole document",
+          "text": "Useful once to see what the model will be reading. In a 15 KB file that is thousands of console lines; delete this print when you understand the data.",
+          "kind": "info"
+        },
+        {
+          "at": "text_splitter = CharacterTextSplitter(chunk_size=1000, chunk_overlap=0)",
+          "lines": 1,
+          "title": "Zero overlap means hard cuts",
+          "text": "With no overlap, a sentence straddling the boundary is split and half of it may never be retrieved. Even `chunk_overlap=50` usually improves answers noticeably.",
+          "kind": "watch"
+        },
+        {
+          "at": "print(len(texts))",
+          "lines": 1,
+          "title": "Count your chunks",
+          "text": "A surprisingly useful sanity check: if this prints 1, your splitter did nothing and the whole file is one giant chunk."
+        },
+        {
+          "at": "docsearch = Chroma.from_documents(texts, embeddings)  # store the embedding in docsearch using Chromadb",
+          "lines": 1,
+          "title": "Embed and store in one call",
+          "text": "`from_documents` embeds every chunk with the HuggingFace model and writes it to an in-memory Chroma collection. Nothing is persisted to disk, so this work is repeated every run.",
+          "kind": "crit"
+        },
+        {
+          "at": "GenParams.MIN_NEW_TOKENS: 130, # this controls the minimum number of tokens in the generated output",
+          "lines": 1,
+          "title": "Minimum tokens force a real answer",
+          "text": "130 minimum stops the model from replying with a three-word shrug. The catch: it must keep writing even when it has nothing to say, which encourages padding.",
+          "kind": "crit"
+        },
+        {
+          "at": "GenParams.DECODING_METHOD: DecodingMethods.GREEDY,",
+          "lines": 1,
+          "title": "Greedy means deterministic-ish",
+          "text": "Greedy decoding always takes the most likely next token: reproducible, but it cannot explore alternatives. `sample` with a temperature is the creative option."
+        },
+        {
+          "at": "llm = WatsonxLLM(",
+          "lines": 4,
+          "title": "apikey is missing on purpose",
+          "text": "No `apikey` argument appears here - inside IBM's Skills Network lab the platform injects credentials. On your own laptop, add `apikey=os.environ[\"WATSONX_APIKEY\"]` or the call fails with an authentication error.",
+          "kind": "watch"
+        },
+        {
+          "at": "chain_type=\"stuff\",",
+          "lines": 1,
+          "title": "\"stuff\" means paste everything in",
+          "text": "The retrieved chunks are stuffed into one prompt. It is the simplest and usually best strategy for short context, but it dies on very large documents because the prompt overflows.",
+          "kind": "crit",
+          "occ": 1
+        },
+        {
+          "at": "return_source_documents=False)",
+          "lines": 1,
+          "title": "Losing your evidence",
+          "text": "With `False` you get only the answer, not the chunks it came from. During development set it to `True` - being able to check the source is the fastest way to catch a wrong answer.",
+          "kind": "watch",
+          "occ": 1
+        },
+        {
+          "at": "Question: {question}",
+          "lines": 1,
+          "title": "The two required placeholders",
+          "text": "A RetrievalQA prompt must contain `{context}` (the retrieved chunks) and `{question}`. Misspell either and LangChain raises a validation error at build time - a rare example of failing loudly.",
+          "kind": "crit"
+        },
+        {
+          "at": "If you don't know the answer, just say that you don't know",
+          "lines": 1,
+          "title": "Prompt-level hallucination control",
+          "text": "This is the single most effective sentence in the file. Models invent details when the context is silent; explicitly allowing \"I don't know\" gives them a safe way out.",
+          "kind": "crit"
+        },
+        {
+          "at": "memory = ConversationBufferMemory(memory_key = \"chat_history\", return_message = True)",
+          "lines": 1,
+          "title": "One letter short",
+          "text": "The keyword should be `return_messages=True` (plural). As written, the argument is invalid and recent LangChain versions raise a `TypeError`. Fix it before running the memory section.",
+          "kind": "watch",
+          "occ": 1
+        },
+        {
+          "at": "result = qa.invoke({\"question\":query}, {\"chat_history\": history})",
+          "lines": 1,
+          "title": "Passing history by hand",
+          "text": "The second argument supplies `chat_history` explicitly, so the chain does not depend on the memory object it was given. Two mechanisms for the same thing - pick one.",
+          "kind": "crit"
+        },
+        {
+          "at": "history.append((query, result[\"answer\"]))",
+          "lines": 1,
+          "title": "History as a list of pairs",
+          "text": "Each tuple is (question, answer). \"List points in it\" makes sense only because \"it\" was established in the previous tuple.",
+          "kind": "crit",
+          "occ": 1
+        },
+        {
+          "at": "result = qa({\"question\": query}, {\"chat_history\": history})",
+          "lines": 1,
+          "title": "Calling the chain like a function",
+          "text": "Older LangChain chains are callable directly; newer code prefers `.invoke`. Both work here, but mixing styles in one file makes searching harder.",
+          "kind": "info",
+          "occ": 1
+        },
+        {
+          "at": "def qa():",
+          "lines": 3,
+          "title": "Name shadowing inside the function",
+          "text": "The function is called `qa`, and inside it a local variable is also called `qa`. Python allows it, but it means you cannot call the function recursively by that name inside its own body. Rename the local variable to `chain` for clarity.",
+          "kind": "watch"
+        },
+        {
+          "at": "if query.lower() in [\"quit\",\"exit\",\"bye\"]:",
+          "lines": 2,
+          "title": "A clear exit condition",
+          "text": "Comparing the lowercased input against a list of words means QUIT, Quit and quit all work. Always give a `while True` loop an escape hatch."
+        },
+        {
+          "at": "history.append((query, result[\"answer\"]))",
+          "lines": 3,
+          "occ": 2,
+          "title": "Growing history grows the prompt",
+          "text": "Every turn appends to the history, and the whole history is resent each time. After twenty questions the prompt is huge - the classic reason production chat systems summarise or truncate old turns.",
+          "kind": "watch"
+        },
+        {
+          "at": "qa()",
+          "lines": 1,
+          "title": "The demo starts here",
+          "text": "The module-level call starts the loop immediately when the file is run. Because there is no `__main__` guard, importing this file from another script would also start waiting for keyboard input.",
+          "kind": "watch",
+          "occ": 2
+        }
+      ]
+    },
+    "Code/LANGCHAIN_AGENT_AI.py": {
+      "purpose": "The smallest agent in the repo: two Python functions are wrapped as tools (a calculator and a text formatter), and a ReAct agent decides which tool to call, in which order, to answer a question. It shows the loop of Thought, Action, Observation, Final Answer.",
+      "run": "python LANGCHAIN_AGENT_AI.py   (needs WATSONX_APIKEY and WATSONX_PROJECT_ID)",
+      "meta": [
+        "131 lines",
+        "ReAct agent",
+        "eval() inside the calculator"
+      ],
+      "sections": [
+        {
+          "title": "Imports",
+          "start": "import os",
+          "why": "LangChain's agent classes, the tool wrapper, IBM's model client - plus one very dangerous built-in function used below."
+        },
+        {
+          "title": "Tool 1 - the calculator",
+          "start": "def calculator(expression: str) -> str:",
+          "why": "A one-line tool that evaluates a maths expression. Simple, useful, and the security lesson of the whole file."
+        },
+        {
+          "title": "Tool 2 - the text formatter",
+          "start": "def format_text(text: str) -> str:",
+          "why": "Shows the convention that matters for agents: an input format the model must follow, and a helpful error when it does not."
+        },
+        {
+          "title": "Wrapping functions as Tools",
+          "start": "tools = [",
+          "why": "A `Tool` is a name + a function + a description. The description is what the model reads to decide whether the tool is relevant."
+        },
+        {
+          "title": "The ReAct prompt template",
+          "start": "prompt_template = \"\"\"You are a helpful assistant who can use tools",
+          "why": "This text is the agent's choreography: Thought, Action, Action Input, Observation, repeat, Final Answer."
+        },
+        {
+          "title": "Creating the agent and the executor",
+          "start": "llama_llm = WatsonxLLM(",
+          "why": "The model supplies the thinking; the executor runs the loop, calls tools, and feeds observations back."
+        },
+        {
+          "title": "Test questions and the run loop",
+          "start": "test_questions = [",
+          "why": "Four questions that exercise the happy path and a badly formatted input."
+        }
+      ],
+      "notes": [
+        {
+          "at": "from langchain.agents import create_react_agent, AgentExecutor",
+          "lines": 1,
+          "title": "Two pieces: brain and body",
+          "text": "`create_react_agent` builds the reasoning loop from a prompt and a model. `AgentExecutor` runs it, calls tools, and keeps looping until a Final Answer appears.",
+          "kind": "crit"
+        },
+        {
+          "at": "from ibm_watson_machine_learning.foundation_models.extensions.langchain import WatsonxLLM",
+          "lines": 2,
+          "title": "Duplicate import again",
+          "text": "Two different `WatsonxLLM` imports, and the second (`langchain_ibm`) wins. The first is a legacy path kept for older tutorials. If your environment raises a deprecation warning, this is why.",
+          "kind": "watch"
+        },
+        {
+          "at": "result = eval(expression)",
+          "lines": 1,
+          "title": "eval() runs any Python",
+          "text": "`eval(\"2 + 2\")` is fine, but the same function happily runs `__import__('os').system('...')`. Because an LLM chooses the input, a prompt-injection can reach arbitrary code. Use `ast.literal_eval`, or a small parser, or `numexpr` instead.",
+          "kind": "crit"
+        },
+        {
+          "at": "return f\"Error calculating: {str(e)}\"",
+          "lines": 1,
+          "title": "Errors are data for the agent",
+          "text": "Returning the error as text lets the model read it and try again with a corrected expression. Raising an exception would break the loop entirely.",
+          "kind": "crit"
+        },
+        {
+          "at": "if \":\" in text:",
+          "lines": 3,
+          "title": "Designing a tool's input format",
+          "text": "The tool needs two pieces of information (which format, which text), so it defines a mini-syntax: `uppercase: hello world`. The docstring tells the model to use it. Clear input formats are the difference between an agent that works and one that flails.",
+          "kind": "crit"
+        },
+        {
+          "at": "return f\"Missing format. Example: titlecase: {text} -> {text.title()}\"",
+          "lines": 1,
+          "title": "Teach instead of scold",
+          "text": "The error message demonstrates the correct usage. Models are good at reading a worked example, so the next attempt is usually correct."
+        },
+        {
+          "at": "Tool(",
+          "lines": 2,
+          "title": "Tool(name, func, description)",
+          "text": "`name` must be a valid identifier-like string the model can type; `func` is the Python callable; `description` is marketing copy aimed at the model. A vague description means the agent never picks that tool.",
+          "kind": "crit",
+          "occ": 1
+        },
+        {
+          "at": "{tools}",
+          "lines": 3,
+          "title": "The two placeholders agents require",
+          "text": "`{tools}` renders the tool list with descriptions; `{tool_names}` renders just the names so the prompt can say \"Action must be one of [...]\". Forgetting `{tool_names}` is the classic first-agent error - the comment above the template mentions it.",
+          "kind": "crit"
+        },
+        {
+          "at": "Question: {input}",
+          "lines": 2,
+          "title": "The last two slots",
+          "text": "`{input}` is the user question and `{agent_scratchpad}` is where the agent's own previous thoughts and observations are written back. The scratchpad is what makes multi-step reasoning possible.",
+          "kind": "crit"
+        },
+        {
+          "at": "load_dotenv(override=True)",
+          "lines": 4,
+          "title": "Credentials, with a fragile line",
+          "text": "`os.environ[\"WATSONX_APIKEY\"]` raises KeyError if the variable is missing - an acceptable hard failure, but the error message will not tell you to check `.env`.",
+          "kind": "info"
+        },
+        {
+          "at": "params={\"max_new_tokens\": 100, \"min_new_tokens\": 1},",
+          "lines": 1,
+          "title": "100 tokens is tight for ReAct",
+          "text": "A ReAct trace needs room for thought, action, input and answer. A 100-token cap often cuts the trace mid-sentence, producing a parse error. Try 300-500 for agents.",
+          "kind": "watch"
+        },
+        {
+          "at": "prompt = PromptTemplate.from_template(prompt_template)",
+          "lines": 1,
+          "title": "Template object, not a string",
+          "text": "The agent expects a `PromptTemplate`, because it must inject the tool list and scratchpad on every iteration."
+        },
+        {
+          "at": "agent = create_react_agent(",
+          "lines": 4,
+          "title": "Agent = prompt + model + tools",
+          "text": "No tools means no actions; no prompt means no format. This call wires the three together and returns a runnable agent."
+        },
+        {
+          "at": "handle_parsing_errors=True",
+          "lines": 1,
+          "title": "Survive a badly formatted answer",
+          "text": "Without this, one stray sentence from the model crashes the run. With it, the parse error is handed back to the model as an observation, and the model often corrects itself on the next loop.",
+          "kind": "crit"
+        },
+        {
+          "at": "\"Can you convert 'hello world' to uppercase?\", # The agent might be able to answer this question",
+          "lines": 2,
+          "title": "The question designed to fail",
+          "text": "The tool wants `uppercase: hello world`, but the user asked in natural language. The model may pass the whole sentence to the tool or produce the wrong format. This is a realistic reminder that tools need forgiving input parsing.",
+          "kind": "watch"
+        },
+        {
+          "at": "result = agent_executor.invoke({\"input\": question})",
+          "lines": 2,
+          "title": "One invoke, many model calls",
+          "text": "A single `invoke` can trigger several LLM calls plus tool executions. `verbose=True` prints each step, which is how you debug an agent that loops or picks the wrong tool.",
+          "kind": "crit"
+        }
+      ]
+    },
+    "Code/SIMILARITY_SEARCH_HAND.py": {
+      "purpose": "Builds embeddings by hand with sentence-transformers and computes the distance matrix manually - first with a pure-Python Euclidean formula, then with scipy - to show what a vector database does internally. The four sentences about \"bugs\" demonstrate why meaning-based search is hard.",
+      "run": "python SIMILARITY_SEARCH_HAND.py",
+      "meta": [
+        "65 lines",
+        "no database",
+        "pure maths"
+      ],
+      "sections": [
+        {
+          "title": "Imports",
+          "start": "import math",
+          "why": "Only maths and the model. No database, no API - this file is deliberately the manual version of what ChromaDB automates."
+        },
+        {
+          "title": "Four sentences, one ambiguous word",
+          "start": "documents = [",
+          "why": "Every sentence contains the word \"bugs\" but two are about software and two are about insects. A keyword search cannot tell them apart; an embedding model can."
+        },
+        {
+          "title": "Load the model and encode",
+          "start": "model = SentenceTransformer('paraphrase-MiniLM-L6-v2')",
+          "why": "Two lines turn four sentences into a 4 x 384 matrix of numbers."
+        },
+        {
+          "title": "The Euclidean distance function",
+          "start": "def euclidean_distance_fn(vector1, vector2):",
+          "why": "The Pythagorean formula generalised to 384 dimensions: square each difference, add, take the root."
+        },
+        {
+          "title": "Building the 4 by 4 distance matrix by hand",
+          "start": "l2_dist_manual = np.zeros([4,4])",
+          "why": "Every document against every other document. This is the brute-force search that a vector database speeds up with an index."
+        },
+        {
+          "title": "The same matrix with scipy",
+          "start": "l2_dist_scipy = scipy.spatial.distance.cdist(",
+          "why": "One call replaces the double loop, and `np.allclose` checks that both methods agree."
+        }
+      ],
+      "notes": [
+        {
+          "at": "import scipy",
+          "lines": 1,
+          "title": "A submodule needs its own import",
+          "text": "`import scipy` alone does not make `scipy.spatial` available in every context; `scipy.spatial.distance.cdist` works here because scipy lazily exposes submodules, but importing `scipy.spatial.distance` explicitly is safer and clearer.",
+          "kind": "watch"
+        },
+        {
+          "at": "model = SentenceTransformer('paraphrase-MiniLM-L6-v2')",
+          "lines": 1,
+          "title": "Paraphrase-tuned, not exact-match tuned",
+          "text": "This model was trained so that two sentences with the same meaning land close together, even with different words. The ChromaDB tab uses `all-MiniLM-L6-v2`; both produce 384 numbers, but they are different spaces - never mix them.",
+          "kind": "crit"
+        },
+        {
+          "at": "embeddings = model.encode(documents)",
+          "lines": 1,
+          "title": "encode returns a matrix",
+          "text": "Shape is `(4, 384)`: one row per sentence, one column per dimension. `encode` also normalises by default here, which is why Euclidean and cosine ranking usually agree on this data.",
+          "kind": "crit"
+        },
+        {
+          "at": "embeddings.shape",
+          "lines": 1,
+          "title": "Running in a notebook, not a script",
+          "text": "A bare expression only displays output in Jupyter/IPython. Run this file with `python` and nothing is printed - that is expected, not a bug.",
+          "kind": "watch",
+          "occ": 1
+        },
+        {
+          "at": "squared_sum = sum((x - y) ** 2 for x, y in zip(vector1, vector2))",
+          "lines": 1,
+          "title": "The Euclidean formula in one line",
+          "text": "`zip` pairs the 384 numbers, `(x - y) ** 2` squares each gap, `sum` adds them. `math.sqrt` finishes it. Read it as: the straight-line distance between two points in 384-dimensional space.",
+          "kind": "crit"
+        },
+        {
+          "at": "euclidean_distance_fn(embeddings[0], embeddings[1])",
+          "lines": 1,
+          "title": "Two kinds of bug, close together",
+          "text": "Sentence 0 (intern bugs) and sentence 1 (QA bugs) are both about software, so their distance is small. Compare with sentence 2 or 3 (insects) - a much larger number. The model separates the two meanings without being told.",
+          "kind": "crit"
+        },
+        {
+          "at": "l2_dist_manual = np.zeros([4,4])",
+          "lines": 1,
+          "title": "Pre-allocate the matrix",
+          "text": "`np.zeros([4,4])` creates the grid first, then the loop fills it. Pre-allocation is a habit worth keeping from numpy - growing arrays in a loop is far slower.",
+          "kind": "crit"
+        },
+        {
+          "at": "for i in range(embeddings.shape[0]):",
+          "lines": 2,
+          "title": "The double loop",
+          "text": "16 pairs for 4 documents. For 10,000 documents that is 100 million comparisons - which is exactly why real databases use approximate indexes (HNSW) instead of brute force.",
+          "kind": "crit",
+          "occ": 1
+        },
+        {
+          "at": "### YOUR CODE GOES HERE ###",
+          "lines": 1,
+          "title": "The course exercise",
+          "text": "The line below the marker is the answer to the exercise: the same function call. `l2_dist_manual_improved` ends up identical to `l2_dist_manual`, which is a slightly odd lesson but a useful reminder to read the code, not the label.",
+          "kind": "info"
+        },
+        {
+          "at": "l2_dist_scipy = scipy.spatial.distance.cdist(embeddings, embeddings, 'euclidean')",
+          "lines": 1,
+          "title": "cdist = pairwise distances",
+          "text": "`cdist(A, B, 'euclidean')` returns every distance from A to B. Passing the same matrix twice gives the symmetric matrix you built by hand, in compiled code.",
+          "kind": "crit"
+        },
+        {
+          "at": "np.allclose(l2_dist_manual, l2_dist_scipy)",
+          "lines": 1,
+          "title": "Never compare floats with ==",
+          "text": "`np.allclose` allows a tiny tolerance, because two mathematically equal float computations can differ in the last bits. Also note the diagonal: every document's distance to itself is 0, and the matrix is symmetric.",
+          "kind": "crit"
+        }
+      ]
+    },
+    "Code/_tmp_watsonxllm_check.py": {
+      "purpose": "A 19-line throw-away probe. It sends one tiny prompt to granite and prints the *type* of the return value, to answer a single question: does `WatsonxLLM.invoke` return a string or a message object in this installed version?",
+      "run": "python _tmp_watsonxllm_check.py",
+      "meta": [
+        "scratch file, not part of the app",
+        "max_new_tokens = 1"
+      ],
+      "sections": [
+        {
+          "title": "The whole probe",
+          "start": "import os",
+          "why": "Import, load .env, build the smallest possible model, call it once, and inspect the result. Nothing else."
+        }
+      ],
+      "notes": [
+        {
+          "at": "load_dotenv(override=True)",
+          "lines": 1,
+          "title": "Loaded before the import",
+          "text": "`load_dotenv` runs before `from langchain_ibm import WatsonxLLM`, which is unusual but harmless. In most files the import comes first; what matters is that .env is loaded before any `os.environ[...]` read.",
+          "kind": "info"
+        },
+        {
+          "at": "params={\"max_new_tokens\": 1, \"min_new_tokens\": 1},",
+          "lines": 1,
+          "title": "Cheapest possible call",
+          "text": "One token out proves authorisation, endpoint and model access with almost no cost or latency. This is the right way to test connectivity - not by asking for a 500-word essay.",
+          "kind": "crit"
+        },
+        {
+          "at": "print(\"type:\", type(result))",
+          "lines": 1,
+          "title": "The actual question being answered",
+          "text": "Version 0.1.7 of `langchain-ibm` returns a plain `str`; some later versions return an `AIMessage` with a `.content` attribute. Printing the type settles the argument in one run.",
+          "kind": "crit"
+        },
+        {
+          "at": "print(\"value:\", repr(result)[:60])",
+          "lines": 1,
+          "title": "repr tells the whole story",
+          "text": "`repr` shows quotes for a string, `AIMessage(content=...)` for a message object, and the first 60 characters keep the output short. This is the pattern to copy whenever you are unsure what a library returned.",
+          "kind": "crit"
+        },
+        {
+          "at": "result = llm.invoke(\"Say hi.\")",
+          "lines": 1,
+          "title": "Delete this file when done",
+          "text": "The leading underscore and the `_tmp_` prefix say \"scratch\". It is kept because it documents version behaviour, but a real project would delete it or turn it into a proper test.",
+          "kind": "watch"
+        }
+      ]
+    },
+    "Code/data_extraction.py": {
+      "purpose": "An empty placeholder file (0 bytes). It exists in the folder but contains no code, so there is nothing to explain line by line - only to notice.",
+      "why": "Why cover an empty file? Because reading a repository means noticing what is missing as well as what is present. A 0-byte Python file imports successfully and defines nothing, so anything that does `from data_extraction import something` will fail with ImportError. The real extraction logic in this repo lives in `icebreaker/modules/data_extraction.py`, covered in the icebreaker tab.",
+      "meta": [
+        "0 bytes"
+      ],
+      "sections": [],
+      "notes": []
+    }
+  }
+}

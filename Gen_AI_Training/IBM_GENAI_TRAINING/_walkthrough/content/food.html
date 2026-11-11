@@ -1,0 +1,151 @@
+﻿<section class="card">
+  <h3>In one breath</h3>
+  <p class="lede">A two-file food search engine. <code>shared_functions.py</code> turns a 5,000-line JSON catalogue of dishes into a searchable vector index and answers natural-language queries - including requests a vector search alone cannot honour, like <em>"desserts with the lowest calories"</em> or <em>"Thai food under 300 calories"</em>. <code>interactive_search.py</code> wraps that engine in a friendly command-line chatbot.</p>
+  <ul class="tight">
+    <li><b>Stage 1-3</b>: load JSON, repair missing fields, create a ChromaDB collection, embed every dish as one rich sentence.</li>
+    <li><b>Stage 4</b>: two search functions - plain semantic, and semantic plus metadata filters (<code>cuisine_type</code>, <code>calories &lt;= N</code>).</li>
+    <li><b>Stage 5</b>: a tiny rule-based parser that reads "lowest", "under 300", "thai" from the query and re-ranks the results.</li>
+  </ul>
+</section>
+
+<section class="card analogy">
+  <h3>Think of a Zomato search that actually listens</h3>
+  <p>You type <em>"sweet baked dessert, lowest calories"</em>. A dumb search matches the words and returns the sweetest, heaviest cake. A <b>good</b> recommender does three things: it understands what you meant (dessert, sweet, baked), it respects your constraint (least calories), and it still shows only <em>dessert-ish</em> dishes - not a 3-calorie packet of vinegar that happens to be the lowest-calorie item in the catalogue.</p>
+  <p>That last point is the clever bit in this folder. Instead of sorting the <em>whole</em> catalogue by calories, <code>perform_calorie_aware_search</code> first collects about fifty semantically relevant dishes, then sorts <em>that shortlist</em> by calories. Relevance first, numbers second.</p>
+  <p class="small">Analogy: a waiter first shortlists the dessert counter, then picks the lightest three from that counter - rather than handing you the lightest item in the whole kitchen.</p>
+</section>
+
+<section class="card">
+  <h3>Pipeline - click any box to jump to the code</h3>
+  <div class="pipeline">
+    <svg viewBox="0 0 900 250" role="img" aria-label="Flow: FoodDataSet.json is normalised, embedded with MiniLM, stored in ChromaDB with metadata, queried by the CLI, parsed for calories and cuisine, re-ranked and printed">
+      <defs><marker id="head" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#9aa7c2"/></marker></defs>
+      <a class="node" href="#food-f3"><g><rect x="6" y="22" width="150" height="62" rx="10"/><text x="81" y="46" text-anchor="middle">FoodDataSet.json</text><text class="sub" x="81" y="64" text-anchor="middle">dish objects</text></g></a>
+      <path class="arrow" d="M158 53 H198"/>
+      <a class="node" href="#food-f1"><g><rect x="200" y="16" width="160" height="74" rx="10"/><text x="280" y="40" text-anchor="middle">load_food_data</text><text class="sub" x="280" y="58" text-anchor="middle">defaults + taste_profile</text><text class="sub" x="280" y="74" text-anchor="middle">id becomes text</text></g></a>
+      <path class="arrow" d="M362 53 H402"/>
+      <a class="node" href="#food-f1"><g><rect x="404" y="16" width="170" height="74" rx="10"/><text x="489" y="40" text-anchor="middle">create collection</text><text class="sub" x="489" y="58" text-anchor="middle">cosine + MiniLM</text><text class="sub" x="489" y="74" text-anchor="middle">delete old first</text></g></a>
+      <path class="arrow" d="M576 53 H616"/>
+      <a class="node" href="#food-f1"><g><rect x="618" y="16" width="170" height="74" rx="10"/><text x="703" y="40" text-anchor="middle">populate</text><text class="sub" x="703" y="58" text-anchor="middle">1 document + 8 metadata</text><text class="sub" x="703" y="74" text-anchor="middle">fields per dish</text></g></a>
+      <a class="node" href="#food-f2"><g><rect x="800" y="16" width="94" height="74" rx="10"/><text x="847" y="46" text-anchor="middle">CLI</text><text class="sub" x="847" y="64" text-anchor="middle">input()</text></g></a>
+      <path class="arrow" d="M790 53 H796" stroke-dasharray="4 4"/>
+      <a class="node" href="#food-f1"><g><rect x="618" y="118" width="170" height="70" rx="10"/><text x="703" y="142" text-anchor="middle">parse constraints</text><text class="sub" x="703" y="160" text-anchor="middle">typos fixed</text><text class="sub" x="703" y="175" text-anchor="middle">max / sort / cuisine</text></g></a>
+      <path class="arrow" d="M703 92 V114"/>
+      <a class="node" href="#food-f1"><g><rect x="404" y="118" width="170" height="70" rx="10"/><text x="489" y="142" text-anchor="middle">filtered search</text><text class="sub" x="489" y="160" text-anchor="middle">where = cuisine + $lte</text><text class="sub" x="489" y="175" text-anchor="middle">pool of 50</text></g></a>
+      <path class="arrow" d="M616 153 H576"/>
+      <a class="node" href="#food-f1"><g><rect x="200" y="118" width="160" height="70" rx="10"/><text x="280" y="142" text-anchor="middle">sort by calories</text><text class="sub" x="280" y="160" text-anchor="middle">stable, then slice 5</text><text class="sub" x="280" y="175" text-anchor="middle">1 - distance = score</text></g></a>
+      <path class="arrow" d="M402 153 H362"/>
+      <a class="node" href="#food-f2"><g><rect x="6" y="118" width="150" height="70" rx="10"/><text x="81" y="142" text-anchor="middle">print results</text><text class="sub" x="81" y="160" text-anchor="middle">match % + follow-ups</text></g></a>
+      <path class="arrow" d="M198 153 H158"/>
+      <a class="node" href="#food-f1"><g><rect x="6" y="206" width="150" height="34" rx="8"/><text x="81" y="228" text-anchor="middle">no intent? plain search</text></g></a>
+      <path class="arrow" d="M703 190 C703 236 300 236 160 223" stroke-dasharray="4 4"/>
+    </svg>
+  </div>
+</section>
+
+<section class="card">
+  <h3>Before you run it</h3>
+  <div class="grid2">
+    <div>
+      <div class="code-wrap"><pre class="code" data-lang="bash" data-highlight="false"><code>cd Food_Recommender
+pip install chromadb sentence-transformers
+python interactive_search.py</code></pre></div>
+      <p class="small">First run downloads the MiniLM model (~90 MB) and takes a little longer. Everything after that is local.</p>
+    </div>
+    <div>
+      <p><b>Things to type at the prompt</b></p>
+      <ul class="tight">
+        <li><code>chocolate dessert</code> - plain semantic search</li>
+        <li><code>italain food</code> - shows the typo repair</li>
+        <li><code>deserts with lowest calroes</code> - sort re-ranking</li>
+        <li><code>thai food under 300 calories</code> - filter + intent</li>
+        <li><code>help</code>, <code>history</code>, <code>quit</code></li>
+      </ul>
+    </div>
+  </div>
+  <div class="callout warn"><b>If every search returns nothing</b>You forgot <code>populate_similarity_collection</code> (or the populate step failed). An empty collection answers every query with an empty list, and this code returns <code>[]</code> instead of raising - so check the "Added N food items" line at startup.</div>
+</section>
+
+<!-- CODE:Food_Recommender/shared_functions.py -->
+<!-- CODE:Food_Recommender/interactive_search.py -->
+<!-- CODE:Food_Recommender/FoodDataSet.json -->
+
+<section class="card glossary-card" id="glossary-food">
+  <h3>Glossary - every acronym in this tab</h3>
+  <div class="glossary-filter"><input type="search" placeholder="Filter terms, e.g. HNSW" aria-label="Filter glossary terms"></div>
+  <div class="table-wrap">
+    <table class="glossary">
+      <thead><tr><th>Term</th><th>Full form</th><th>What it means here</th></tr></thead>
+      <tbody class="glossary-body">
+        <tr class="gtr"><td>API<span>Application Programming Interface</span></td><td>Application Programming Interface</td><td>The set of functions ChromaDB exposes: <code>create_collection</code>, <code>add</code>, <code>query</code>, <code>get</code>.</td></tr>
+        <tr class="gtr"><td>CLI<span>Command Line Interface</span></td><td>Command Line Interface</td><td>The text prompt where you type food queries. <code>interactive_search.py</code> is the CLI layer.</td></tr>
+        <tr class="gtr"><td>CPU<span>Central Processing Unit</span></td><td>Central Processing Unit</td><td>Where the MiniLM model runs. Small enough for a laptop, which is why no API key is needed.</td></tr>
+        <tr class="gtr"><td>HNSW<span>Hierarchical Navigable Small World</span></td><td>Hierarchical Navigable Small World</td><td>The approximate nearest-neighbour index inside ChromaDB. Its metric is what <code>hnsw:space</code> selects.</td></tr>
+        <tr class="gtr"><td>ID<span>Identifier</span></td><td>Identifier</td><td>The unique string for a stored dish, e.g. <code>1</code> or <code>1_1</code> after de-duplication.</td></tr>
+        <tr class="gtr"><td>JSON<span>JavaScript Object Notation</span></td><td>JavaScript Object Notation</td><td>The catalogue format: an array of objects with nested ingredients, nutrition and features.</td></tr>
+        <tr class="gtr"><td>kNN<span>k-Nearest Neighbours</span></td><td>k-Nearest Neighbours</td><td>Returning the k closest vectors. <code>n_results=5</code> and <code>candidate_pool=50</code> are both k values.</td></tr>
+        <tr class="gtr"><td>L2<span>Euclidean (L-two) distance</span></td><td>Euclidean distance</td><td>Straight-line distance between vectors. It is ChromaDB's default metric - the wrong one for this code, which is why cosine is forced in two places.</td></tr>
+        <tr class="gtr"><td>LLM<span>Large Language Model</span></td><td>Large Language Model</td><td>Not used here - this folder is retrieval only. The docstring explains that an LLM was deliberately avoided for the intent parser: regex is predictable and free.</td></tr>
+        <tr class="gtr"><td>RAG<span>Retrieval-Augmented Generation</span></td><td>Retrieval-Augmented Generation</td><td>This module is the "retrieval" half. It returns ranked dishes that a later step (or a user) can act on.</td></tr>
+        <tr class="gtr"><td>RE<span>Regular Expression</span></td><td>Regular Expression</td><td>A pattern language for matching text. Three compiled regexes find "lowest calories", "low calorie" and "under 300" in a query.</td></tr>
+        <tr class="gtr"><td>SQL<span>Structured Query Language</span></td><td>Structured Query Language</td><td>The classic database language. The <code>$lte</code> filter plus "delete then create" mirrors SQL habits inside a vector database.</td></tr>
+        <tr class="gtr"><td>UI<span>User Interface</span></td><td>User Interface</td><td>What the user sees. Here it is console text; the same engine could power a web page.</td></tr>
+        <tr class="gtr"><td>UTF-8<span>Unicode Transformation Format, 8-bit</span></td><td>Unicode Transformation Format - 8 bit</td><td>The text encoding used when reading the JSON. Specifying it prevents garbled characters on Windows.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="card quiz-card" id="quiz-food">
+  <div class="quiz-head">
+    <div>
+      <h3>Check your understanding - 27 MCQs</h3>
+      <p class="small">Half of these test the retrieval logic, half test the intent parsing. Try the "Wrong" filter after a first pass.</p>
+    </div>
+    <div class="quiz-score"><b>0 / 27</b><span class="muted">0 answered</span></div>
+  </div>
+  <div class="qbar"><i></i></div>
+  <div class="qcontrols">
+    <button class="qchip" type="button" data-filter="all" aria-pressed="true">All</button>
+    <button class="qchip" type="button" data-filter="unanswered" aria-pressed="false">Unanswered</button>
+    <button class="qchip" type="button" data-filter="wrong" aria-pressed="false">Wrong</button>
+    <button class="qchip" type="button" data-filter="easy" aria-pressed="false">Easy</button>
+    <button class="qchip" type="button" data-filter="medium" aria-pressed="false">Medium</button>
+    <button class="qchip" type="button" data-filter="hard" aria-pressed="false">Hard</button>
+    <button class="qchip" type="button" data-action="shuffle">Shuffle</button>
+    <button class="qchip" type="button" data-action="retry">Retry wrong only</button>
+    <button class="qchip" type="button" data-action="reset">Reset</button>
+  </div>
+  <div class="quiz-list"></div>
+  <script type="application/json" class="quiz">
+  [
+    {"q":"Why does load_food_data build a `taste_profile` string?","opts":["To save disk space","Because embeddings and metadata need flat text, and the features dict is nested","Because ChromaDB rejects dictionaries","To make the JSON valid"],"a":1,"why":"`food_features` is a per-dish dictionary with differing keys. Flattening it once produces a predictable string used in both the embedded document and the metadata, so downstream code never inspects a nested dict.","topic":"loading","diff":"easy"},
+    {"q":"What does load_food_data do when `food_name` is missing?","opts":["Defaults it to \"Unknown dish\"","Leaves it missing, which will fail later","Raises a KeyError","Deletes the record"],"a":1,"why":"Only four fields get defaults (ingredients, description, cuisine, calories). `food_name` is deliberately not defaulted because a nameless dish is useless and ChromaDB metadata rejects None. The failure appears later in populate, not at load time.","topic":"loading","diff":"hard"},
+    {"q":"Why is `food_id` converted with `str()`?","opts":["To sort it alphabetically","Because ChromaDB document ids must be strings","Because JSON requires strings","To make the f-string work"],"a":1,"why":"ChromaDB ids are string keys. Converting during normalisation means every later function can assume a string and never has to remember the conversion.","topic":"loading","diff":"easy"},
+    {"q":"The file is opened with `encoding='utf-8'`. Why does that matter?","opts":["It makes reading faster","It prevents mojibake for non-ASCII dish names on Windows","It validates the JSON schema","It compresses the file"],"a":1,"why":"Without an explicit encoding Python uses the platform default, which is not UTF-8 everywhere. Accented or non-English characters can then be decoded incorrectly.","topic":"loading","diff":"medium"},
+    {"q":"What happens if FoodDataSet.json is missing?","opts":["A traceback is raised","An empty list is returned and an error is printed","The file is downloaded automatically","The collection keeps old data"],"a":1,"why":"The whole body is wrapped in try/except. The function prints `Error loading food data: ...` and returns `[]`, following the module's fail-soft contract. The CLI then reports 0 items.","topic":"loading","diff":"medium"},
+    {"q":"Why is the collection deleted before it is created?","opts":["To free disk space","So a rerun starts from exactly the current JSON, never mixing stale rows","Because ChromaDB requires it","To reset the embedding model"],"a":1,"why":"Delete-then-create makes the demo idempotent. Without it, repeated runs could duplicate ids (which raise) or keep embeddings from an older catalogue version.","topic":"collection","diff":"easy"},
+    {"q":"On chromadb 0.6.x, where must `hnsw:space` be set for cosine to take effect?","opts":["Only in the configuration object","In the collection metadata as well, because the local HNSW segment reads it from there","In the query call","In an environment variable"],"a":1,"why":"The configuration records the metric, but the local index reads `hnsw:space` from metadata. Setting only one place silently gives squared L2, and `1 - distance` can then be negative. The code sets both on purpose.","topic":"collection","diff":"hard"},
+    {"q":"What is the consequence of getting the metric wrong?","opts":["The collection cannot be created","Ranking may still be right but the printed similarity percentages are wrong or negative","All documents are deleted","The embedding model changes"],"a":1,"why":"With squared L2 on unit-normalised vectors, `1 - distance` becomes `2*cos - 1`. Order can survive, but the displayed score is no longer a cosine similarity and can dip below zero.","topic":"collection","diff":"hard"},
+    {"q":"Why is the embedding function attached to the collection rather than passed on each call?","opts":["It is faster","So ingestion and queries always use exactly the same model","Because ChromaDB forbids per-call models","To reduce memory usage"],"a":1,"why":"Binding one function guarantees that documents and queries live in the same vector space. A mismatch between the two models would make every distance meaningless.","topic":"collection","diff":"medium"},
+    {"q":"What exactly is embedded for each dish?","opts":["Only the dish name","One concatenated sentence with name, description, ingredients, cuisine, method, taste, health benefits and nutrition","The raw JSON string","Only the cuisine and calories"],"a":1,"why":"A rich document means many kinds of query can land on the right dish: \"sweet and baked\" uses taste and method, \"with apples\" uses ingredients. Embedding only the name would make most queries useless.","topic":"ingestion","diff":"medium"},
+    {"q":"Why can't the ingredients list be stored as a Python list in metadata?","opts":["Lists are too large","ChromaDB metadata must be scalar values, so the list is joined into a string","Lists break the embedding function","JSON cannot represent lists"],"a":1,"why":"Metadata accepts strings, numbers and booleans only. Joining with commas keeps the information readable and filterable-ish, while the original list still exists in the loaded Python object.","topic":"ingestion","diff":"medium"},
+    {"q":"A duplicate `food_id` appears twice in the JSON. What does the code do?","opts":["Overwrites the first record","Raises a duplicate-id error","Suffixes the later ids with `_1`, `_2`, ...","Skips the second record"],"a":2,"why":"`used_ids` tracks what has been added; collisions get `_1`, `_2` suffixes so the batch insert cannot fail. This is a small but important robustness detail.","topic":"ingestion","diff":"medium"},
+    {"q":"Why is `calories` stored as a number but `ingredients` as a string?","opts":["No reason, it is arbitrary","Numbers support range filters like `$lte`; lists are not allowed at all","Strings embed better","Numbers take less space"],"a":1,"why":"The calorie ceiling is applied by the database, which needs a numeric field. Ingredients are only displayed, so a joined string is enough. Type choice follows the operation you need.","topic":"ingestion","diff":"medium"},
+    {"q":"`n_results=5` in perform_similarity_search returns what shape of data?","opts":["A flat list of five documents","`ids[0]`, `distances[0]`, `metadatas[0]` - a list per query","A dictionary keyed by id","A single document"],"a":1,"why":"ChromaDB always returns one entry per query, even for one query. The loop reads `results['ids'][0][i]`: outer index for the query, inner for the hit.","topic":"search","diff":"easy"},
+    {"q":"How is `similarity_score` computed and what range does it have?","opts":["distance / 100, range 0-1","1 - cosine distance, roughly -1 to 1","1 / distance, unbounded","A model-generated probability"],"a":1,"why":"Cosine distance runs 0 to 2, so `1 - distance` is a similarity in [-1, 1]. Relevant dishes sit near 1, unrelated ones near 0 or slightly below. It is a ranking signal, not a confidence.","topic":"search","diff":"medium"},
+    {"q":"What is the difference between perform_similarity_search and perform_filtered_similarity_search?","opts":["The filtered one uses a different embedding model","The filtered one restricts the candidate set inside the database with a `where` clause","The filtered one is not semantic","The filtered one returns text only"],"a":1,"why":"Both rank semantically. The filtered variant adds metadata conditions, so the k nearest neighbours come from the filtered subset rather than the whole catalogue.","topic":"search","diff":"medium"},
+    {"q":"How are multiple filters combined?","opts":["With a comma","Under `{\"$and\": [...]}`; a single filter is passed as-is","They are not combined","With nested `$or`"],"a":1,"why":"`filters` collects one operand per constraint. Length 1 uses the operand directly; more than one is wrapped in `$and`. No filters leaves `where=None`, degenerating into plain search.","topic":"search","diff":"hard"},
+    {"q":"Why is `max_calories=0` silently ignored?","opts":["ChromaDB rejects zero","The check is truthiness (`if max_calories:`), so 0 disables the filter","0 is converted to None by ChromaDB","The regex never returns 0"],"a":1,"why":"`if max_calories:` is False for 0, so no constraint is added. A genuine zero-calorie limit cannot be expressed. The docstring says so; the lesson is to check truthiness versus `is not None` in filters.","topic":"search","diff":"hard"},
+    {"q":"What does the typo table fix, and why is a dictionary enough?","opts":["It fixes every possible spelling mistake","It repairs a handful of known misspellings so the embedding model is not fed near-meaningless tokens","It corrects grammar","It translates Hindi words"],"a":1,"why":"A word-piece tokeniser gives out-of-vocabulary tokens almost no signal. Fixing the common typos (calroes, deserts, italain...) is cheap and predictable; a full spell-checker or an LLM would add cost and non-determinism for little gain.","topic":"parsing","diff":"medium"},
+    {"q":"Which query does the `_MAX_CALORIE_RE` recognise?","opts":["\"sweet dessert\"","\"under 300 calories\" and \"< 150\"","\"thai food\"","\"history\""],"a":1,"why":"That regex matches under/below/less than/max/up to followed by a number, or a literal `< number`. It extracts an inclusive upper bound for the `$lte` filter.","topic":"parsing","diff":"easy"},
+    {"q":"\"lowest calories\" and \"low calorie\" produce different results because...","opts":["They are handled by different regexes: one sets sort_by_calories, the other also sets it","One sets a hard cap and the other only re-orders","They are identical","Only the first is recognised"],"a":1,"why":"Both set `sort_by_calories=True`, but only a phrase with an explicit number sets `max_calories`. Re-ordering keeps all relevant dishes; a cap removes some. Mixing the two concepts is the usual bug in similar parsers.","topic":"parsing","diff":"hard"},
+    {"q":"Why does the cuisine match use `\\b` word boundaries?","opts":["To make the regex faster","So \"thai\" does not match inside \"thailand\"","To allow plurals","Because ChromaDB requires it"],"a":1,"why":"`\\b` anchors the match to word edges. Without it, substring matches produce false cuisine filters from unrelated words. `re.escape` additionally protects names containing regex characters.","topic":"parsing","diff":"medium"},
+    {"q":"Why retrieve 50 candidates before sorting by calories, instead of sorting the whole catalogue?","opts":["50 is the maximum ChromaDB allows","Because the catalogue's absolute lowest items are condiments, which would answer \"lowest calorie\" but not \"lowest-calorie dessert\"","To reduce API cost","Because sorting more than 50 is impossible"],"a":1,"why":"Sorting everything would surface vinegar and pickles for a dessert query. Sorting a semantically relevant pool keeps results on-topic and correctly ordered. Relevance first, numbers second.","topic":"rerank","diff":"medium"},
+    {"q":"What happens if a cuisine filter and a calorie cap together match nothing?","opts":["The program crashes","It retries with the cuisine filter only, dropping the numeric cap","It returns the whole catalogue","It switches to BM25"],"a":1,"why":"There is an explicit fallback: relax the calorie cap and search by cuisine again. Showing cuisine-relevant dishes is friendlier than an empty screen - and the calorie sort below still helps.","topic":"rerank","diff":"medium"},
+    {"q":"Why is Python's `sort` used rather than `sorted(..., reverse=True)`?","opts":["sort is stable, so equal-calorie dishes keep their semantic order","sorted cannot handle numbers","sort is faster","reverse=True would break the list"],"a":0,"why":"Stability means ties preserve the retrieval order, which encodes relevance. Sorting ascending also matches \"lowest calories\" directly. Reversing would put the heaviest first.","topic":"rerank","diff":"hard"},
+    {"q":"In interactive_search.py, why is `query` appended to search_history before searching?","opts":["To make the search faster","So failed or empty searches are still recorded for review","Because the search function needs it","To prevent duplicates"],"a":1,"why":"History is a record of user intent, not of successes. Appending first means a typo or a no-hit query still shows up in `history`, which is exactly what you want when improving the parser. ","topic":"cli","diff":"medium"},
+    {"q":"The printed \"Match Score\" can be negative. Why?","opts":["A bug in the division","similarity_score can be slightly below zero for unrelated dishes, and the CLI multiplies by 100 without clamping","The model returns negative distances","ChromaDB returns -1 for missing data"],"a":1,"why":"Cosine similarity spans [-1, 1]. A dessert query against a savoury dish can score just below zero, and `* 100` shows -3% or similar. Clamping at zero, or showing the raw score, reads better.","topic":"cli","diff":"medium"}
+  ]
+  </script>
+</section>

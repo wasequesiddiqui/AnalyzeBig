@@ -1,0 +1,174 @@
+﻿<section class="card">
+  <h3>In one breath</h3>
+  <p class="lede">"Icebreaker" turns a LinkedIn-style profile into a chatbot you can interview. It is the only folder in this repo with a proper layered design: <code>main.py</code> orchestrates, <code>modules/</code> does the work, <code>config.py</code> holds every tunable value. Read it as the grown-up version of the single-file demos elsewhere.</p>
+  <div class="grid2">
+    <div>
+      <p><b>What each file does</b></p>
+      <ul class="tight">
+        <li><code>main.py</code> - flags, pipeline order, chat loop.</li>
+        <li><code>config.py</code> - ids, sizes, prompts.</li>
+        <li><code>modules/data_extraction.py</code> - fetch and clean a profile.</li>
+        <li><code>modules/data_processing.py</code> - JSON to nodes to vector index.</li>
+        <li><code>modules/query_engine.py</code> - the two LLM calls.</li>
+        <li><code>modules/llm_interface.py</code> - model factories.</li>
+        <li><code>modules/__init__.py</code> - package exports.</li>
+        <li><code>profile_lookup.py</code> - a standalone HTTP demo.</li>
+        <li><code>test_config.py</code> - a 16-line sanity check.</li>
+      </ul>
+    </div>
+    <div class="callout warn"><b>Same 3-token bug as Gradio</b><code>create_watsonx_embedding()</code> passes <code>truncate_input_tokens=3</code>, so every chunk is embedded from its first few tokens only. The app runs, the plumbing is clean, and the retrieval is still weak. Fix it to 512 to see what this architecture can actually do.</div>
+  </div>
+</section>
+
+<section class="card analogy">
+  <h3>Think of a wedding "ice-breaker" host</h3>
+  <p>You are at a family function and do not know the other guests. A good host reads the invitation card (the profile), picks three genuinely interesting details (<em>"she studied in Pune, worked at a fintech, and volunteers on weekends"</em>), and then answers your follow-up questions from the card - never inventing a detail to keep the conversation going.</p>
+  <ul class="tight">
+    <li><b>Reading the card</b> = extraction, then chunking, then embedding.</li>
+    <li><b>Three facts</b> = <code>generate_initial_facts()</code> with the facts template.</li>
+    <li><b>Follow-up questions</b> = <code>answer_user_query()</code> with the question template.</li>
+    <li><b>"I don't know"</b> = the exact sentence the template tells the model to use when the card is silent.</li>
+  </ul>
+</section>
+
+<section class="card">
+  <h3>Pipeline - click any box to jump to the code</h3>
+  <div class="pipeline">
+    <svg viewBox="0 0 900 250" role="img" aria-label="Flow: main parses flags, extracts a profile from mock JSON or Proxycurl, splits it into nodes, embeds into a vector index, generates three facts, then answers user questions in a chat loop">
+      <defs><marker id="head" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#9aa7c2"/></marker></defs>
+      <a class="node" href="#icebreaker-f1"><g><rect x="6" y="20" width="140" height="64" rx="10"/><text x="76" y="44" text-anchor="middle">main.py</text><text class="sub" x="76" y="62" text-anchor="middle">flags + defaults</text></g></a>
+      <path class="arrow" d="M148 52 H188"/>
+      <a class="node" href="#icebreaker-f4"><g><rect x="190" y="14" width="160" height="76" rx="10"/><text x="270" y="38" text-anchor="middle">extraction</text><text class="sub" x="270" y="56" text-anchor="middle">mock JSON or Proxycurl</text><text class="sub" x="270" y="72" text-anchor="middle">clean empties</text></g></a>
+      <path class="arrow" d="M352 52 H392"/>
+      <a class="node" href="#icebreaker-f5"><g><rect x="394" y="14" width="170" height="76" rx="10"/><text x="479" y="38" text-anchor="middle">split + embed</text><text class="sub" x="479" y="56" text-anchor="middle">json.dumps to nodes</text><text class="sub" x="479" y="72" text-anchor="middle">chunk 500 tokens</text></g></a>
+      <path class="arrow" d="M566 52 H606"/>
+      <a class="node" href="#icebreaker-f5"><g><rect x="608" y="14" width="160" height="76" rx="10"/><text x="688" y="38" text-anchor="middle">VectorStoreIndex</text><text class="sub" x="688" y="56" text-anchor="middle">watsonx embeddings</text><text class="sub" x="688" y="72" text-anchor="middle">in memory</text></g></a>
+      <path class="arrow" d="M770 52 H800"/>
+      <a class="node" href="#icebreaker-f6"><g><rect x="802" y="14" width="92" height="76" rx="10"/><text x="848" y="38" text-anchor="middle">query</text><text class="sub" x="848" y="56" text-anchor="middle">engine</text><text class="sub" x="848" y="72" text-anchor="middle">top-k = 5</text></g></a>
+      <a class="node" href="#icebreaker-f6"><g><rect x="608" y="120" width="160" height="70" rx="10"/><text x="688" y="144" text-anchor="middle">3 facts</text><text class="sub" x="688" y="162" text-anchor="middle">INITIAL_FACTS_TEMPLATE</text></g></a>
+      <path class="arrow" d="M688 92 V116"/>
+      <a class="node" href="#icebreaker-f1"><g><rect x="394" y="120" width="170" height="70" rx="10"/><text x="479" y="144" text-anchor="middle">chat loop</text><text class="sub" x="479" y="162" text-anchor="middle">input() until exit</text></g></a>
+      <path class="arrow" d="M606 155 H566"/>
+      <a class="node" href="#icebreaker-f6"><g><rect x="190" y="120" width="160" height="70" rx="10"/><text x="270" y="144" text-anchor="middle">answer_user_query</text><text class="sub" x="270" y="162" text-anchor="middle">USER_QUESTION_TEMPLATE</text></g></a>
+      <path class="arrow" d="M392 155 H352"/>
+      <a class="node" href="#icebreaker-f2"><g><rect x="6" y="120" width="140" height="70" rx="10"/><text x="76" y="144" text-anchor="middle">config.py</text><text class="sub" x="76" y="162" text-anchor="middle">feeds every step</text></g></a>
+      <path class="arrow" d="M188 155 H148"/>
+      <a class="node" href="#icebreaker-f3"><g><rect x="6" y="204" width="140" height="34" rx="8"/><text x="76" y="226" text-anchor="middle">llm_interface</text></g></a>
+      <a class="node" href="#icebreaker-f8"><g><rect x="160" y="204" width="170" height="34" rx="8"/><text x="245" y="226" text-anchor="middle">profile_lookup (side demo)</text></g></a>
+      <a class="node" href="#icebreaker-f9"><g><rect x="344" y="204" width="150" height="34" rx="8"/><text x="419" y="226" text-anchor="middle">test_config (sanity)</text></g></a>
+      <path class="arrow" d="M76 190 V200" stroke-dasharray="4 4"/>
+    </svg>
+  </div>
+</section>
+
+<section class="card">
+  <h3>Before you run it</h3>
+  <div class="grid2">
+    <div>
+      <div class="code-wrap"><pre class="code" data-lang="bash" data-highlight="false"><code>cd icebreaker
+pip install llama-index llama-index-llms-ibm \
+  llama-index-embeddings-ibm requests python-dotenv
+python main.py --mock          # offline sample profile
+python main.py --url "https://www.linkedin.com/in/..." --api-key "..."</code></pre></div>
+    </div>
+    <div>
+      <p><b>What you see</b></p>
+      <div class="code-wrap"><pre class="code" data-lang="text" data-highlight="false"><code>INFO ... -- Using mock data from a premade JSON file...
+INFO ... Created 12 nodes from profile data
+INFO ... Vector database created successfully
+INFO ... All node embeddings are valid
+
+Here are 3 interesting facts about this person:
+...
+You: _</code></pre></div>
+    </div>
+  </div>
+  <div class="callout info"><b>Run from inside the icebreaker folder</b>The imports are absolute (<code>from modules.data_extraction import ...</code> and <code>import config</code>), so the project root must be on the import path. Running from the parent folder gives ModuleNotFoundError.</div>
+</section>
+
+<!-- CODE:icebreaker/main.py -->
+<!-- CODE:icebreaker/config.py -->
+<!-- CODE:icebreaker/modules/llm_interface.py -->
+<!-- CODE:icebreaker/modules/data_extraction.py -->
+<!-- CODE:icebreaker/modules/data_processing.py -->
+<!-- CODE:icebreaker/modules/query_engine.py -->
+<!-- CODE:icebreaker/modules/__init__.py -->
+<!-- CODE:icebreaker/profile_lookup.py -->
+<!-- CODE:icebreaker/test_config.py -->
+
+<section class="card glossary-card" id="glossary-icebreaker">
+  <h3>Glossary - every acronym in this tab</h3>
+  <div class="glossary-filter"><input type="search" placeholder="Filter terms, e.g. REST" aria-label="Filter glossary terms"></div>
+  <div class="table-wrap">
+    <table class="glossary">
+      <thead><tr><th>Term</th><th>Full form</th><th>What it means here</th></tr></thead>
+      <tbody class="glossary-body">
+        <tr class="gtr"><td>API<span>Application Programming Interface</span></td><td>Application Programming Interface</td><td>Proxycurl (profiles) and watsonx (models) are both reached through APIs.</td></tr>
+        <tr class="gtr"><td>CLI<span>Command Line Interface</span></td><td>Command Line Interface</td><td><code>main.py</code> with argparse flags plus the <code>You:</code> prompt.</td></tr>
+        <tr class="gtr"><td>GUID<span>Globally Unique Identifier</span></td><td>Globally Unique Identifier</td><td>A 36-character id, the same shape as a watsonx project id.</td></tr>
+        <tr class="gtr"><td>HTTP<span>HyperText Transfer Protocol</span></td><td>HyperText Transfer Protocol</td><td>Both data sources use GET requests; status 200 means success, 4xx/5xx mean failure.</td></tr>
+        <tr class="gtr"><td>IAM<span>Identity and Access Management</span></td><td>Identity and Access Management</td><td>IBM's token service. The API key is exchanged for a short-lived token before any model call.</td></tr>
+        <tr class="gtr"><td>JSON<span>JavaScript Object Notation</span></td><td>JavaScript Object Notation</td><td>The profile is converted to JSON text before chunking, so retrieval works on JSON fragments.</td></tr>
+        <tr class="gtr"><td>LLM<span>Large Language Model</span></td><td>Large Language Model</td><td>Granite, configured in <code>config.LLM_MODEL_ID</code> and wrapped by <code>create_watsonx_llm</code>.</td></tr>
+        <tr class="gtr"><td>RAG<span>Retrieval-Augmented Generation</span></td><td>Retrieval-Augmented Generation</td><td>Retrieve chunks from the profile, then answer from them. The two query functions are the whole loop.</td></tr>
+        <tr class="gtr"><td>REST<span>Representational State Transfer</span></td><td>Representational State Transfer</td><td>The style of the Proxycurl and JSONPlaceholder APIs: URLs plus HTTP verbs.</td></tr>
+        <tr class="gtr"><td>SDK<span>Software Development Kit</span></td><td>Software Development Kit</td><td>The Python packages wrapping watsonx, via LlamaIndex's IBM integrations.</td></tr>
+        <tr class="gtr"><td>UI<span>User Interface</span></td><td>User Interface</td><td>The terminal here; the same pipeline could drive the Flask or Gradio front end.</td></tr>
+        <tr class="gtr"><td>URL<span>Uniform Resource Locator</span></td><td>Uniform Resource Locator</td><td>The profile URL, the mock-data URL and the regional watsonx endpoint.</td></tr>
+        <tr class="gtr"><td>UUID<span>Universally Unique Identifier</span></td><td>Universally Unique Identifier</td><td>Another name for the project id format; Python can generate one with the <code>uuid</code> module.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="card quiz-card" id="quiz-icebreaker">
+  <div class="quiz-head">
+    <div>
+      <h3>Check your understanding - 25 MCQs</h3>
+      <p class="small">Architecture, HTTP handling, LlamaIndex objects, and the defects this folder hides.</p>
+    </div>
+    <div class="quiz-score"><b>0 / 25</b><span class="muted">0 answered</span></div>
+  </div>
+  <div class="qbar"><i></i></div>
+  <div class="qcontrols">
+    <button class="qchip" type="button" data-filter="all" aria-pressed="true">All</button>
+    <button class="qchip" type="button" data-filter="unanswered" aria-pressed="false">Unanswered</button>
+    <button class="qchip" type="button" data-filter="wrong" aria-pressed="false">Wrong</button>
+    <button class="qchip" type="button" data-filter="easy" aria-pressed="false">Easy</button>
+    <button class="qchip" type="button" data-filter="medium" aria-pressed="false">Medium</button>
+    <button class="qchip" type="button" data-filter="hard" aria-pressed="false">Hard</button>
+    <button class="qchip" type="button" data-action="shuffle">Shuffle</button>
+    <button class="qchip" type="button" data-action="retry">Retry wrong only</button>
+    <button class="qchip" type="button" data-action="reset">Reset</button>
+  </div>
+  <div class="quiz-list"></div>
+  <script type="application/json" class="quiz">
+  [
+    {"q":"In what order does process_linkedin run?","opts":["extract, split, index, verify, facts, chat","split, extract, chat, index, facts, verify","index, extract, facts, split, verify, chat","facts, extract, split, index, verify, chat"],"a":0,"why":"Extraction produces the dict, splitting turns it into nodes, indexing embeds them, verify checks the store, facts does the first LLM call, and the chat loop hands control to the user.","topic":"pipeline","diff":"easy"},
+    {"q":"Why is the whole profile serialised with json.dumps before chunking?","opts":["LlamaIndex only accepts strings, so the dict is turned into text and split into nodes","To compress the data","To hide personal information","Because Chroma requires JSON"],"a":0,"why":"A `Document` needs text. Serialising first makes the entire profile chunkable; the trade-off is that retrieval then works on JSON fragments rather than on fields like experience or education.","topic":"processing","diff":"medium"},
+    {"q":"What does `verify_embeddings` actually verify?","opts":["That each embedding has the right dimension","That every indexed node id returns a non-None value from the vector store","That retrieval returns relevant nodes","That the model is reachable"],"a":1,"why":"It is a presence check. A stored vector of the wrong dimension or poor quality would still pass. Think of it as checking the plug is in the socket, not that power is flowing.","topic":"processing","diff":"hard"},
+    {"q":"Which attribute does verify_embeddings use that could break on upgrade?","opts":["index.as_query_engine","index._storage_context","index.index_struct only","config.CHUNK_SIZE"],"a":1,"why":"The leading underscore marks a private attribute. It works with the pinned LlamaIndex version, but a library upgrade may rename it with no deprecation notice.","topic":"processing","diff":"medium"},
+    {"q":"Where is the vector index stored?","opts":["In a file next to the script","In memory, inside the LlamaIndex object","In ChromaDB on disk","In the watsonx project"],"a":1,"why":"`VectorStoreIndex(nodes=...)` uses a default in-memory store. Nothing is persisted, so every run re-embeds the profile. Persistence would need an explicit vector store and storage context.","topic":"processing","diff":"medium"},
+    {"q":"Why does embedding cost money or time in this app?","opts":["Because watsonx embeddings are API calls for every node","Because LlamaIndex charges per import","Because JSON parsing is slow","Because the chat loop re-embeds"],"a":0,"why":"`create_vector_database` embeds each node through watsonx. The chat loop does not re-embed - it reuses the index, which is the main architectural improvement over Gradio/qbot.py.","topic":"processing","diff":"medium"},
+    {"q":"`use_mock = args.mock or not linkedin_url or not api_key` means...","opts":["Mock mode only with --mock","Mock mode if any of the three conditions is true","API mode is impossible","The URL is ignored"],"a":1,"why":"Any truthy condition wins. A user who supplies a URL but no key silently gets sample data - a deliberate convenience for students, and a surprise for anyone expecting an error.","topic":"cli","diff":"medium"},
+    {"q":"What does `action='store_true'` do for --mock?","opts":["Stores the next argument as text","Makes the flag a boolean: present = True, absent = False","Requires a value","Defines the default"],"a":1,"why":"It is argparse's way of declaring a switch. Without it you would need `--mock True`, which is clumsy on a command line.","topic":"cli","diff":"easy"},
+    {"q":"What is `PROXYCURL_API_KEY` when the environment variable is blank?","opts":["An empty string","None","A KeyError is raised","The string 'None'"],"a":1,"why":"`getenv(..., \"\")` gives an empty string, `strip()` removes spaces, and `or None` converts any falsy value to None. That is why `not api_key` is a reliable test.","topic":"config","diff":"medium"},
+    {"q":"Which line makes the app refuse to start without a project id?","opts":["`WATSONX_PROJECT_ID = os.environ[\"WATSONX_PROJECT_ID\"]`","`load_dotenv(override=True)`","`MOCK_DATA_URL = (`","`PROXYCURL_API_KEY = os.getenv(...)`"],"a":0,"why":"Square brackets raise KeyError at import time, so the failure happens before any user interaction. `os.getenv` would return None and defer the problem.","topic":"config","diff":"medium"},
+    {"q":"Where is the watsonx region defined, and what is the consequence?","opts":["In .env, so it is portable","Hard-coded as eu-de in config.py, so only that region works","In main.py flags","In the model id"],"a":1,"why":"`WATSONX_URL` is a literal string. A project in us-south or jp-tok needs that line changed - a very common first failure, and the reason the other folders read the URL from the environment.","topic":"config","diff":"medium"},
+    {"q":"Which template placeholder does LlamaIndex fill with retrieved text?","opts":["{query_str}","{context_str}","{input}","{tools}"],"a":1,"why":"`{context_str}` receives the joined retrieved nodes and `{query_str}` the user question. `{input}` and `{tools}` belong to LangChain agents.","topic":"prompts","diff":"easy"},
+    {"q":"What does the question template instruct the model to do when the answer is missing?","opts":["Guess using world knowledge","Reply with an exact sentence saying the information is not available","Ask a follow-up question","Return an empty string"],"a":1,"why":"Giving the model a precise sentence to copy makes refusals consistent and easy to detect programmatically. Stronger than a vague \"say if you don't know\".","topic":"prompts","diff":"medium"},
+    {"q":"In create_watsonx_llm, why does `temperature: float = config.TEMPERATURE` capture a stale value after `change_llm_model` runs?","opts":["It does not; defaults are re-evaluated","Default arguments are evaluated once at import time","Because temperature is immutable","Because config is read-only"],"a":1,"why":"Python computes default values when the `def` executes. Later changes to config do not update those defaults, so pass the value explicitly if it must follow config.","topic":"python","diff":"hard"},
+    {"q":"What does `global config` inside change_llm_model actually achieve?","opts":["It is required to set an attribute","Nothing - attribute assignment works without it","It prevents other modules from reading the value","It reloads the module"],"a":1,"why":"`global` is needed only to rebind a module-level name. Here the code mutates an attribute (`config.LLM_MODEL_ID = ...`), which does not require the declaration. Harmless but misleading.","topic":"python","diff":"hard"},
+    {"q":"`truncate_input_tokens=3` in create_watsonx_embedding causes what?","opts":["Only three chunks are embedded","Every chunk is truncated to three tokens before embedding, so vectors carry almost no meaning","The answer is three tokens long","Three retries"],"a":1,"why":"Same defect as Gradio/qbot.py. Retrieval quality collapses while everything still appears to run, which makes it the most dangerous kind of bug in a demo.","topic":"bug","diff":"hard"},
+    {"q":"Why does extract_linkedin_profile return {} instead of raising?","opts":["Because Python forbids raising in modules","Because the caller can then test truthiness and print a friendly error","Because requests requires it","Because the API returns 200"],"a":1,"why":"The fail-soft contract keeps a demo from crashing on a network hiccup. The cost is that a bug can look like \"no data\", so the log messages matter.","topic":"extraction","diff":"medium"},
+    {"q":"Which cleaning rule is applied to the API response?","opts":["All numeric fields are converted to strings","Empty lists, empty strings and None values are dropped, along with two named fields","Only profile_pic_url is removed","Everything except name and email is removed"],"a":1,"why":"The comprehension drops falsy containers and values plus `people_also_viewed` and `certifications`; then `profile_pic_url` is popped from each group record. Field names and structure otherwise survive.","topic":"extraction","diff":"medium"},
+    {"q":"What is the practical difference between the two HTTP styles in this folder?","opts":["data_extraction checks status_code manually; profile_lookup uses raise_for_status()","Both raise exceptions","Both ignore status codes","Only profile_lookup has a timeout"],"a":0,"why":"`data_extraction` treats only 200 as success and logs otherwise; `profile_lookup` converts errors into exceptions. Both set timeouts. Pick one style per codebase.","topic":"http","diff":"hard"},
+    {"q":"Why does main.py crash at `response.response.strip()` when the query fails?","opts":["Because strip() is not a string method","Because answer_user_query returns a plain string on its error path","Because response is None","Because the index is empty"],"a":1,"why":"The success path returns a LlamaIndex response object with `.response`; the failure path returns the string \"Failed to get an answer.\". Calling `.strip()` on a string works, but `.response` does not. This is a real inconsistency in the code.","topic":"bug","diff":"hard"},
+    {"q":"Which retrieval work in answer_user_query is wasted?","opts":["`index.as_query_engine`","`base_retriever.retrieve(...)` and the context_str built from it","`create_watsonx_llm`","`PromptTemplate`"],"a":1,"why":"The nodes are retrieved and joined into `context_str`, but neither is used - the query engine retrieves again internally. Deleting those lines halves retrieval work with identical output.","topic":"bug","diff":"hard"},
+    {"q":"Why does `python main.py` work only from inside the icebreaker folder?","opts":["Because config.py uses a relative path","Because imports like `from modules.data_extraction import ...` need the project root on sys.path","Because argparse requires it","Because .env is missing"],"a":1,"why":"The package and config module are resolved from `sys.path`, which includes the current directory. Run from the parent folder and Python cannot find `modules`.","topic":"imports","diff":"medium"},
+    {"q":"What does importing `modules` (the __init__.py) actually do?","opts":["Nothing at all","Imports every submodule, which in turn imports config, llama_index and credentials","Only defines names","Deletes cached data"],"a":1,"why":"The four re-export lines execute the submodules. That means importing the package is not free - it pulls in heavy libraries and reads environment variables.","topic":"imports","diff":"medium"},
+    {"q":"Why is profile_lookup.py not part of the pipeline?","opts":["It is broken","Nothing in main.py imports it; it is a standalone teaching file","It requires a paid API","It only works on Windows"],"a":1,"why":"`main.py` uses `data_extraction.extract_linkedin_profile`. `profile_lookup` is called only by its own demo block and by the unused `config.get_profile_context()`.","topic":"repo","diff":"easy"},
+    {"q":"What makes test_config.py a poor pytest file?","opts":["It has no assertions and performs network calls at import","It is too short","It uses print","It is in the wrong package"],"a":0,"why":"Pytest collects `test_*.py` files; this one executes a real HTTP request during collection and never asserts anything. Rename it to something like `check_config.py` to avoid surprise network calls in CI.","topic":"repo","diff":"medium"}
+  ]
+  </script>
+</section>

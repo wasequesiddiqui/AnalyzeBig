@@ -1,0 +1,302 @@
+{
+  "folder": "Gradio",
+  "files": {
+    "Gradio/qbot.py": {
+      "purpose": "A complete RAG chatbot in about 130 lines: upload a PDF, split it into chunks, embed the chunks with watsonx, store them in Chroma, then answer questions through a Gradio page. It is the fastest way to see retrieval-augmented generation end to end with a UI.",
+      "run": "python qbot.py   then open http://localhost:7860",
+      "meta": [
+        "131 lines",
+        "Gradio Interface",
+        "rebuilds the index per question",
+        "share=True"
+      ],
+      "sections": [
+        {
+          "title": "Imports - everything is used here",
+          "start": "from ibm_watsonx_ai.foundation_models import ModelInference",
+          "why": "SDK for credentials, LangChain for chunking + retrieval, Chroma as the vector store, Gradio for the page. Unlike some other files, almost every import is genuinely used."
+        },
+        {
+          "title": "Warning suppression and .env",
+          "start": "def warn(*args, **kwargs):",
+          "why": "Two lines silence noisy library warnings, then credentials are loaded - the same pattern as RAG_BASIC.py."
+        },
+        {
+          "title": "get_llm() - the chat model",
+          "start": "def get_llm():",
+          "why": "Builds a watsonx wrapper for Mistral Medium with a 256-token cap and temperature 0.5."
+        },
+        {
+          "title": "document_loader() - PDF to text",
+          "start": "def document_loader(file):",
+          "why": "Gradio hands over an uploaded file object; `PyPDFLoader` turns it into documents, one per page."
+        },
+        {
+          "title": "text_splitter() - chunk the pages",
+          "start": "def text_splitter(data):",
+          "why": "1000-character chunks with 50 characters of overlap. Chunk size decides how much context one answer can draw on."
+        },
+        {
+          "title": "watsonx_embedding() - and the 3-token trap",
+          "start": "def watsonx_embedding():",
+          "why": "Creates the embedding model. One parameter here silently limits how much text is embedded - read the note carefully."
+        },
+        {
+          "title": "vector_database() - embed and store",
+          "start": "def vector_database(chunks):",
+          "why": "`Chroma.from_documents` embeds every chunk and stores it. This is the expensive step."
+        },
+        {
+          "title": "retriever() - the pipeline glue",
+          "start": "def retriever(file):",
+          "why": "Load, split, embed, return a retriever. Four lines describing the whole ingestion pipeline.",
+          "occ": 1
+        },
+        {
+          "title": "The duplicated retriever()",
+          "start": "def retriever(file):",
+          "occ": 2,
+          "why": "The same function is defined twice. Python keeps the second one, so the first is dead code - a copy-paste accident worth spotting."
+        },
+        {
+          "title": "retriever_qa() - retrieval plus generation",
+          "start": "def retriever_qa(file, query):",
+          "why": "The function Gradio actually calls: build the retriever, build a RetrievalQA chain, ask, return the text."
+        },
+        {
+          "title": "The Gradio interface",
+          "start": "rag_application = gr.Interface(",
+          "why": "One function plus input/output components is all Gradio needs. `gr.File` accepts the PDF, `gr.Textbox` the question."
+        },
+        {
+          "title": "launch() - and share=True",
+          "start": "rag_application.launch(",
+          "why": "Starts a web server. `share=True` creates a public link, which is convenient for a classroom and risky for anything private."
+        }
+      ],
+      "notes": [
+        {
+          "at": "from ibm_watsonx_ai import Credentials",
+          "lines": 1,
+          "title": "Imported but never used",
+          "text": "`Credentials` and `ModelInference` are imported, yet the code builds a `WatsonxLLM` instead. Harmless, but it suggests the file started as a raw-SDK script and grew."
+        },
+        {
+          "at": "warnings.warn = warn",
+          "lines": 1,
+          "title": "Global silence",
+          "text": "Every library warning is dropped for the whole process, including deprecation notices that tell you a function will disappear. Fine for a demo page; avoid it in shared code.",
+          "kind": "watch"
+        },
+        {
+          "at": "def get_llm():",
+          "lines": 1,
+          "title": "A factory, called per question",
+          "text": "Building a client is cheap, but this function is called on every request (see `retriever_qa`). In a busy app you would build it once and reuse it.",
+          "kind": "crit"
+        },
+        {
+          "at": "model_id = 'mistralai/mistral-medium-2505'",
+          "lines": 1,
+          "title": "The model that writes the answer",
+          "text": "Mistral Medium is an instruction-tuned chat model. The id must exist in your region and your project must be allowed to use it, or the first question fails with an access error."
+        },
+        {
+          "at": "project_id = \"skills-network\"",
+          "lines": 1,
+          "title": "A leftover local variable",
+          "text": "This is assigned and never used - the real project id comes from `os.environ[\"WATSONX_PROJECT_ID\"]` two lines later. A classic leftover from the course environment.",
+          "kind": "watch"
+        },
+        {
+          "at": "loader = PyPDFLoader(file.name)",
+          "lines": 1,
+          "title": "What Gradio actually passes",
+          "text": "With `type=\"filepath\"`, Gradio gives the function a file object whose `.name` is a temporary path on disk. `PyPDFLoader` reads that path and returns one document per page.",
+          "kind": "crit"
+        },
+        {
+          "at": "chunk_size=1000,",
+          "lines": 2,
+          "title": "The two numbers that shape answers",
+          "text": "`chunk_size=1000` characters is roughly 150-200 English words; `chunk_overlap=50` repeats a little text so a sentence cut at a boundary still appears whole somewhere. Smaller chunks give precise retrieval but less context.",
+          "kind": "crit"
+        },
+        {
+          "at": "EmbedTextParamsMetaNames.TRUNCATE_INPUT_TOKENS: 3,",
+          "lines": 1,
+          "title": "The bug that breaks retrieval",
+          "text": "This truncates every chunk to **3 tokens** before embedding. The vectors therefore describe only the first two or three words of each chunk, so similarity search matches on almost nothing. The same value was fixed to 512 in <code>langchain_context_retreival.py</code>; here it is still 3. Change it to 512 and observe how much better the answers become.",
+          "kind": "crit"
+        },
+        {
+          "at": "EmbedTextParamsMetaNames.RETURN_OPTIONS: {\"input_text\": True},",
+          "lines": 1,
+          "title": "Ask for the text back",
+          "text": "This option makes the embedding response include the original input text, which is handy when debugging. It does not change the vectors themselves."
+        },
+        {
+          "at": "vectordb = Chroma.from_documents(chunks, embedding_model)",
+          "lines": 1,
+          "title": "The expensive step",
+          "text": "Every chunk becomes one API call (batched). For a 20-page PDF this can take a noticeable number of seconds, and it happens on every question because `retriever_qa` calls `retriever(file)` each time.",
+          "kind": "crit"
+        },
+        {
+          "at": "def retriever(file):",
+          "lines": 1,
+          "title": "The four-step ingestion",
+          "text": "Load, split, embed, wrap. Reading this one function tells you the entire indexing story - the rest of the file is plumbing.",
+          "kind": "crit",
+          "occ": 1
+        },
+        {
+          "at": "def retriever(file):",
+          "occ": 2,
+          "lines": 6,
+          "title": "Duplicate definition - the second wins",
+          "text": "Python simply rebinds the name, so only the second copy exists at run time. Both are identical today, but they will drift. Delete one; if you ever change it, change the surviving copy.",
+          "kind": "watch"
+        },
+        {
+          "at": "def retriever_qa(file, query):",
+          "lines": 1,
+          "title": "One function, one question",
+          "text": "Gradio calls this with the uploaded file and the typed question. Everything it needs - LLM, chunks, index - is built inside, which is why each question re-indexes the PDF.",
+          "kind": "crit"
+        },
+        {
+          "at": "qa = RetrievalQA.from_chain_type(llm=llm, ",
+          "lines": 4,
+          "title": "The one-line RAG chain",
+          "text": "`chain_type=\"stuff\"` pastes the retrieved chunks into the prompt. `return_source_documents=False` hides which chunks were used - set it to True while debugging to see whether retrieval or generation is at fault.",
+          "kind": "crit"
+        },
+        {
+          "at": "return response['result']",
+          "lines": 1,
+          "title": "The key is 'result', not 'answer'",
+          "text": "`RetrievalQA` returns `{'query': ..., 'result': ...}`, while `ConversationalRetrievalChain` uses `'answer'`. Mixing them up produces a KeyError - a small detail that costs an hour if you are new to it.",
+          "kind": "crit"
+        },
+        {
+          "at": "rag_application = gr.Interface(",
+          "lines": 1,
+          "title": "Function + components = app",
+          "text": "Gradio needs three things: a function, a list of inputs and an output component. It generates the HTML, JavaScript and web server for you.",
+          "kind": "crit"
+        },
+        {
+          "at": "gr.File(label=\"Upload PDF File\", file_count=\"single\", file_types=['.pdf'], type=\"filepath\"),",
+          "lines": 1,
+          "title": "Constraining the upload",
+          "text": "`file_count=\"single\"` allows one file, `file_types` restricts to PDF, and `type=\"filepath\"` gives the function a path instead of raw bytes. All three choices are visible to the user as UI behaviour.",
+          "kind": "crit"
+        },
+        {
+          "at": "retriever_qa,",
+          "lines": 1,
+          "title": "The wiring",
+          "text": "`fn=retriever_qa` maps the first input to the first argument and the second to the second. Argument order is therefore part of the contract."
+        },
+        {
+          "at": "rag_application.launch(server_name=\"0.0.0.0\", server_port=7860, share=True)",
+          "lines": 1,
+          "title": "0.0.0.0 and share=True",
+          "text": "`0.0.0.0` listens on every network interface, so other machines on your Wi-Fi can reach it. `share=True` additionally creates a temporary public Gradio link. Both are fine for a class demo and unacceptable for confidential documents.",
+          "kind": "watch"
+        }
+      ]
+    },
+    "Gradio/common_input_types.py": {
+      "purpose": "A 40-line demo of Gradio's input components - slider, dropdown, checkbox group, radio, multi-select dropdown and checkbox - all feeding one formatting function. It is the reference sheet for building UIs in later tabs.",
+      "run": "python common_input_types.py   then open http://127.0.0.1:7860",
+      "meta": [
+        "40 lines",
+        "six input types",
+        "no model calls"
+      ],
+      "sections": [
+        {
+          "title": "The function under test",
+          "start": "def sentence_builder(",
+          "why": "One f-string assembles a sentence from six inputs. It shows exactly what each component hands to Python."
+        },
+        {
+          "title": "The interface: six inputs, one output",
+          "start": "demo = gr.Interface(",
+          "why": "Every input is declared with its type, default and help text - the same pattern as `gr.File` and `gr.Textbox` in qbot.py."
+        },
+        {
+          "title": "Launching locally",
+          "start": "demo.launch(",
+          "why": "Bound to localhost only, unlike qbot.py which opens the door with `0.0.0.0` and `share=True`."
+        }
+      ],
+      "notes": [
+        {
+          "at": "def sentence_builder(quantity, tech_worker_type, countries, place, activity_list, morning):",
+          "lines": 1,
+          "title": "Parameter order is the contract",
+          "text": "Gradio maps inputs to arguments positionally. Reorder the components and the sentence silently mixes up countries and activities - no error, just nonsense output.",
+          "kind": "crit"
+        },
+        {
+          "at": "return f\"\"\"The {quantity} {tech_worker_type}s from {\" and \".join(countries)} went to the {place}",
+          "lines": 1,
+          "title": "Joining a list into a sentence",
+          "text": "`\" and \".join(countries)` turns `[\"Canada\", \"Japan\"]` into `Canada and Japan`. For a checkbox group the value is always a list, even when the user ticks only one box. The `{\"morning\" if morning else \"night\"}` fragment shows the second input type: `gr.Checkbox` hands Python `True` or `False`, and the inline conditional picks the word. Because the whole string is one f-string, every `{...}` is evaluated - a very dense single line to read.",
+          "kind": "crit"
+        },
+        {
+          "at": "gr.Slider(3, 20, value=4, step=1, label=\"Count\", info=\"Choose between 3 and 20\"),",
+          "lines": 1,
+          "title": "Slider: min, max, default, step",
+          "text": "The four positional values are minimum, maximum, default and step. `info` is the small helper text under the control - always fill it in; a slider with no label is a guessing game.",
+          "kind": "crit"
+        },
+        {
+          "at": "gr.Dropdown(",
+          "lines": 5,
+          "title": "Single-select dropdown",
+          "text": "The first argument is the list of choices; omit `multiselect` and the user can pick one. Without a `value=`, Gradio selects the first option.",
+          "occ": 1
+        },
+        {
+          "at": "gr.CheckboxGroup([\"Canada\", \"Japan\", \"France\"], label=\"Countries\", info=\"Where are they from?\"),",
+          "lines": 1,
+          "title": "Checkbox group returns a list",
+          "text": "Zero, one or many values. Your function must handle an empty list - `\" and \".join([])` gives an empty string, which reads oddly but does not crash.",
+          "kind": "crit"
+        },
+        {
+          "at": "gr.Radio([\"office\", \"restaurant\", \"meeting room\"], label=\"Location\", info=\"Where did they go?\"),",
+          "lines": 1,
+          "title": "Radio: exactly one",
+          "text": "Use radio when the options are few and mutually exclusive. A dropdown is the same choice with less vertical space."
+        },
+        {
+          "at": "multiselect=True,",
+          "lines": 1,
+          "title": "The same component, multi-select",
+          "text": "`value=[\"brainstormed\", \"fixed bugs\"]` preselects two options and `multiselect=True` returns a list. One component, two behaviours - decided by one flag.",
+          "kind": "crit"
+        },
+        {
+          "at": "examples=[",
+          "lines": 4,
+          "title": "Free usability win",
+          "text": "Each inner list must list values in the same order as `inputs`. Gradio renders them as clickable examples that fill the form - the cheapest way to make a demo understandable.",
+          "kind": "crit"
+        },
+        {
+          "at": "demo.launch(server_name=\"127.0.0.1\", server_port= 7860)",
+          "lines": 1,
+          "title": "Localhost only",
+          "text": "`127.0.0.1` accepts connections from this machine only. Compare with `server_name=\"0.0.0.0\"` in qbot.py, which exposes the app to the local network.",
+          "kind": "crit"
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,908 @@
+{
+  "folder": "icebreaker",
+  "files": {
+    "icebreaker/main.py": {
+      "purpose": "The orchestrator. It parses command-line flags, extracts a profile, splits it into nodes, builds a vector index, prints three generated facts, and then drops into a chat loop where you can ask anything about the person.",
+      "run": "python main.py --mock   (offline sample)   |   python main.py --url <profile-url> --api-key <key>",
+      "meta": [
+        "121 lines",
+        "argparse",
+        "chat loop",
+        "module pipeline"
+      ],
+      "sections": [
+        {
+          "title": "Imports and logging setup",
+          "start": "import sys",
+          "why": "Four pipeline functions are imported from `modules`, plus `config`. Logging is configured once here so every module's `logger.info` reaches the same console."
+        },
+        {
+          "title": "process_linkedin() - the pipeline",
+          "start": "def process_linkedin(linkedin_url, api_key=None, mock=False):",
+          "why": "Six steps in order, each with a guard. This function is the map of the whole project."
+        },
+        {
+          "title": "chatbot_interface() - the conversation",
+          "start": "def chatbot_interface(index):",
+          "why": "A `while True` loop over `input()`, with an exit command and a fake typing delay."
+        },
+        {
+          "title": "main() - flags and defaults",
+          "start": "def main():",
+          "why": "argparse turns command-line flags into variables, then decides between mock data and the real API."
+        }
+      ],
+      "notes": [
+        {
+          "at": "from modules.data_extraction import extract_linkedin_profile",
+          "lines": 3,
+          "title": "Absolute imports, one per concern",
+          "text": "Extraction, processing, querying and configuration each live in their own module. This is the cleanest architecture in the whole repository - compare it with the single 900-line file in Food_Recommender.",
+          "kind": "crit"
+        },
+        {
+          "at": "logging.basicConfig(",
+          "lines": 7,
+          "title": "One logger for the whole app",
+          "text": "`level=logging.INFO` sets the threshold, `format` adds time, module name and severity, and the handler writes to stdout. Every module calls `logging.getLogger(__name__)`, so messages are tagged with their source file automatically.",
+          "kind": "crit"
+        },
+        {
+          "at": "def process_linkedin(linkedin_url, api_key=None, mock=False):",
+          "lines": 1,
+          "title": "Three parameters, one behaviour",
+          "text": "`mock=True` means \"do not call the paid API, use the sample JSON\". This single flag is why the whole project can be run by a student without any credentials.",
+          "kind": "crit"
+        },
+        {
+          "at": "profile_data = extract_linkedin_profile(linkedin_url, api_key, mock=mock)",
+          "lines": 1,
+          "title": "Step 1: get the data",
+          "text": "Returns a dictionary, or `{}` on failure. The next lines check for the empty dictionary rather than assuming success - the fail-soft contract in action."
+        },
+        {
+          "at": "nodes = split_profile_data(profile_data)",
+          "lines": 1,
+          "title": "Step 2: JSON to chunks",
+          "text": "The whole profile is serialised to JSON text, wrapped in one `Document`, and split into nodes. Retrieval works on nodes, never on the raw dict."
+        },
+        {
+          "at": "vectordb_index = create_vector_database(nodes)",
+          "lines": 1,
+          "title": "Step 3: embed and index",
+          "text": "This is the only step that talks to watsonx during setup. If credentials are wrong, this returns None and the pipeline stops with a logged error.",
+          "kind": "crit"
+        },
+        {
+          "at": "if not verify_embeddings(vectordb_index):",
+          "lines": 1,
+          "title": "Step 4: sanity check",
+          "text": "A `False` here only logs a warning - execution continues. That is a deliberate choice: missing embeddings degrade answers, but a demo should still run. In a real product you would probably abort.",
+          "kind": "crit"
+        },
+        {
+          "at": "initial_facts = generate_initial_facts(vectordb_index)",
+          "lines": 1,
+          "title": "Step 5: the ice-breaker",
+          "text": "The first LLM call. The prompt template in config.py asks for three interesting career or education facts, using only retrieved context."
+        },
+        {
+          "at": "chatbot_interface(vectordb_index)",
+          "lines": 1,
+          "title": "Step 6: hand over to the user",
+          "text": "The index is passed by reference, so the chat loop reuses everything that was already embedded. No re-indexing per question - the performance lesson Gradio/qbot.py misses."
+        },
+        {
+          "at": "except Exception as e:",
+          "lines": 2,
+          "title": "Top-level catch",
+          "text": "Any unexpected failure logs and returns, so the CLI never shows a traceback. The log line includes the exception text, which is what you need to debug."
+        },
+        {
+          "at": "def chatbot_interface(index):",
+          "lines": 1,
+          "title": "The chat loop",
+          "text": "Reads a line, checks the exit words, fakes typing, asks the query engine, prints the answer. Note `index` is the only state - no conversation memory is kept.",
+          "kind": "crit"
+        },
+        {
+          "at": "if user_query.lower() in ['exit', 'quit', 'bye']:",
+          "lines": 3,
+          "title": "Case-insensitive exit",
+          "text": "`lower()` makes BYE and Bye work. Every blocking loop needs an escape word, and every escape word needs a case-insensitive comparison.",
+          "kind": "crit"
+        },
+        {
+          "at": "print(\"Bot is typing...\", end='')",
+          "lines": 3,
+          "title": "A fake typing indicator",
+          "text": "`end=''` keeps the cursor on the same line, `sys.stdout.flush()` pushes it out immediately, then `time.sleep(1)` and a carriage return erase it. Purely cosmetic - it adds a second of real delay.",
+          "kind": "info"
+        },
+        {
+          "at": "response = answer_user_query(index, user_query)",
+          "lines": 1,
+          "title": "The risky line",
+          "text": "`answer_user_query` normally returns a LlamaIndex response object with `.response`, but its error path returns the **string** `\"Failed to get an answer.\"`. The next line calls `.strip()` and `.response` on it, which raises AttributeError exactly when something has already gone wrong.",
+          "kind": "watch"
+        },
+        {
+          "at": "def main():",
+          "lines": 1,
+          "title": "Flags first, prompts second",
+          "text": "If `--url` is supplied the script is scriptable; if not, it asks interactively. Doing flags first makes the same file usable in a terminal and in a test."
+        },
+        {
+          "at": "parser.add_argument('--mock', action='store_true', help='Use mock data instead of API')",
+          "lines": 1,
+          "title": "action='store_true'",
+          "text": "This makes `--mock` a flag with no value: present means True, absent means False. That is why the demo needs no key at all.",
+          "kind": "crit"
+        },
+        {
+          "at": "linkedin_url = args.url or input(\"Enter LinkedIn profile URL (or press Enter to use mock data): \")",
+          "lines": 1,
+          "title": "Flag or prompt",
+          "text": "`args.url or input(...)` uses the flag when present and asks otherwise. Pressing Enter returns an empty string, which flows into the mock decision below.",
+          "kind": "crit"
+        },
+        {
+          "at": "if args.model:",
+          "lines": 2,
+          "title": "A late import",
+          "text": "`change_llm_model` is imported only when `--model` is used. A local import keeps the normal path free of that dependency - a small optimisation, and a slightly surprising pattern to read."
+        },
+        {
+          "at": "use_mock = args.mock or not linkedin_url or not api_key",
+          "lines": 1,
+          "title": "Three ways to fall back",
+          "text": "Explicit flag, empty URL, or missing key - any one forces mock mode. The consequence is that a user with a URL but no key silently gets sample data instead of an error; the log line below explains it, so read the logs.",
+          "kind": "crit"
+        },
+        {
+          "at": "linkedin_url = \"https://www.linkedin.com/in/leonkatsnelson/\"",
+          "lines": 1,
+          "title": "A placeholder URL",
+          "text": "In mock mode the URL is only used for logging; the sample JSON is downloaded from `config.MOCK_DATA_URL`. The person in the sample data is fictional."
+        },
+        {
+          "at": "process_linkedin(linkedin_url, api_key, mock=use_mock)",
+          "lines": 1,
+          "title": "One call starts everything",
+          "text": "`main()` does no work itself - it decides, then delegates. Keeping orchestration and logic separate is what makes this file readable."
+        }
+      ]
+    },
+    "icebreaker/config.py": {
+      "purpose": "All tunable values in one place: the watsonx endpoint and project, model ids, similarity settings, chunk size, the two prompt templates and the mock-data URL. Nothing here calls a model.",
+      "run": "imported by every module",
+      "meta": [
+        "88 lines",
+        "single source of settings",
+        "two prompt templates"
+      ],
+      "sections": [
+        {
+          "title": "Environment and watsonx settings",
+          "start": "import os",
+          "why": "Loads `.env`, then reads the project id. The URL is hard-coded to the eu-de region."
+        },
+        {
+          "title": "Model ids",
+          "start": "LLM_MODEL_ID = \"ibm/granite-4-h-small\"",
+          "why": "One chat model and one embedding model. Both must be available in your region and project."
+        },
+        {
+          "title": "Profile lookup and get_profile_context()",
+          "start": "PROXYCURL_API_KEY = os.getenv(\"PROXYCURL_API_KEY\", \"\").strip() or None",
+          "why": "The API key becomes `None` when blank, and a helper formats a sample profile as text."
+        },
+        {
+          "title": "Mock data URL and sampling settings",
+          "start": "MOCK_DATA_URL = (",
+          "why": "Where the offline sample comes from, and the retrieval/generation numbers every function reads."
+        },
+        {
+          "title": "The two prompt templates",
+          "start": "INITIAL_FACTS_TEMPLATE = \"\"\"",
+          "why": "`{context_str}` and `{query_str}` are LlamaIndex placeholders. The wording is the entire behaviour spec for the two LLM calls."
+        }
+      ],
+      "notes": [
+        {
+          "at": "load_dotenv(override=True)",
+          "lines": 1,
+          "title": "Loaded before any env read",
+          "text": "`override=True` makes the project's `.env` win over stale shell values. Every module that imports config benefits, because config is imported first."
+        },
+        {
+          "at": "WATSONX_URL = \"https://eu-de.ml.cloud.ibm.com\"",
+          "lines": 1,
+          "title": "Hard-coded region",
+          "text": "The URL is not read from the environment, so this project only works in the Frankfurt (eu-de) region. A project in us-south would need this line changed - a common first failure.",
+          "kind": "watch"
+        },
+        {
+          "at": "WATSONX_PROJECT_ID = os.environ[\"WATSONX_PROJECT_ID\"]",
+          "lines": 1,
+          "title": "Fail at import time",
+          "text": "Square brackets raise KeyError if the project id is missing, so the app refuses to start rather than failing on the first question. Fast and loud beats slow and silent.",
+          "kind": "crit"
+        },
+        {
+          "at": "LLM_MODEL_ID = \"ibm/granite-4-h-small\"",
+          "lines": 1,
+          "title": "A mutable setting",
+          "text": "`change_llm_model()` in llm_interface.py overwrites this at run time. Module-level constants are not really constants in Python - keep that in mind when debugging \"which model answered?\".",
+          "kind": "crit"
+        },
+        {
+          "at": "PROXYCURL_API_KEY = os.getenv(\"PROXYCURL_API_KEY\", \"\").strip() or None",
+          "lines": 1,
+          "title": "Blank becomes None",
+          "text": "`getenv` returns `\"\"` for a missing variable; `strip()` removes whitespace; `or None` converts any falsy value to `None`. So `if not api_key` is a reliable test for \"no key\", which the mock decision depends on.",
+          "kind": "crit"
+        },
+        {
+          "at": "def get_profile_context():",
+          "lines": 13,
+          "title": "Defined but never called",
+          "text": "This helper fetches the JSONPlaceholder sample and formats it as text. Nothing in `main.py` calls it - it is a teaching utility. Note the `or 'Not available'` pattern, which protects against missing keys.",
+          "kind": "watch"
+        },
+        {
+          "at": "MOCK_DATA_URL = (",
+          "lines": 4,
+          "title": "The offline data source",
+          "text": "A course-hosted JSON file. `data_extraction` downloads it when `mock=True`, which is why the demo works with no API key."
+        },
+        {
+          "at": "SIMILARITY_TOP_K = 5",
+          "lines": 1,
+          "title": "Five chunks per question",
+          "text": "The retriever returns five nodes, which are pasted into the prompt. More context improves recall but dilutes attention and costs tokens.",
+          "kind": "crit"
+        },
+        {
+          "at": "CHUNK_SIZE = 500",
+          "lines": 1,
+          "title": "Chunk size in tokens",
+          "text": "`SentenceSplitter` measures in tokens, not characters. 500 tokens is a few hundred words - large enough to keep a job description together, small enough to be specific.",
+          "kind": "crit"
+        },
+        {
+          "at": "TEMPERATURE = 0.0",
+          "lines": 1,
+          "title": "Facts, not creativity",
+          "text": "Zero temperature keeps the model close to its most likely wording, which suits a factual profile summary. The value is passed into `create_watsonx_llm` as a default argument - evaluated once at import.",
+          "kind": "crit"
+        },
+        {
+          "at": "TOP_K = 50",
+          "lines": 2,
+          "title": "Sampling limits",
+          "text": "`top_k` keeps only the 50 most likely next tokens, and `top_p=1` disables nucleus filtering. With greedy decoding these barely matter, but they are passed anyway."
+        },
+        {
+          "at": "INITIAL_FACTS_TEMPLATE = \"\"\"",
+          "lines": 11,
+          "title": "Template one: three facts",
+          "text": "It injects `{context_str}` and asks for three interesting facts, with the explicit instruction to use only the context. That sentence is what keeps the ice-breaker from inventing achievements.",
+          "kind": "crit"
+        },
+        {
+          "at": "USER_QUESTION_TEMPLATE = \"\"\"",
+          "lines": 13,
+          "title": "Template two: answer questions",
+          "text": "This one adds `{query_str}`. The closing instruction gives the model an exact sentence to use when the answer is missing - copying it verbatim is far more reliable than \"say I don't know\" without a format.",
+          "kind": "crit"
+        }
+      ]
+    },
+    "icebreaker/modules/llm_interface.py": {
+      "purpose": "Two factories and one setter: build the watsonx embedding model, build the watsonx LLM with all generation settings, and swap the model id at run time. Every other module gets its models through this file.",
+      "run": "imported by data_processing and query_engine",
+      "meta": [
+        "70 lines",
+        "two factories",
+        "one mutable global"
+      ],
+      "sections": [
+        {
+          "title": "create_watsonx_embedding()",
+          "start": "def create_watsonx_embedding() -> WatsonxEmbeddings:",
+          "why": "Returns the embedding model with a truncation limit - and that limit is far too small."
+        },
+        {
+          "title": "create_watsonx_llm()",
+          "start": "def create_watsonx_llm(",
+          "why": "Every generation parameter in one place, with defaults coming from config."
+        },
+        {
+          "title": "change_llm_model()",
+          "start": "def change_llm_model(new_model_id: str) -> None:",
+          "why": "Rewrites the config value so the next factory call builds a different model."
+        }
+      ],
+      "notes": [
+        {
+          "at": "from llama_index.llms.ibm import WatsonxLLM",
+          "lines": 1,
+          "title": "LlamaIndex wrappers, not LangChain",
+          "text": "This project uses LlamaIndex's own IBM integration, which accepts `temperature` and `max_new_tokens` as direct arguments. LangChain's equivalent takes one `params` dictionary - mixing the two styles is a common source of confusion.",
+          "kind": "crit"
+        },
+        {
+          "at": "truncate_input_tokens=3,",
+          "lines": 1,
+          "title": "The 3-token truncation, again",
+          "text": "Every chunk is cut to three tokens before embedding, so vectors describe almost none of the text. Retrieval quality collapses while the app still appears to work. Use 512, as the fixed version in Code/langchain_context_retreival.py does.",
+          "kind": "crit"
+        },
+        {
+          "at": "logger.info(f\"Created Watsonx Embedding model: {config.EMBEDDING_MODEL_ID}\")",
+          "lines": 1,
+          "title": "Log the decision, not the work",
+          "text": "Logging which model was created makes multi-model debugging possible. It also confirms that config was read correctly before any network call."
+        },
+        {
+          "at": "temperature: float = config.TEMPERATURE,",
+          "lines": 4,
+          "title": "Defaults are evaluated at import",
+          "text": "Default argument values are computed once, when the module is imported. If you later change `config.TEMPERATURE`, calls that omit the argument keep the old value - a subtle Python gotcha.",
+          "kind": "watch"
+        },
+        {
+          "at": "additional_params = {",
+          "lines": 6,
+          "title": "The per-call parameters",
+          "text": "`decoding_method`, `min_new_tokens`, `top_k` and `top_p` are bundled and passed as `additional_params`. Explicit arguments (`temperature`, `max_new_tokens`) are separate - check the library docs to know which goes where.",
+          "kind": "crit"
+        },
+        {
+          "at": "decoding_method: str = \"sample\"",
+          "lines": 1,
+          "title": "Sampling by default",
+          "text": "The factory defaults to `sample`, but `query_engine` calls it with `decoding_method=\"greedy\"` for question answering. A sampled answer with temperature 0 is not truly deterministic - greedy is.",
+          "kind": "crit"
+        },
+        {
+          "at": "def change_llm_model(new_model_id: str) -> None:",
+          "lines": 1,
+          "title": "Mutation through config",
+          "text": "Changing `config.LLM_MODEL_ID` affects every future `create_watsonx_llm()` call. This works because Python modules are objects and their attributes are writable.",
+          "kind": "crit"
+        },
+        {
+          "at": "global config",
+          "lines": 1,
+          "title": "A global statement that is not needed",
+          "text": "`global config` is only required when you *rebind* the name. Here the code only sets an attribute (`config.LLM_MODEL_ID = ...`), which works without the declaration. Harmless, but a good reminder of what `global` actually does.",
+          "kind": "watch"
+        }
+      ]
+    },
+    "icebreaker/modules/data_extraction.py": {
+      "purpose": "Fetches a profile - either the course's sample JSON (mock mode) or the Proxycurl LinkedIn API - and cleans the response by dropping empty fields, `people_also_viewed`, `certifications` and profile picture URLs.",
+      "run": "called from main.process_linkedin()",
+      "meta": [
+        "199 lines",
+        "≈100 lines of docstring",
+        "two HTTP paths"
+      ],
+      "sections": [
+        {
+          "title": "The docstring: contract before code",
+          "start": "\"\"\"Retrieve LinkedIn profile data from Proxycurl or configured mock data.",
+          "why": "Roughly half this file is documentation. It states both modes, the cleaning rules and the failure contract. Read it first; the code below is shorter than it looks."
+        },
+        {
+          "title": "The function signature",
+          "start": "def extract_linkedin_profile(",
+          "why": "Three parameters: the URL, an optional key, and the mock flag that switches the whole data source."
+        },
+        {
+          "title": "Mock mode",
+          "start": "if mock:",
+          "why": "One GET request to a course-hosted JSON file, with a generous 30-second timeout."
+        },
+        {
+          "title": "API mode: key check, endpoint, headers and parameters",
+          "start": "if not api_key:",
+          "why": "Validates the key, then builds the Proxycurl request: bearer auth, profile URL and four \"include\" flags."
+        },
+        {
+          "title": "Response handling and cleaning",
+          "start": "if response.status_code == 200:",
+          "why": "Only a 200 is treated as success. The JSON is parsed and then filtered before returning."
+        },
+        {
+          "title": "Error paths",
+          "start": "except ValueError as e:",
+          "why": "Three ways to fail - bad JSON, non-200 status, unexpected exception - and all three return an empty dictionary."
+        }
+      ],
+      "notes": [
+        {
+          "at": "This function logs elapsed request time and reports failures through the",
+          "lines": 6,
+          "title": "Returns {} on failure, always",
+          "text": "The docstring promises \"never raises\". Callers must therefore test the result - `main.py` does exactly that with `if not profile_data`. An empty dict is the sentinel, not an exception.",
+          "kind": "crit"
+        },
+        {
+          "at": "In the current API-mode",
+          "lines": 6,
+          "title": "Stale docstring",
+          "text": "The docstring claims the Authorization header contains \"a fixed masked literal\" and that the key is not used. The code below clearly does `f\"Bearer {api_key}\"`. The documentation is out of date - trust the code, and fix the docstring when you touch it.",
+          "kind": "watch"
+        },
+        {
+          "at": "start_time = time.time()",
+          "lines": 1,
+          "title": "Time the whole call",
+          "text": "Every log line reports seconds since this moment, which is how you notice that mock data returns in 0.4s while the API takes 6s."
+        },
+        {
+          "at": "response = requests.get(mock_url, timeout=30)",
+          "lines": 1,
+          "title": "Mock = one plain GET",
+          "text": "No authentication, no parameters - just the sample file. The 30-second timeout is generous because the file is served from object storage.",
+          "kind": "crit"
+        },
+        {
+          "at": "raise ValueError(\"API key is required when mock is set to False.\")",
+          "lines": 1,
+          "title": "Fail inside the try",
+          "text": "This `raise` is caught by the function's own broad `except`, logged, and turned into `{}`. Raising here is really an early-exit with a clear log message rather than an exception the caller sees.",
+          "kind": "crit"
+        },
+        {
+          "at": "api_endpoint = \"https://nubela.co/proxycurl/api/v2/linkedin\"",
+          "lines": 1,
+          "title": "The third-party API",
+          "text": "Proxycurl scrapes LinkedIn profiles to structured JSON. It is a paid service - which is exactly why the mock path exists.",
+          "kind": "crit"
+        },
+        {
+          "at": "headers = {",
+          "lines": 3,
+          "title": "Bearer authentication",
+          "text": "The key travels in an HTTP header, not in the URL, so it does not appear in server logs or browser history. `Bearer` means \"whoever holds this token is authorised\".",
+          "kind": "crit"
+        },
+        {
+          "at": "\"fallback_to_cache\": \"on-error\",",
+          "lines": 8,
+          "title": "The include flags",
+          "text": "`fallback_to_cache` and `use_cache` trade freshness for reliability; `skills`, `inferred_salary`, `personal_email` and `personal_contact_number` ask for extra fields. More fields means a slower, more expensive call - and personal data you must handle carefully.",
+          "kind": "crit"
+        },
+        {
+          "at": "response = requests.get(api_endpoint, headers=headers, params=params, timeout=10)",
+          "lines": 1,
+          "title": "Always set a timeout",
+          "text": "Without `timeout`, a hung connection can block forever. Ten seconds is short for a scraper API; if you see frequent failures, this number is the first suspect.",
+          "kind": "crit"
+        },
+        {
+          "at": "if response.status_code == 200:",
+          "lines": 1,
+          "title": "Explicit success only",
+          "text": "`requests` does not raise on 4xx/5xx, so this check is required. Note the asymmetry with `profile_lookup.py`, which uses `raise_for_status()` instead - both are valid, but do not mix them casually."
+        },
+        {
+          "at": "data = response.json()",
+          "lines": 1,
+          "title": "Parsing can itself fail",
+          "text": "If the server returns HTML (an error page), `.json()` raises `ValueError`, which the inner handler catches separately and logs with the first 200 characters of the body.",
+          "kind": "crit"
+        },
+        {
+          "at": "data = {",
+          "lines": 4,
+          "title": "The cleaning comprehension",
+          "text": "Keep every key whose value is not an empty list, empty string or None, and drop `people_also_viewed` and `certifications`. Empty values would otherwise become useless chunks that dilute retrieval.",
+          "kind": "crit"
+        },
+        {
+          "at": "if data.get(\"groups\"):",
+          "lines": 3,
+          "title": "Nested cleanup",
+          "text": "Photo URLs inside group records are removed with `pop(..., None)`. The second argument means \"do not raise if the key is absent\" - important because real API payloads vary between profiles.",
+          "kind": "crit"
+        },
+        {
+          "at": "except ValueError as e:",
+          "lines": 3,
+          "title": "Bad JSON, logged with evidence",
+          "text": "Logging the first 200 characters of the response is what lets you tell an error page from a truncated body. Logging only the exception type would leave you guessing.",
+          "kind": "crit"
+        },
+        {
+          "at": "except Exception as e:",
+          "lines": 3,
+          "title": "The catch-all at the end",
+          "text": "Network errors, DNS failures, coding mistakes - everything lands here and returns `{}`. Broad, but acceptable at a module boundary in a demo. It also hides bugs, so watch the log output.",
+          "kind": "watch"
+        }
+      ]
+    },
+    "icebreaker/modules/data_processing.py": {
+      "purpose": "Turns the profile dictionary into a searchable index: JSON to one document, document to nodes, nodes to a `VectorStoreIndex` with watsonx embeddings, then a check that every node really has a stored embedding.",
+      "run": "called from main.process_linkedin()",
+      "meta": [
+        "215 lines",
+        "LlamaIndex index",
+        "private API used in verify"
+      ],
+      "sections": [
+        {
+          "title": "split_profile_data()",
+          "start": "def split_profile_data(profile_data: Dict[str, Any]) -> List:",
+          "why": "Serialise, wrap, split. Three lines of real work and a large docstring explaining the failure contract."
+        },
+        {
+          "title": "create_vector_database()",
+          "start": "def create_vector_database(nodes: List) -> Optional[VectorStoreIndex]:",
+          "why": "Embedding happens here, which means this is the step that needs working credentials and network access."
+        },
+        {
+          "title": "verify_embeddings()",
+          "start": "def verify_embeddings(index: VectorStoreIndex) -> bool:",
+          "why": "A presence check per node id, using a private attribute of the index - useful, but fragile across LlamaIndex versions."
+        }
+      ],
+      "notes": [
+        {
+          "at": "from llama_index.core.node_parser import SentenceSplitter",
+          "lines": 1,
+          "title": "Sentence-aware chunking",
+          "text": "`SentenceSplitter` prefers sentence boundaries, so a chunk rarely begins mid-sentence. That matters more than it sounds: a half sentence embeds poorly and reads badly in an answer.",
+          "kind": "crit"
+        },
+        {
+          "at": "from modules.llm_interface import create_watsonx_embedding",
+          "lines": 1,
+          "title": "Absolute module path",
+          "text": "`modules.llm_interface` works when the project root is on `sys.path` - i.e. when you run `python main.py` from the icebreaker folder. Run from elsewhere and Python cannot find `modules`.",
+          "kind": "crit"
+        },
+        {
+          "at": "profile_json = json.dumps(profile_data)",
+          "lines": 1,
+          "title": "One text blob",
+          "text": "The whole profile becomes a single JSON string, which is then chunked. Retrieval therefore works on JSON fragments - readable to a model, but not the friendliest format. A production system would split on fields (experience, education, skills).",
+          "kind": "crit"
+        },
+        {
+          "at": "document = Document(text=profile_json)",
+          "lines": 1,
+          "title": "Document = input unit",
+          "text": "LlamaIndex wants documents, so the string is wrapped. No metadata is attached here - adding `metadata={\"source\": \"linkedin\"}` would make filtering and citation easier later.",
+          "kind": "info"
+        },
+        {
+          "at": "splitter = SentenceSplitter(chunk_size=config.CHUNK_SIZE)",
+          "lines": 1,
+          "title": "500 tokens from config",
+          "text": "The size comes from config, so one edit tunes the whole pipeline. Default overlap (200) applies because it is not overridden - a detail worth setting explicitly in real code.",
+          "kind": "crit"
+        },
+        {
+          "at": "logger.info(f\"Created {len(nodes)} nodes from profile data\")",
+          "lines": 1,
+          "title": "Log the count",
+          "text": "The number of nodes tells you whether chunking behaved. One node means the profile is tiny; hundreds means the JSON is large or the chunk size is too small."
+        },
+        {
+          "at": "except Exception as e:",
+          "lines": 2,
+          "title": "Empty list as the error value",
+          "text": "A non-serialisable value (a `datetime`, a custom object) breaks `json.dumps` and yields `[]`. The caller then builds an index from nothing - another silent degradation.",
+          "kind": "watch",
+          "occ": 1
+        },
+        {
+          "at": "embedding_model = create_watsonx_embedding()",
+          "lines": 1,
+          "title": "The network step",
+          "text": "Embedding each node is an API call, so this line is where credentials, region and model access all matter. It is also the slowest part of setup.",
+          "kind": "crit"
+        },
+        {
+          "at": "index = VectorStoreIndex(",
+          "lines": 5,
+          "title": "The index is built in memory",
+          "text": "`VectorStoreIndex(nodes=..., embed_model=...)` embeds and stores everything in a default in-memory store. `show_progress=True` prints a bar - useful when a profile produces hundreds of nodes.",
+          "kind": "crit"
+        },
+        {
+          "at": "return index",
+          "lines": 1,
+          "title": "Return the index, not a database",
+          "text": "Despite the function name, no external database is involved. The return value is a LlamaIndex object that lives for the length of the session and disappears when Python exits.",
+          "kind": "crit"
+        },
+        {
+          "at": "vector_store = index._storage_context.vector_store",
+          "lines": 1,
+          "title": "A leading underscore means private",
+          "text": "`_storage_context` is an internal attribute. It works today, but a LlamaIndex upgrade may rename it. A public API (`index.vector_store`) or a try/except with a clear message would be more robust.",
+          "kind": "watch"
+        },
+        {
+          "at": "node_ids = list(index.index_struct.nodes_dict.keys())",
+          "lines": 1,
+          "title": "Which nodes should exist",
+          "text": "The index struct records the ids it indexed. Comparing that list against the vector store is a cheap consistency check - the same idea as `SELECT count(*)` versus the rows you inserted.",
+          "kind": "crit"
+        },
+        {
+          "at": "embedding = vector_store.get(node_id)",
+          "lines": 7,
+          "title": "Presence, not quality",
+          "text": "A non-None value means \"something is stored\". It says nothing about dimensions, values or whether retrieval will be any good. The function checks the plug is in, not that the wire carries current.",
+          "kind": "crit"
+        }
+      ]
+    },
+    "icebreaker/modules/query_engine.py": {
+      "purpose": "The two LLM calls. `generate_initial_facts` asks for three interesting facts about the person; `answer_user_query` answers an arbitrary question. Both build a query engine over the existing index, so nothing is re-embedded.",
+      "run": "called from main.py",
+      "meta": [
+        "93 lines",
+        "two query engines",
+        "one unused retrieval"
+      ],
+      "sections": [
+        {
+          "title": "generate_initial_facts()",
+          "start": "def generate_initial_facts(index: VectorStoreIndex) -> str:",
+          "why": "Builds a query engine with the facts template, asks one fixed question, returns the text."
+        },
+        {
+          "title": "answer_user_query()",
+          "start": "def answer_user_query(index: VectorStoreIndex, user_query: str) -> Any:",
+          "why": "Same pattern, but with the user's question. It also retrieves nodes explicitly - and then never uses them."
+        }
+      ],
+      "notes": [
+        {
+          "at": "def generate_initial_facts(index: VectorStoreIndex) -> str:",
+          "lines": 1,
+          "title": "One job per function",
+          "text": "Each function builds its own LLM and query engine, so they can use different prompts and decoding settings. Slight cost, clear separation.",
+          "kind": "crit"
+        },
+        {
+          "at": "watsonx_llm = create_watsonx_llm(",
+          "lines": 4,
+          "title": "Zero temperature, sampled decoding",
+          "text": "`temperature=0.0` with `decoding_method=\"sample\"` asks for randomness and then sets it to zero. It mostly behaves greedily, but not guaranteed. `greedy` is the honest choice for factual output.",
+          "kind": "watch",
+          "occ": 1
+        },
+        {
+          "at": "facts_prompt = PromptTemplate(template=config.INITIAL_FACTS_TEMPLATE)",
+          "lines": 1,
+          "title": "Template from config",
+          "text": "Keeping prompts in config makes them reviewable and editable without touching logic. The template still contains `{context_str}`, which LlamaIndex fills with retrieved text.",
+          "kind": "crit"
+        },
+        {
+          "at": "query_engine = index.as_query_engine(",
+          "lines": 6,
+          "title": "Index to query engine",
+          "text": "`as_query_engine` wires retriever plus LLM plus prompt. `similarity_top_k` controls how many chunks are pasted into the prompt, and `text_qa_template` supplies the instructions.",
+          "kind": "crit",
+          "occ": 1
+        },
+        {
+          "at": "Provide three interesting facts about this person",
+          "lines": 2,
+          "title": "A fixed question",
+          "text": "The query is hard-coded because the goal is a canned ice-breaker. It still goes through retrieval, so the facts come from the profile rather than the model's imagination.",
+          "kind": "info"
+        },
+        {
+          "at": "return response.response",
+          "lines": 1,
+          "title": "The text, not the object",
+          "text": "A LlamaIndex response has `.response` (text) plus `.source_nodes` (evidence). Returning only the text is convenient for printing and throws away the audit trail.",
+          "kind": "crit"
+        },
+        {
+          "at": "except Exception as e:",
+          "lines": 2,
+          "title": "A string on the error path",
+          "text": "Success returns a `str`, failure returns `\"Failed to generate initial facts.\"` - also a `str`, so the caller's contract holds here. The type is consistent by luck rather than design.",
+          "kind": "watch",
+          "occ": 1
+        },
+        {
+          "at": "def answer_user_query(index: VectorStoreIndex, user_query: str) -> Any:",
+          "lines": 1,
+          "title": "Return type Any",
+          "text": "`Any` is honest but unhelpful: on success this returns a response object, on failure a string. That mismatch is why `main.py` crashes when it calls `.response` on the error value.",
+          "kind": "watch"
+        },
+        {
+          "at": "watsonx_llm = create_watsonx_llm(",
+          "occ": 2,
+          "lines": 4,
+          "title": "250 tokens for answers",
+          "text": "The second call caps output at 250 tokens with greedy decoding - shorter and more repeatable than the facts call. Different jobs, different settings.",
+          "kind": "crit"
+        },
+        {
+          "at": "base_retriever = index.as_retriever(similarity_top_k=config.SIMILARITY_TOP_K)",
+          "lines": 2,
+          "title": "Retrieval that is thrown away",
+          "text": "`source_nodes` is computed and then never used, because `as_query_engine` retrieves again internally. Removing these two lines would halve the retrieval work with no change in behaviour.",
+          "kind": "watch"
+        },
+        {
+          "at": "context_str = \"\\n\\n\".join([node.node.get_text() for node in source_nodes])",
+          "lines": 1,
+          "title": "Built and abandoned",
+          "text": "`context_str` is never passed anywhere. The intent was probably to fill the template manually; the engine does it instead. A leftover from an earlier implementation, and a reminder to delete dead variables.",
+          "kind": "watch"
+        },
+        {
+          "at": "answer = query_engine.query(user_query)",
+          "lines": 2,
+          "title": "The real call",
+          "text": "`query` embeds the question, retrieves the top-k nodes, fills `{context_str}` and `{query_str}`, calls the LLM and returns a response object. The whole RAG loop in one line.",
+          "kind": "crit"
+        }
+      ]
+    },
+    "icebreaker/modules/__init__.py": {
+      "purpose": "The package entry point: a short docstring naming the four modules, then re-exports so that `from modules import ...` works. It contains no logic.",
+      "meta": [
+        "14 lines",
+        "re-exports only"
+      ],
+      "sections": [
+        {
+          "title": "The package surface",
+          "start": "\"\"\"",
+          "why": "Four imports define what the package offers. Anything not listed here must be imported by its full path.",
+          "occ": 1
+        }
+      ],
+      "notes": [
+        {
+          "at": "This package contains the following modules:",
+          "lines": 5,
+          "title": "A package is a folder with __init__",
+          "text": "The presence of `__init__.py` turns `modules/` into an importable package. Its docstring is what `help(modules)` shows, so keeping it accurate is genuinely useful documentation.",
+          "kind": "info"
+        },
+        {
+          "at": "from modules.data_extraction import extract_linkedin_profile",
+          "lines": 4,
+          "title": "Re-exports, and a side effect",
+          "text": "These lines make the names available at package level, but they also import every submodule - and each one imports `config`, `llama_index` and possibly credentials. Importing `modules` is therefore not free.",
+          "kind": "crit"
+        },
+        {
+          "at": "from modules.data_processing import split_profile_data, create_vector_database, verify_embeddings",
+          "lines": 1,
+          "title": "Absolute, not relative imports",
+          "text": "`from modules.x import y` works from the project root. A relative form (`from .data_processing import ...`) would work regardless of how the package is invoked - worth knowing if you restructure.",
+          "kind": "info"
+        }
+      ]
+    },
+    "icebreaker/profile_lookup.py": {
+      "purpose": "A 47-line standalone demo that fetches one fake user from JSONPlaceholder and normalises the nested response into a small flat dictionary. It is not part of the LinkedIn pipeline, but it shows clean HTTP handling.",
+      "run": "python profile_lookup.py",
+      "meta": [
+        "47 lines",
+        "free test API",
+        "no credentials"
+      ],
+      "sections": [
+        {
+          "title": "lookup_profile()",
+          "start": "def lookup_profile():",
+          "why": "One GET, one status check, one normalisation step - the minimal correct way to call an HTTP API."
+        },
+        {
+          "title": "The demo block",
+          "start": "if __name__ == \"__main__\":",
+          "why": "Prints four fields, with a dedicated handler for network failures."
+        }
+      ],
+      "notes": [
+        {
+          "at": "Note: JSONPlaceholder returns fictional sample user data,",
+          "lines": 3,
+          "title": "Honest sample data",
+          "text": "The docstring says plainly that this is invented data, not LinkedIn. Saying so prevents a very common misunderstanding when a learner prints the \"profile\" and sees a fake company.",
+          "kind": "crit"
+        },
+        {
+          "at": "response = requests.get(url, timeout=15)",
+          "lines": 1,
+          "title": "Timeout, every time",
+          "text": "`requests.get` can hang without a timeout. Fifteen seconds is generous for a toy API and still finite - the same discipline as `data_extraction.py`."
+        },
+        {
+          "at": "response.raise_for_status()",
+          "lines": 1,
+          "title": "Turn HTTP errors into exceptions",
+          "text": "Without this, a 404 body would be parsed as if it were valid JSON. `raise_for_status()` converts 4xx/5xx into `HTTPError`, which the demo block catches. This is the pattern to prefer over manual status checks.",
+          "kind": "crit"
+        },
+        {
+          "at": "\"company\": profile.get(\"company\", {}).get(\"name\"),",
+          "lines": 5,
+          "title": "Safe nested access",
+          "text": "`.get(\"company\", {})` supplies an empty dict when the key is missing, so the second `.get(\"name\")` cannot fail. Chained `.get` calls are the standard defence against partially missing API payloads.",
+          "kind": "crit"
+        },
+        {
+          "at": "return result",
+          "lines": 1,
+          "title": "Normalise at the boundary",
+          "text": "The rest of the program sees one flat shape regardless of what the API returns. Compare this with `data_extraction.py`, which cleans but keeps the original structure.",
+          "kind": "crit"
+        },
+        {
+          "at": "except requests.RequestException as exc:",
+          "lines": 1,
+          "title": "Catch the library's own error type",
+          "text": "`requests.RequestException` is the base class for connection, timeout and HTTP errors. Catching it is narrower and more meaningful than `except Exception`.",
+          "kind": "crit"
+        }
+      ]
+    },
+    "icebreaker/test_config.py": {
+      "purpose": "A 16-line scratch pad that prints a few config values and then calls `lookup_profile()`. It validates that configuration loads and that the sample API is reachable - a poor man's smoke test.",
+      "run": "python test_config.py",
+      "meta": [
+        "16 lines",
+        "not a pytest file",
+        "prints config"
+      ],
+      "sections": [
+        {
+          "title": "Print the settings",
+          "start": "import config",
+          "why": "Six prints that answer \"did the config load?\" without starting the whole pipeline."
+        },
+        {
+          "title": "Call the sample API",
+          "start": "from profile_lookup import lookup_profile",
+          "why": "Confirms network access by calling JSONPlaceholder, then prints the dictionary."
+        }
+      ],
+      "notes": [
+        {
+          "at": "print(\"Initial Facts Template defined:\", bool(config.INITIAL_FACTS_TEMPLATE))",
+          "lines": 4,
+          "title": "bool() as a quick assertion",
+          "text": "Printing a boolean is enough to catch an empty template or a zero chunk size. Crude, but this is a 16-line sanity check, not a test suite.",
+          "kind": "info"
+        },
+        {
+          "at": "profile_context = lookup_profile()",
+          "lines": 2,
+          "title": "Print, do not format",
+          "text": "Despite the name, `profile_context` is the raw dictionary and is printed as-is. `config.get_profile_context()` would format it as text - but it is never used here.",
+          "kind": "info"
+        },
+        {
+          "at": "import config",
+          "lines": 1,
+          "title": "Why this is not a real test",
+          "text": "Pytest collects files named `test_*.py`. This one has no test function and would be collected while performing network calls at import. Rename it if you ever add a real suite - something like `check_config.py`.",
+          "kind": "watch"
+        }
+      ]
+    }
+  }
+}

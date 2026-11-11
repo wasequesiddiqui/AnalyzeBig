@@ -1,0 +1,86 @@
+{
+  "title": "GenAI Lab - Interactive Code Walkthrough",
+  "subtitle": "Every Python folder in IBM_GENAI_TRAINING, explained line by line in plain English",
+  "output": "code-walkthrough.html",
+  "tabs": [
+    {
+      "id": "chromadb",
+      "label": "ChromaDB",
+      "emoji": "\ud83e\uddea",
+      "tagline": "A tiny vector database, start to finish",
+      "files": [
+        { "path": "ChromaDB/similarity_search.py" }
+      ]
+    },
+    {
+      "id": "code",
+      "label": "Code",
+      "emoji": "\ud83e\uddf0",
+      "tagline": "LangChain, LlamaIndex, agents and advanced retrievers on watsonx.ai",
+      "files": [
+        { "path": "Code/LANGCHAIN_APP_BASICS.py" },
+        { "path": "Code/advanced_retrievers.py" },
+        { "path": "Code/langchain_context_retreival.py" },
+        { "path": "Code/RAG_BASIC.py" },
+        { "path": "Code/LANGCHAIN_AGENT_AI.py" },
+        { "path": "Code/SIMILARITY_SEARCH_HAND.py" },
+        { "path": "Code/_tmp_watsonxllm_check.py" },
+        { "path": "Code/data_extraction.py" }
+      ]
+    },
+    {
+      "id": "food",
+      "label": "Food_Recommender",
+      "emoji": "\ud83c\udf5b",
+      "tagline": "A ChromaDB food search engine with calorie-aware re-ranking",
+      "files": [
+        { "path": "Food_Recommender/shared_functions.py" },
+        { "path": "Food_Recommender/interactive_search.py" },
+        { "path": "Food_Recommender/FoodDataSet.json", "lang": "json", "excerpt": [1, 40] }
+      ]
+    },
+    {
+      "id": "flask",
+      "label": "genai_flask_app",
+      "emoji": "\ud83c\udf36\ufe0f",
+      "tagline": "A Flask web app that asks three watsonx models the same question",
+      "files": [
+        { "path": "genai_flask_app/app.py" },
+        { "path": "genai_flask_app/model.py" },
+        { "path": "genai_flask_app/config.py" },
+        { "path": "genai_flask_app/capital.py" },
+        { "path": "genai_flask_app/llm_test.py" },
+        { "path": "genai_flask_app/templates/index.html", "lang": "html", "highlight": false },
+        { "path": "genai_flask_app/static/script.js", "lang": "js", "highlight": false },
+        { "path": "genai_flask_app/static/styles.css", "lang": "css", "highlight": false, "excerpt": [1, 60] }
+      ]
+    },
+    {
+      "id": "gradio",
+      "label": "Gradio",
+      "emoji": "\ud83c\udf9b\ufe0f",
+      "tagline": "Upload a PDF, ask a question - a RAG chatbot in 130 lines",
+      "files": [
+        { "path": "Gradio/qbot.py" },
+        { "path": "Gradio/common_input_types.py" }
+      ]
+    },
+    {
+      "id": "icebreaker",
+      "label": "icebreaker",
+      "emoji": "\ud83e\udd1d",
+      "tagline": "A LinkedIn profile to chatbot pipeline, split into clean modules",
+      "files": [
+        { "path": "icebreaker/main.py" },
+        { "path": "icebreaker/config.py" },
+        { "path": "icebreaker/modules/llm_interface.py" },
+        { "path": "icebreaker/modules/data_extraction.py" },
+        { "path": "icebreaker/modules/data_processing.py" },
+        { "path": "icebreaker/modules/query_engine.py" },
+        { "path": "icebreaker/modules/__init__.py" },
+        { "path": "icebreaker/profile_lookup.py" },
+        { "path": "icebreaker/test_config.py" }
+      ]
+    }
+  ]
+}

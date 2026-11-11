@@ -1,0 +1,142 @@
+<section class="card">
+  <h3>In one breath</h3>
+  <p class="lede">Two short files that turn a Python function into a web page. <code>qbot.py</code> is a working RAG chatbot: upload a PDF, it is chunked and embedded into Chroma, and your question is answered from the PDF's own text. <code>common_input_types.py</code> is the component reference sheet - slider, dropdown, checkbox group, radio, multi-select, checkbox - with no model calls at all.</p>
+  <div class="grid2">
+    <div class="callout info"><b>Why Gradio</b>You write a normal Python function and Gradio generates the HTML, CSS, JavaScript and web server. No routes, no templates, no fetch code - the whole UI is a declarative list of components.</div>
+    <div class="callout warn"><b>One number ruins the chatbot</b><code>TRUNCATE_INPUT_TOKENS: 3</code> cuts every chunk to three tokens before embedding. The pipeline runs, the UI looks fine, and the answers are poor - because the vectors describe almost nothing. Fix it to 512 and compare.</div>
+  </div>
+</section>
+
+<section class="card analogy">
+  <h3>Think of a photocopy shop with a smart assistant</h3>
+  <p>You hand over a thick booklet (the PDF). The shop assistant does not memorise it - they break it into stapled pages (chunks), write a one-line index card for every page (embeddings), and file the cards in a drawer (Chroma). When you ask a question, they pull the few most relevant pages and read them before answering.</p>
+  <ul class="tight">
+    <li><b>Stapling</b> = <code>RecursiveCharacterTextSplitter</code>.</li>
+    <li><b>Index cards</b> = the embedding model, i.e. numbers describing meaning.</li>
+    <li><b>Drawer</b> = the Chroma vector store.</li>
+    <li><b>Counter window</b> = the Gradio interface, where you hand over the booklet and ask.</li>
+  </ul>
+</section>
+
+<section class="card">
+  <h3>Pipeline - click any box to jump to the code</h3>
+  <div class="pipeline">
+    <svg viewBox="0 0 900 210" role="img" aria-label="Flow: uploaded PDF is loaded page by page, split into chunks, embedded and stored in Chroma, then a question retrieves chunks and the LLM answers">
+      <defs><marker id="head" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#9aa7c2"/></marker></defs>
+      <a class="node" href="#gradio-f1"><g><rect x="6" y="24" width="140" height="62" rx="10"/><text x="76" y="48" text-anchor="middle">gr.File</text><text class="sub" x="76" y="66" text-anchor="middle">uploaded PDF</text></g></a>
+      <path class="arrow" d="M148 55 H188"/>
+      <a class="node" href="#gradio-f1"><g><rect x="190" y="24" width="150" height="62" rx="10"/><text x="265" y="48" text-anchor="middle">PyPDFLoader</text><text class="sub" x="265" y="66" text-anchor="middle">one doc per page</text></g></a>
+      <path class="arrow" d="M342 55 H382"/>
+      <a class="node" href="#gradio-f1"><g><rect x="384" y="18" width="160" height="74" rx="10"/><text x="464" y="42" text-anchor="middle">splitter</text><text class="sub" x="464" y="60" text-anchor="middle">1000 / overlap 50</text><text class="sub" x="464" y="76" text-anchor="middle">chunks</text></g></a>
+      <path class="arrow" d="M546 55 H586"/>
+      <a class="node" href="#gradio-f1"><g><rect x="588" y="18" width="170" height="74" rx="10"/><text x="673" y="42" text-anchor="middle">watsonx embeddings</text><text class="sub" x="673" y="60" text-anchor="middle">granite 278m</text><text class="sub" x="673" y="76" text-anchor="middle">truncate = 3 (!)</text></g></a>
+      <a class="node" href="#gradio-f1"><g><rect x="588" y="122" width="170" height="70" rx="10"/><text x="673" y="146" text-anchor="middle">Chroma</text><text class="sub" x="673" y="164" text-anchor="middle">vectors + chunks</text></g></a>
+      <path class="arrow" d="M673 94 V118"/>
+      <a class="node" href="#gradio-f1"><g><rect x="384" y="122" width="160" height="70" rx="10"/><text x="464" y="146" text-anchor="middle">RetrievalQA</text><text class="sub" x="464" y="164" text-anchor="middle">top chunks + question</text></g></a>
+      <path class="arrow" d="M586 157 H546"/>
+      <a class="node" href="#gradio-f1"><g><rect x="190" y="122" width="150" height="70" rx="10"/><text x="265" y="146" text-anchor="middle">Mistral chat</text><text class="sub" x="265" y="164" text-anchor="middle">writes the answer</text></g></a>
+      <path class="arrow" d="M382 157 H342"/>
+      <a class="node" href="#gradio-f1"><g><rect x="6" y="122" width="140" height="70" rx="10"/><text x="76" y="146" text-anchor="middle">gr.Textbox</text><text class="sub" x="76" y="164" text-anchor="middle">answer on screen</text></g></a>
+      <path class="arrow" d="M188 157 H148"/>
+      <a class="node" href="#gradio-f2"><g><rect x="762" y="18" width="132" height="74" rx="10"/><text x="828" y="42" text-anchor="middle">other file</text><text class="sub" x="828" y="60" text-anchor="middle">input widgets</text><text class="sub" x="828" y="76" text-anchor="middle">reference sheet</text></g></a>
+    </svg>
+  </div>
+</section>
+
+<section class="card">
+  <h3>Before you run it</h3>
+  <div class="grid2">
+    <div>
+      <div class="code-wrap"><pre class="code" data-lang="bash" data-highlight="false"><code>cd Gradio
+pip install gradio langchain-ibm ibm-watsonx-ai \
+  langchain-community pypdf python-dotenv
+python qbot.py
+# open http://localhost:7860</code></pre></div>
+    </div>
+    <div>
+      <p><b>Try this</b></p>
+      <ul class="tight">
+        <li>Upload any 5-10 page PDF and ask about its contents.</li>
+        <li>Ask something <em>not</em> in the PDF and watch the model invent an answer - the chain has no "I don't know" instruction.</li>
+        <li>Run <code>common_input_types.py</code> to play with every widget.</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- CODE:Gradio/qbot.py -->
+<!-- CODE:Gradio/common_input_types.py -->
+
+<section class="card glossary-card" id="glossary-gradio">
+  <h3>Glossary - every acronym in this tab</h3>
+  <div class="glossary-filter"><input type="search" placeholder="Filter terms, e.g. RAG" aria-label="Filter glossary terms"></div>
+  <div class="table-wrap">
+    <table class="glossary">
+      <thead><tr><th>Term</th><th>Full form</th><th>What it means here</th></tr></thead>
+      <tbody class="glossary-body">
+        <tr class="gtr"><td>API<span>Application Programming Interface</span></td><td>Application Programming Interface</td><td>The watsonx endpoints used for embeddings and chat. Every chunk becomes one API request during indexing.</td></tr>
+        <tr class="gtr"><td>CSS<span>Cascading Style Sheets</span></td><td>Cascading Style Sheets</td><td>Gradio generates the page styling for you; you never write CSS in these two files.</td></tr>
+        <tr class="gtr"><td>HNSW<span>Hierarchical Navigable Small World</span></td><td>Hierarchical Navigable Small World</td><td>The index inside Chroma that makes nearest-neighbour search fast.</td></tr>
+        <tr class="gtr"><td>HTML<span>HyperText Markup Language</span></td><td>HyperText Markup Language</td><td>The markup Gradio generates from your component list.</td></tr>
+        <tr class="gtr"><td>JS<span>JavaScript</span></td><td>JavaScript</td><td>What makes the Gradio page interactive without you writing any front-end code.</td></tr>
+        <tr class="gtr"><td>kNN<span>k-Nearest Neighbours</span></td><td>k-Nearest Neighbours</td><td>Retrieving the k most similar chunks for a question. `RetrievalQA` uses the retriever's default k.</td></tr>
+        <tr class="gtr"><td>LAN<span>Local Area Network</span></td><td>Local Area Network</td><td>Your Wi-Fi or office network. <code>server_name="0.0.0.0"</code> makes the app reachable across the LAN.</td></tr>
+        <tr class="gtr"><td>LLM<span>Large Language Model</span></td><td>Large Language Model</td><td>Mistral Medium here; it composes the answer from retrieved chunks.</td></tr>
+        <tr class="gtr"><td>PDF<span>Portable Document Format</span></td><td>Portable Document Format</td><td>The only upload type this app accepts.</td></tr>
+        <tr class="gtr"><td>RAG<span>Retrieval-Augmented Generation</span></td><td>Retrieval-Augmented Generation</td><td>Retrieve chunks from the PDF, then let the model answer using them. The entire purpose of qbot.py.</td></tr>
+        <tr class="gtr"><td>SDK<span>Software Development Kit</span></td><td>Software Development Kit</td><td><code>ibm-watsonx-ai</code> and <code>langchain-ibm</code>, the Python packages that wrap the HTTP API.</td></tr>
+        <tr class="gtr"><td>UI<span>User Interface</span></td><td>User Interface</td><td>The generated page: file upload, question box, answer box.</td></tr>
+        <tr class="gtr"><td>URL<span>Uniform Resource Locator</span></td><td>Uniform Resource Locator</td><td><code>http://localhost:7860</code> locally, or the public link created by <code>share=True</code>.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="card quiz-card" id="quiz-gradio">
+  <div class="quiz-head">
+    <div>
+      <h3>Check your understanding - 22 MCQs</h3>
+      <p class="small">RAG flow, Gradio components, and the two defects hidden in qbot.py.</p>
+    </div>
+    <div class="quiz-score"><b>0 / 22</b><span class="muted">0 answered</span></div>
+  </div>
+  <div class="qbar"><i></i></div>
+  <div class="qcontrols">
+    <button class="qchip" type="button" data-filter="all" aria-pressed="true">All</button>
+    <button class="qchip" type="button" data-filter="unanswered" aria-pressed="false">Unanswered</button>
+    <button class="qchip" type="button" data-filter="wrong" aria-pressed="false">Wrong</button>
+    <button class="qchip" type="button" data-filter="easy" aria-pressed="false">Easy</button>
+    <button class="qchip" type="button" data-filter="medium" aria-pressed="false">Medium</button>
+    <button class="qchip" type="button" data-filter="hard" aria-pressed="false">Hard</button>
+    <button class="qchip" type="button" data-action="shuffle">Shuffle</button>
+    <button class="qchip" type="button" data-action="retry">Retry wrong only</button>
+    <button class="qchip" type="button" data-action="reset">Reset</button>
+  </div>
+  <div class="quiz-list"></div>
+  <script type="application/json" class="quiz">
+  [
+    {"q":"What are the four steps inside retriever(file)?","opts":["load, split, embed+store, wrap as retriever","download, translate, summarise, print","validate, dispatch, call, log","parse, filter, sort, slice"],"a":0,"why":"`document_loader` loads, `text_splitter` splits, `vector_database` embeds and stores, and `as_retriever()` wraps the store. Reading this one function explains the ingestion pipeline.","topic":"rag","diff":"easy"},
+    {"q":"Why does `PyPDFLoader(file.name)` work in Gradio?","opts":["Gradio passes the raw PDF bytes","With type=\"filepath\" Gradio passes a file object whose .name is a temp path","file.name is the user's original filename","PyPDFLoader downloads the file"],"a":1,"why":"Gradio writes the upload to a temporary file and hands over an object with that path. PyPDFLoader reads the path and returns one document per page.","topic":"gradio","diff":"medium"},
+    {"q":"What does `chunk_overlap=50` accomplish?","opts":["It makes chunks smaller","It repeats 50 characters between neighbouring chunks so sentences at boundaries survive","It limits the number of pages","It speeds up embedding"],"a":1,"why":"Overlap preserves continuity: a sentence cut at the end of one chunk also appears at the start of the next. With overlap 0, half a sentence can be unreachable.","topic":"rag","diff":"medium"},
+    {"q":"What is the effect of `TRUNCATE_INPUT_TOKENS: 3`?","opts":["Only the first 3 tokens of each chunk are embedded, so retrieval matches on almost nothing","The answer is capped at 3 tokens","Only 3 chunks are indexed","The model runs 3 times"],"a":0,"why":"Truncation happens before embedding. The vector describes the first two or three words, so semantic similarity becomes nearly random. The pipeline still runs - which is why this bug is so sneaky.","topic":"bug","diff":"hard"},
+    {"q":"Which number should replace 3 in a healthy setup?","opts":["0","3 is fine","Around 512, comfortably larger than a chunk in tokens","1000000"],"a":2,"why":"512 covers a 1000-character chunk in most languages. A very large value wastes memory and time; zero would be invalid. The sibling file already uses 512.","topic":"bug","diff":"medium"},
+    {"q":"In qbot.py, how many times is `retriever` defined?","opts":["Once","Twice, and the second definition is the one that exists at run time","Three times","Zero, it is imported"],"a":1,"why":"The identical function block appears twice. Python rebinds the name, so the second copy wins and the first is dead code. Harmless today, a maintenance trap tomorrow.","topic":"bug","diff":"medium"},
+    {"q":"Why does every question re-index the PDF?","opts":["Because Chroma deletes data after each query","Because retriever_qa calls retriever(file), which rebuilds embeddings each time","Because Gradio cannot cache files","Because the LLM forgets"],"a":1,"why":"`retriever_qa` builds a fresh retriever on every call. The result is correct but slow and expensive. In production you would index once and reuse the retriever.","topic":"performance","diff":"medium"},
+    {"q":"Which key holds the answer in RetrievalQA's response?","opts":["answer","result","output_text","response"],"a":1,"why":"`RetrievalQA` returns `{'query': ..., 'result': ...}`. `ConversationalRetrievalChain` uses `'answer'`. Using the wrong key raises KeyError.","topic":"rag","diff":"easy"},
+    {"q":"What does `chain_type=\"stuff\"` do?","opts":["Stores chunks in a file","Pastes the retrieved chunks into a single prompt","Summarises chunk by chunk","Filters irrelevant chunks"],"a":1,"why":"All retrieved text is stuffed into the prompt. Simple and effective until the context exceeds the model's window.","topic":"rag","diff":"easy"},
+    {"q":"With `return_source_documents=False`, what are you giving up?","opts":["Speed","The ability to see which chunks produced the answer","JSON output","The model name"],"a":1,"why":"Source documents are the evidence. Without them you cannot tell whether a bad answer came from bad retrieval or bad generation. Set it True while debugging.","topic":"rag","diff":"medium"},
+    {"q":"What is the minimum set of arguments for `gr.Interface`?","opts":["A function, its inputs, and an output","Only a function","A function and a title","A function and a theme"],"a":0,"why":"`fn`, `inputs` and `outputs` are required; title, description and examples are optional polish. Gradio infers the server and page from those three.","topic":"gradio","diff":"easy"},
+    {"q":"Which `gr.File` setting restricts uploads to PDFs?","opts":["file_count=\"single\"","file_types=['.pdf']","type=\"filepath\"","label=\"Upload PDF File\""],"a":1,"why":"`file_types` filters the picker. `file_count` limits how many files, `type` chooses what Python receives, and `label` is only the visible text.","topic":"gradio","diff":"easy"},
+    {"q":"`server_name=\"0.0.0.0\"` does what?","opts":["Binds only to this machine","Listens on every network interface, so other devices on the LAN can connect","Creates a public internet link","Disables the firewall"],"a":1,"why":"0.0.0.0 means all interfaces. Use 127.0.0.1 to stay local. The public link comes from `share=True`, a separate option.","topic":"gradio","diff":"medium"},
+    {"q":"Why is `share=True` a risk here?","opts":["It slows the model","It publishes a temporary public URL that can expose uploaded documents and answers","It disables embeddings","It requires a paid account"],"a":1,"why":"Anyone with the link can reach the app, and the app accepts documents. Use it for demos with non-sensitive data only.","topic":"security","diff":"medium"},
+    {"q":"What does `warnings.warn = warn` change?","opts":["Only this module's warnings","Every warning in the process, because it replaces the stdlib function globally","The model's temperature","Chroma's logging level"],"a":1,"why":"It is a monkey patch of a stdlib function, so all subsequent warnings in the process are discarded - including deprecation notices that matter.","topic":"python","diff":"medium"},
+    {"q":"In common_input_types.py, what does a `gr.CheckboxGroup` return?","opts":["A boolean","A single string","A list of selected options","A number"],"a":2,"why":"Checkbox groups allow zero or more selections, so the value is always a list. A `gr.Checkbox` returns a boolean, and `gr.Radio` returns one string.","topic":"gradio","diff":"easy"},
+    {"q":"Why must the `examples` rows follow the input order?","opts":["They are displayed alphabetically","They are loaded positionally into the components, so order defines which value goes where","They are validated against labels","Order does not matter"],"a":1,"why":"Each inner list is mapped to the inputs in declaration order. Mismatched order silently fills the wrong fields - valid values, wrong meaning.","topic":"gradio","diff":"medium"},
+    {"q":"What does `gr.Radio` guarantee?","opts":["Zero or more selections","Exactly one selection from the visible options","Free text entry","A numeric value"],"a":1,"why":"Radio is mutually exclusive by design. Use a dropdown when space is tight, a CheckboxGroup when multiple answers make sense.","topic":"gradio","diff":"easy"},
+    {"q":"Why does the chatbot answer confidently about things not in the PDF?","opts":["Because retrieval returns the whole document","Because there is no instruction allowing it to say I do not know, so it fills the gap","Because the temperature is 0.5","Because Chroma invents text"],"a":1,"why":"The default RetrievalQA prompt does not forbid guessing. Adding an explicit \"if not in the context, say you don't know\" line is the standard fix - exactly what RAG_BASIC.py does.","topic":"prompt","diff":"hard"},
+    {"q":"`project_id = \"skills-network\"` in get_llm is...","opts":["The project id actually used","Unused - the real value comes from the environment","Used only in debug mode","Required by Gradio"],"a":1,"why":"The local variable is created and never referenced; two lines later the client receives `os.environ[\"WATSONX_PROJECT_ID\"]`. A leftover from the course environment.","topic":"bug","diff":"medium"},
+    {"q":"What is the correct order of Gradio's three concepts?","opts":["Components, function, Interface","Function, Interface, launch","Interface, function, launch","launch, function, Interface"],"a":1,"why":"Write the function, declare the Interface with components, then launch the server. `launch()` starts the web app and blocks until you stop it.","topic":"gradio","diff":"medium"},
+    {"q":"Which comparison between the two files is correct?","opts":["Both call a model","qbot.py calls models and common_input_types.py only formats a sentence","common_input_types.py starts a public link","Both use Chroma"],"a":1,"why":"The component file is pure UI practice: one f-string, no embeddings, no model, and it binds to localhost only. Useful to learn widgets without any API cost.","topic":"gradio","diff":"easy"}
+  ]
+  </script>
+</section>

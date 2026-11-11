@@ -1,0 +1,583 @@
+{
+  "folder": "Food_Recommender",
+  "files": {
+    "Food_Recommender/shared_functions.py": {
+      "purpose": "The retrieval engine for a food search demo: load a JSON food catalogue, repair missing fields, embed every dish into ChromaDB, then answer free-text queries - including intent words like \"lowest calories\" or \"under 300 calories\" that pure vector search cannot handle.",
+      "run": "python interactive_search.py   (this module is imported, not run directly)",
+      "meta": [
+        "878 lines incl. long docstrings",
+        "5 stages",
+        "in-memory ChromaDB",
+        "local MiniLM embeddings"
+      ],
+      "sections": [
+        {
+          "title": "Module docstring - the whole pipeline on one page",
+          "start": "\"\"\"Shared retrieval helpers for the Food Recommender demo.",
+          "why": "Before reading a single function, the docstring gives you the five stages and the design decisions. This is what good module documentation looks like."
+        },
+        {
+          "title": "Imports and the shared in-memory client",
+          "start": "import chromadb",
+          "why": "One client object is shared by every collection this module creates, so there is exactly one place that decides whether data is in RAM or on disk."
+        },
+        {
+          "title": "Stage 1 - load_food_data(): repair every record",
+          "start": "def load_food_data(file_path: str) -> List[Dict]:",
+          "why": "Hand-written JSON is never perfectly uniform. This function fixes each record up front so no other function needs defensive checks."
+        },
+        {
+          "title": "Stage 2a - choosing the ChromaDB configuration shape",
+          "start": "def _build_collection_configuration(hnsw_space: str, embedding_function):",
+          "why": "ChromaDB changed the type of one argument between 0.6.x and 1.x. This helper tries the modern shape and falls back - a compatibility shim you should understand before editing."
+        },
+        {
+          "title": "Stage 2b - create_similarity_search_collection()",
+          "start": "def create_similarity_search_collection(collection_name: str, collection_metadata: dict = None):",
+          "why": "Deletes any old collection and builds a fresh one with cosine distance and the MiniLM embedding function bound to it."
+        },
+        {
+          "title": "Stage 3 - populate_similarity_collection(): flatten, embed, insert",
+          "start": "def populate_similarity_collection(collection, food_items: List[Dict]):",
+          "why": "Every dish becomes one rich sentence for embedding plus a flat metadata dictionary for filtering and display."
+        },
+        {
+          "title": "Stage 4a - perform_similarity_search()",
+          "start": "def perform_similarity_search(collection, query: str, n_results: int = 5) -> List[Dict]:",
+          "why": "The pure semantic search: embed the query, take the nearest five, convert distance into a similarity score."
+        },
+        {
+          "title": "Stage 4b - perform_filtered_similarity_search()",
+          "start": "def perform_filtered_similarity_search(collection, query: str, cuisine_filter: str = None,",
+          "why": "Same ranking, but the candidate set is restricted inside the database using metadata - cuisine equality and a calorie ceiling."
+        },
+        {
+          "title": "Stage 5a - the typo table and three calorie regexes",
+          "start": "_QUERY_TYPO_FIXES = {",
+          "why": "Small, explicit, testable rules instead of an LLM call. Cheap, fast and predictable - the right tool for a demo."
+        },
+        {
+          "title": "Stage 5b - _known_cuisines()",
+          "start": "def _known_cuisines(collection) -> List[str]:",
+          "why": "Reads the real cuisine values out of the database so the parser never hard-codes a list that drifts from the JSON file."
+        },
+        {
+          "title": "Stage 5c - parse_search_constraints()",
+          "start": "def parse_search_constraints(query: str,",
+          "why": "Turns \"deserts with lowest calroes\" into four fields: fixed typo, calorie cap, sort flag and cuisine filter."
+        },
+        {
+          "title": "Stage 5d - perform_calorie_aware_search()",
+          "start": "def perform_calorie_aware_search(collection, query: str, n_results: int = 5,",
+          "why": "The function the CLI actually calls. Relevance first, numbers second: build a semantic candidate pool, then re-rank by calories."
+        }
+      ],
+      "notes": [
+        {
+          "at": "FoodDataSet.json",
+          "occ": 1,
+          "lines": 3,
+          "title": "The pipeline diagram in text",
+          "text": "Load, create collection, populate, search, return ranked dictionaries. Read this ASCII diagram as the table of contents: every function below is one arrow."
+        },
+        {
+          "at": "* **Fail-soft contract.**",
+          "lines": 5,
+          "title": "Why almost nothing raises",
+          "text": "Every public helper catches its own errors and returns an empty list. The CLI can therefore loop forever without a `try` around every call. The trade-off: a real bug can look like \"no results found\", so watch the printed error messages.",
+          "kind": "crit"
+        },
+        {
+          "at": "* **Distance metric lives in two places (0.6.x).**",
+          "lines": 6,
+          "title": "The bug that looks like bad maths",
+          "text": "On chromadb 0.6.x the configuration object only records the metric; the local index reads `hnsw:space` from the collection metadata. Set it in one place only and you silently get squared L2, so `1 - distance` can go negative. This note is the reason the code below sets both.",
+          "kind": "watch"
+        },
+        {
+          "at": "client = chromadb.Client()",
+          "lines": 1,
+          "title": "One ephemeral client",
+          "text": "In-memory again: every run rebuilds the index from the JSON file. That makes demos reproducible, but it also means the collection must be populated before any query - a fact the CLI's `main()` follows strictly.",
+          "kind": "crit"
+        },
+        {
+          "at": "with open(file_path, 'r', encoding='utf-8') as file:",
+          "lines": 1,
+          "title": "Always state the encoding",
+          "text": "`encoding='utf-8'` prevents mojibake on Windows for accented dish names. Without it Python uses the platform default, which is not UTF-8 on every machine."
+        },
+        {
+          "at": "item['food_id'] = str(item['food_id'])",
+          "lines": 1,
+          "title": "Numbers become strings",
+          "text": "The JSON stores `food_id` as an integer; ChromaDB needs string ids. Converting here means `populate_similarity_collection` never has to think about types - one normalisation point, many happy consumers.",
+          "kind": "crit"
+        },
+        {
+          "at": "if 'food_calories_per_serving' not in item:",
+          "lines": 1,
+          "title": "Inert defaults instead of crashes",
+          "text": "Missing fields get safe values: 0 calories, empty description, `Unknown` cuisine. Note that `food_name` is deliberately **not** defaulted - a nameless dish cannot be shown to a user, and ChromaDB metadata rejects `None`.",
+          "kind": "crit"
+        },
+        {
+          "at": "taste_features.append(str(value))",
+          "lines": 1,
+          "title": "Nesting becomes a sentence",
+          "text": "`food_features` is a dictionary per dish (`taste`, `texture`, `appearance`...). Flattening it into `\"sweet, crisp and tender, golden brown\"` gives the embedding builder one predictable string instead of a dict whose keys differ per dish.",
+          "kind": "crit"
+        },
+        {
+          "at": "print(f\"Error loading food data: {e}\")",
+          "lines": 2,
+          "title": "Return [] rather than raise",
+          "text": "A missing or broken JSON file results in an empty list and a printed reason. The caller prints \"Loaded 0 food items\", which is far more debuggable than a traceback for a beginner.",
+          "kind": "info"
+        },
+        {
+          "at": "from chromadb.api.configuration import (",
+          "lines": 5,
+          "title": "Why the *Internal* classes",
+          "text": "ChromaDB serialises configuration objects with a `_type` field. Building the public Interface classes writes one type name and then fails to deserialise as Internal, so this code deliberately builds Internal objects to keep the round trip consistent.",
+          "kind": "crit"
+        },
+        {
+          "at": "return configuration, True, True",
+          "lines": 1,
+          "title": "Three answers, not one",
+          "text": "The tuple tells the caller three things: the configuration object, that `embedding_function` must be a separate keyword (0.6.x), and that `hnsw:space` must *also* go into the metadata. A version-adaptive function has to report these differences.",
+          "kind": "crit"
+        },
+        {
+          "at": "\"hnsw\": {\"space\": hnsw_space},",
+          "lines": 2,
+          "title": "The 1.x fallback shape",
+          "text": "If the typed classes are unavailable, ChromaDB 1.x accepts a plain mapping and carries the embedding function inside it. That is why the caller checks `needs_embedding_function_kwarg` instead of always passing the argument.",
+          "kind": "crit"
+        },
+        {
+          "at": "client.delete_collection(collection_name)",
+          "lines": 1,
+          "title": "Idempotent by destruction",
+          "text": "Drop first, create second. A stale collection from an older JSON file can never mix with fresh embeddings. This is the same habit as `DELETE` + `CREATE` in SQL demos.",
+          "kind": "crit"
+        },
+        {
+          "at": "except:",
+          "lines": 2,
+          "title": "A bare except, on purpose",
+          "text": "A brand-new client has nothing to delete and ChromaDB raises. There is no useful recovery, so the error is swallowed. Note this is a bare `except:` - a style warning in most linters; `except Exception:` would be safer because it still lets Ctrl+C through.",
+          "kind": "watch"
+        },
+        {
+          "at": "metadata[\"hnsw:space\"] = \"cosine\"",
+          "lines": 1,
+          "title": "The second half of the metric fix",
+          "text": "This single line is what makes `1 - distance` a real cosine similarity on 0.6.x. Remove it and the percentages printed by the CLI become wrong - sometimes negative - while the ranking stays correct. A textbook example of a bug that hides in plain sight.",
+          "kind": "crit"
+        },
+        {
+          "at": "create_kwargs = dict(",
+          "lines": 5,
+          "title": "Build the call as a dictionary",
+          "text": "Because different ChromaDB versions accept different arguments, the call is assembled in a dict and expanded with `**create_kwargs`. Conditional keyword arguments are much clearer this way than two near-identical call sites."
+        },
+        {
+          "at": "text = f\"Name: {food['food_name']}. \"",
+          "lines": 1,
+          "title": "One rich document per dish",
+          "text": "Name, description, ingredients, cuisine, cooking method, taste, health benefits and nutrition all go into the same embedded text. That is why \"something sweet and baked with apples\" can land on Apple Pie: every field adds signal to one vector.",
+          "kind": "crit"
+        },
+        {
+          "at": "if taste_profile:",
+          "lines": 1,
+          "title": "Only append what exists",
+          "text": "Optional fragments are added only when non-empty, so short records still produce a valid sentence instead of \"Taste and features: .\"",
+          "kind": "info"
+        },
+        {
+          "at": "nutrition_text = ', '.join([f\"{k}: {v}\" for k, v in nutrition.items()])",
+          "lines": 1,
+          "title": "Keep the units in the text",
+          "text": "Rendering `carbohydrates: 42g` keeps amounts readable both for the embedding model and for a later LLM reading the retrieved chunk. Dropping the units would lose the most useful detail."
+        },
+        {
+          "at": "while unique_id in used_ids:",
+          "lines": 4,
+          "title": "Collision-safe ids",
+          "text": "If the JSON repeats a `food_id`, the second copy becomes `7_1`, the third `7_2`. ChromaDB rejects duplicate ids, so one bad row would otherwise kill the whole batch insert.",
+          "kind": "crit"
+        },
+        {
+          "at": "\"calories\": food.get(\"food_calories_per_serving\", 0),",
+          "lines": 1,
+          "title": "Numeric stays numeric",
+          "text": "`calories` is stored as a number so `$lte` range filters work. `ingredients` is joined into a string because ChromaDB metadata cannot hold lists. Choosing the right type per field is what makes filtered search possible later.",
+          "kind": "crit"
+        },
+        {
+          "at": "results = collection.query(",
+          "lines": 3,
+          "title": "One query, one list-of-lists",
+          "text": "Even a single query returns `ids[0]`, `distances[0]`, `metadatas[0]`. Forget the outer index and you get a list instead of a value - the most common ChromaDB beginner error.",
+          "kind": "crit",
+          "occ": 1
+        },
+        {
+          "at": "similarity_score = 1 - results['distances'][0][i]",
+          "lines": 1,
+          "title": "The score contract",
+          "text": "Cosine distance 0 becomes similarity 1.0. Because the metric is set in both places, this number stays in [0, 1] for sensible matches. It is a ranking signal, not a calibrated probability - do not threshold it blindly.",
+          "kind": "crit",
+          "occ": 1
+        },
+        {
+          "at": "print(f\"Error in similarity search: {e}\")",
+          "lines": 2,
+          "title": "Silent-ish failure",
+          "text": "The error is printed instead of raised, so the caller sees an empty list. Useful for a CLI, dangerous for a service: a monitoring system would see \"zero results\", not \"broken query\".",
+          "kind": "watch"
+        },
+        {
+          "at": "filters.append({\"calories\": {\"$lte\": max_calories}})",
+          "lines": 1,
+          "title": "$lte is part of the storage, not the maths",
+          "text": "The calorie ceiling is applied by the database before ranking, so `n_results` nearest neighbours come from the filtered subset. Filtering after retrieval would give you fewer results than you asked for.",
+          "kind": "crit"
+        },
+        {
+          "at": "if len(filters) == 1:",
+          "lines": 4,
+          "title": "One filter, or $and",
+          "text": "ChromaDB accepts a single condition object, or `{\"$and\": [...]}` for several. With no filters the clause stays `None`, which degenerates this function into a plain similarity search.",
+          "kind": "crit"
+        },
+        {
+          "at": "if max_calories:",
+          "lines": 1,
+          "title": "0 silently means \"no limit\"",
+          "text": "A truthiness check, not `is not None`. So `max_calories=0` is treated as \"no constraint\" - a genuine zero-calorie limit cannot be expressed. Documented in the docstring, but still a trap when you reuse this helper.",
+          "kind": "watch"
+        },
+        {
+          "at": "\"calroes\": \"calories\",",
+          "lines": 1,
+          "title": "Fixing words before embedding",
+          "text": "A word-piece tokeniser splits \"calroes\" into fragments with almost no signal. Repairing a handful of common typos keeps the query on topic without a spell-checker dependency.",
+          "kind": "crit"
+        },
+        {
+          "at": "_MAX_CALORIE_RE = re.compile(",
+          "lines": 5,
+          "title": "The regex that reads numbers",
+          "text": "It matches \"under 300\", \"less than 250 kcal\", \"max 200 cal\" and even \"< 150\". Two alternatives are captured, which is why the parser later does `group(1) or group(2)`.",
+          "kind": "crit"
+        },
+        {
+          "at": "metadatas = collection.get(include=[\"metadatas\"]).get(\"metadatas\") or []",
+          "lines": 8,
+          "title": "Facet lookup with a safety net",
+          "text": "Reading every metadata row once per query is fine for a few hundred dishes; it would not scale to millions. The `or []` handles a `None` return, and the whole block is wrapped so cuisine detection can never break a search.",
+          "kind": "crit"
+        },
+        {
+          "at": "semantic_query = re.sub(",
+          "lines": 4,
+          "title": "Repair without rewriting",
+          "text": "Only whole words in the typo table are replaced; everything else - including cuisine names - reaches the embedding model untouched. This keeps user wording intact while fixing the few known holes.",
+          "kind": "crit"
+        },
+        {
+          "at": "max_calories = int(max_match.group(1) or max_match.group(2))",
+          "lines": 1,
+          "title": "Reading whichever group matched",
+          "text": "Python's `or` returns the first truthy value, so whichever alternative captured the number wins. `int()` then converts the string to a number for the `$lte` filter.",
+          "kind": "crit"
+        },
+        {
+          "at": "pattern = r\"\\b\" + re.escape(cuisine.lower()) + r\"\\b\"",
+          "lines": 4,
+          "title": "Word boundaries and escaping",
+          "text": "`\\b` stops \"thai\" from matching inside \"thailand\", and `re.escape` protects cuisine names containing regex characters. The function returns the **canonical** spelling from the database, so the later equality filter matches exactly.",
+          "kind": "crit"
+        },
+        {
+          "at": "return perform_similarity_search(collection, query, n_results)",
+          "lines": 1,
+          "title": "No constraint, no extra cost",
+          "text": "If the parser recognised nothing, the function behaves exactly like plain semantic search. That design keeps ordinary queries fast and makes this wrapper safe to use everywhere."
+        },
+        {
+          "at": "pool_size = max(candidate_pool, n_results)",
+          "lines": 1,
+          "title": "Why 50 candidates, not 5",
+          "text": "Sorting only the top five by calories would give you the lowest-calorie items *among those five*. A wider pool (default 50) gives the re-ranking something to choose from - but not the whole catalogue, or condiments like Vinegar (3 kcal) would answer every dessert query.",
+          "kind": "crit"
+        },
+        {
+          "at": "if not candidates and constraints[\"max_calories\"] and constraints[\"cuisine_filter\"]:",
+          "lines": 6,
+          "title": "Relax before showing nothing",
+          "text": "A cuisine plus a calorie ceiling can legitimately match zero dishes. Dropping the numeric cap is friendlier than an empty screen, and the calorie sorting below still helps. Every fallback like this should be deliberate and documented - this one is.",
+          "kind": "crit"
+        },
+        {
+          "at": "candidates.sort(key=lambda item: item.get(\"food_calories_per_serving\") or 0)",
+          "lines": 1,
+          "title": "Stable sort keeps relevance ties",
+          "text": "Python's sort is stable, so two dishes with the same calories keep their semantic order. The `or 0` guards against a `None` calorie value sneaking in.",
+          "kind": "crit"
+        },
+        {
+          "at": "return candidates[:n_results]",
+          "lines": 1,
+          "title": "Slice after sorting",
+          "text": "Sort the whole pool, then keep the first five. Slicing first and sorting second would return the five most similar dishes sorted among themselves - the wrong answer to \"lowest calories\"."
+        }
+      ]
+    },
+    "Food_Recommender/interactive_search.py": {
+      "purpose": "The conversation layer: load the catalogue, build the Chroma collection, then run a command-line chatbot that searches, shows match percentages, suggests related searches and remembers what you typed.",
+      "run": "python interactive_search.py   (needs FoodDataSet.json in the same folder)",
+      "meta": [
+        "164 lines",
+        "CLI loop",
+        "imports everything with *"
+      ],
+      "sections": [
+        {
+          "title": "Wildcard import and module-level state",
+          "start": "from shared_functions import *",
+          "why": "One line brings in every helper, and two module variables remember the catalogue and the search history for the whole session."
+        },
+        {
+          "title": "main() - load, index, chat",
+          "start": "def main():",
+          "why": "Three steps and one try/except. If the catalogue or the collection fails, the user sees one clear message instead of a traceback."
+        },
+        {
+          "title": "The chat loop",
+          "start": "def interactive_food_chatbot(collection):",
+          "why": "A `while True` loop with explicit commands, empty-input handling and Ctrl+C support. This is the template for every CLI bot in the repo."
+        },
+        {
+          "title": "Help and history",
+          "start": "def show_help_menu():",
+          "why": "Two tiny functions that make an otherwise bare prompt feel like a product."
+        },
+        {
+          "title": "handle_food_search() - the actual query",
+          "start": "def handle_food_search(collection, query):",
+          "why": "Calls the calorie-aware search, prints each result with a percentage, and then suggests follow-up searches."
+        },
+        {
+          "title": "Suggesting follow-up searches",
+          "start": "def suggest_related_searches(results):",
+          "why": "Turns the result set into new query ideas - a cheap way to help a user who does not know what to type."
+        }
+      ],
+      "notes": [
+        {
+          "at": "from shared_functions import *",
+          "lines": 1,
+          "title": "Convenient and risky",
+          "text": "`import *` pulls in every public name, including `json`, `re` and `np` that the module happens to import. It saves typing in a demo, but in a real project it hides where a name came from and makes refactoring painful. Prefer explicit imports.",
+          "kind": "watch"
+        },
+        {
+          "at": "food_items = []",
+          "lines": 2,
+          "title": "Module-level mutable state",
+          "text": "Both lists live at module scope so several functions can share them without passing arguments. Handy here; in larger programs it is the usual source of \"why is my data from the previous run?\" bugs."
+        },
+        {
+          "at": "global food_items",
+          "lines": 2,
+          "title": "The global statement",
+          "text": "Without `global`, the assignments below would create *local* variables and the rest of the module would keep seeing empty lists. Python requires this declaration to mutate a module-level name inside a function.",
+          "kind": "crit"
+        },
+        {
+          "at": "food_items = load_food_data('./FoodDataSet.json')",
+          "lines": 1,
+          "title": "Relative path, so run it from this folder",
+          "text": "`./FoodDataSet.json` is relative to the **current working directory**, not to this file. Run the script from another folder and loading fails with a friendly `Error loading food data` message."
+        },
+        {
+          "at": "collection = create_similarity_search_collection(",
+          "lines": 4,
+          "title": "Create, then populate",
+          "text": "The collection starts empty. `populate_similarity_collection` embeds and inserts. Forget that second call and every search returns nothing - a very common bug when copying a ChromaDB example."
+        },
+        {
+          "at": "except Exception as error:",
+          "lines": 2,
+          "title": "One failure point in main",
+          "text": "Setup errors - file missing, Chroma version mismatch, model download failure - all surface here with a printed reason. The CLI never starts if setup is broken, which is clearer than failing on the first query.",
+          "kind": "info"
+        },
+        {
+          "at": "user_input = input(\"\\n🔍 Search for food: \").strip()",
+          "lines": 1,
+          "title": "strip() before comparing",
+          "text": "Trailing spaces are invisible but break equality checks: `\"quit \"` is not `\"quit\"`. Stripping first means a stray space does not silently turn a command into a search.",
+          "kind": "crit"
+        },
+        {
+          "at": "if not user_input:",
+          "lines": 3,
+          "title": "Handle the empty Enter key",
+          "text": "Pressing Enter with no text is the most common user action. Printing a hint and `continue`-ing keeps the loop alive instead of searching for an empty string.",
+          "kind": "crit"
+        },
+        {
+          "at": "if user_input.lower() in ['quit', 'exit', 'q']:",
+          "lines": 4,
+          "title": "Commands before search",
+          "text": "Command matching happens before the search branch, so the word \"quit\" can never be treated as a food query. Order of checks is logic, not style."
+        },
+        {
+          "at": "except KeyboardInterrupt:",
+          "lines": 2,
+          "title": "Ctrl+C should look intentional",
+          "text": "Without this, Ctrl+C dumps a KeyboardInterrupt traceback. Catching it and saying goodbye is the difference between \"the program crashed\" and \"I stopped it\".",
+          "kind": "crit"
+        },
+        {
+          "at": "except Exception as e:",
+          "lines": 1,
+          "title": "The loop survives one bad query",
+          "text": "An unexpected error prints and the loop continues. Note that this also hides programming mistakes, so during development it is worth temporarily re-raising."
+        },
+        {
+          "at": "search_history.append(query)",
+          "lines": 1,
+          "title": "Recorded before searching",
+          "text": "The query is saved even when the search fails or returns nothing - which is exactly what you want when reviewing what users actually asked."
+        },
+        {
+          "at": "results = perform_calorie_aware_search(collection, query, 5)",
+          "lines": 1,
+          "title": "The smart wrapper, not plain search",
+          "text": "This one call handles typos, cuisine words and calorie intent. The three-line comment above explains when it behaves like a plain semantic search - worth preserving in any rewrite."
+        },
+        {
+          "at": "percentage_score = result['similarity_score'] * 100",
+          "lines": 1,
+          "title": "A percentage that can be negative",
+          "text": "The value is a cosine similarity in [-1, 1], so an unrelated dish can print as a negative percentage. It looks wrong to users. Clamp with `max(0, score)` or show the raw score instead.",
+          "kind": "watch"
+        },
+        {
+          "at": "for i, result in enumerate(results, 1):",
+          "lines": 1,
+          "title": "enumerate with start=1",
+          "text": "`enumerate(results, 1)` numbers the list from 1 for humans while keeping Python's 0-based indexing internal. No more `i + 1` sprinkled through the print statements.",
+          "kind": "info"
+        },
+        {
+          "at": "print(f\"   📊 Match Score: {percentage_score:.1f}%\")",
+          "lines": 1,
+          "title": "Formatting floats for humans",
+          "text": "`:.1f` prints one decimal place, so 72.4318 becomes 72.4%. Consistent formatting makes a column of results scannable."
+        },
+        {
+          "at": "cuisines = list(set([r['cuisine_type'] for r in results]))",
+          "lines": 1,
+          "title": "Deduplicate with a set",
+          "text": "Five results often share one cuisine. A set removes duplicates, and `list(...)` converts it back for slicing. Because sets are unordered, the three suggestions shown can vary between runs.",
+          "kind": "crit"
+        },
+        {
+          "at": "avg_calories = sum([r['food_calories_per_serving'] for r in results]) / len(results)",
+          "lines": 1,
+          "title": "Divide safely",
+          "text": "This line runs only after the `if not results: return` guard above, so `len(results)` is never zero. Removing that guard would produce a ZeroDivisionError.",
+          "kind": "crit"
+        },
+        {
+          "at": "for i, search in enumerate(search_history[-10:], 1):",
+          "lines": 1,
+          "title": "Slicing the tail",
+          "text": "`[-10:]` shows the last ten searches, newest last. Negative slicing is safe even when there are fewer than ten entries."
+        },
+        {
+          "at": "if __name__ == \"__main__\":",
+          "lines": 2,
+          "title": "Guard, so importing stays quiet",
+          "text": "This module is imported by nobody, but the guard is still correct: importing it must not start an interactive input loop."
+        }
+      ]
+    },
+    "Food_Recommender/FoodDataSet.json": {
+      "purpose": "The catalogue: a JSON array of dish objects. One record is shown here (lines 1-40 of 5,081) because every record has the same shape, and that shape is what the Python code assumes.",
+      "meta": [
+        "excerpt: one record",
+        "5,081 lines in total",
+        "array of objects"
+      ],
+      "sections": [
+        {
+          "title": "One complete dish record",
+          "start": "[",
+          "why": "Read the keys carefully - each one has a matching line of Python that either embeds it, stores it as metadata, or filters on it.",
+          "occ": 1
+        }
+      ],
+      "notes": [
+        {
+          "at": "[",
+          "lines": 2,
+          "title": "An array of objects",
+          "text": "The outer `[` makes this a JSON list, which is why `json.load` returns a Python list and `load_food_data` can loop over it directly.",
+          "occ": 1
+        },
+        {
+          "at": "\"food_id\": 1,",
+          "lines": 1,
+          "title": "Integer here, string later",
+          "text": "JSON has no separate integer-string distinction beyond the quotes. `load_food_data` converts this to `\"1\"` because ChromaDB ids must be strings.",
+          "kind": "crit"
+        },
+        {
+          "at": "\"food_calories_per_serving\": 320,",
+          "lines": 1,
+          "title": "A number, not text",
+          "text": "Because this is numeric, the `$lte` filter and the ascending sort both work. If it were `\"320\"`, comparisons would be string-based and 90 would sort after 320.",
+          "kind": "crit"
+        },
+        {
+          "at": "\"food_nutritional_factors\": {",
+          "lines": 5,
+          "title": "Nested object, flattened for embedding",
+          "text": "The embedder needs text, not a dict. `populate_similarity_collection` renders this as `carbohydrates: 42g, protein: 2g, fat: 16g` inside the document string.",
+          "kind": "crit",
+          "occ": 1
+        },
+        {
+          "at": "\"food_ingredients\": [",
+          "lines": 8,
+          "title": "A list must become a string",
+          "text": "ChromaDB metadata cannot store lists, so ingredients are joined with commas for metadata and also joined inside the embedded text. The original list is still available in the loaded Python object.",
+          "kind": "crit"
+        },
+        {
+          "at": "\"food_features\": {",
+          "lines": 7,
+          "title": "The source of taste_profile",
+          "text": "These five sub-fields (taste, texture, appearance, preparation, serving type) are flattened by `load_food_data` into `taste_profile`, which then appears in both the embedding text and the metadata.",
+          "kind": "crit"
+        },
+        {
+          "at": "\"cuisine_type\": \"American\",",
+          "lines": 1,
+          "title": "The value that filters compare exactly",
+          "text": "The cuisine filter is an exact string match, so `\"American\"` and `\"american\"` are different values. That is why `parse_search_constraints` returns the canonical spelling read from the database instead of the user's typing.",
+          "kind": "crit"
+        }
+      ]
+    }
+  }
+}

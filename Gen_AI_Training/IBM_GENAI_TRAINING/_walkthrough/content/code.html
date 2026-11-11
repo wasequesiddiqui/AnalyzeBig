@@ -1,0 +1,166 @@
+﻿<section class="card">
+  <h3>In one breath</h3>
+  <p class="lede">Eight files, one theme: <b>getting the right text in front of a language model</b>. You will see a credential health-check, five different retrieval strategies on the same ten sentences, a complete question-answering pipeline over a company-policy file, a two-tool AI agent, a hand-written distance matrix, and two leftovers (an empty file and a scratch probe).</p>
+  <div class="grid2">
+    <div class="callout info"><b>Read in this order</b><code>LANGCHAIN_APP_BASICS.py</code> first (credentials), then <code>RAG_BASIC.py</code> (the whole RAG loop), then <code>advanced_retrievers.py</code> (retrieval options), then the rest.</div>
+    <div class="callout try"><b>What is RAG, really?</b>Ask a librarian for a book (retrieval), then ask a teacher to answer your question using only that book (generation). Without retrieval the teacher answers from memory and invents details.</div>
+  </div>
+</section>
+
+<section class="card analogy">
+  <h3>Think of an IRCTC enquiry counter</h3>
+  <p>You ask an enquiry clerk: <em>"Which train from Kanpur reaches Delhi before 9 am?"</em> A good clerk does not memorise every timetable - they open the register, find the three relevant rows, and explain them to you. That is <b>retrieval-augmented generation</b>: the register is the vector database, the clerk is the LLM, and the answer is only as good as the rows they picked.</p>
+  <p>The files in this folder are the different ways of searching that register:</p>
+  <ul class="tight">
+    <li><b>Vector search</b> - "trains similar to what I described" (nearest embeddings).</li>
+    <li><b>BM25</b> - "rows containing exactly the words I typed" (a smarter Ctrl+F).</li>
+    <li><b>Multi-query</b> - ask the clerk to write down five versions of your question first.</li>
+    <li><b>Self-query</b> - "only trains departing after 6 pm" - filter first, then search.</li>
+    <li><b>Parent-document</b> - search by the index card, then hand you the whole file.</li>
+  </ul>
+</section>
+
+<section class="card">
+  <h3>Pipeline - the RAG_BASIC flow these files all share</h3>
+  <div class="pipeline">
+    <svg viewBox="0 0 900 200" role="img" aria-label="Flow: document is split into chunks, embedded, stored in a vector database; a question is embedded, matched against chunks, and the matched text plus question goes to the LLM which writes the answer">
+      <defs><marker id="head" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0 L10 5 L0 10 z" fill="#9aa7c2"/></marker></defs>
+      <a class="node" href="#code-f4"><g><rect x="6" y="24" width="128" height="60" rx="10"/><text x="70" y="49" text-anchor="middle">policy .txt</text><text class="sub" x="70" y="67" text-anchor="middle">15 KB of rules</text></g></a>
+      <path class="arrow" d="M136 54 H178"/>
+      <a class="node" href="#code-f4"><g><rect x="180" y="24" width="128" height="60" rx="10"/><text x="244" y="49" text-anchor="middle">splitter</text><text class="sub" x="244" y="67" text-anchor="middle">chunk 1000 / overlap 0</text></g></a>
+      <path class="arrow" d="M310 54 H352"/>
+      <a class="node" href="#code-f4"><g><rect x="354" y="18" width="150" height="72" rx="10"/><text x="429" y="43" text-anchor="middle">embeddings</text><text class="sub" x="429" y="61" text-anchor="middle">HuggingFace model</text><text class="sub" x="429" y="76" text-anchor="middle">text to vectors</text></g></a>
+      <path class="arrow" d="M506 54 H548"/>
+      <a class="node" href="#code-f4"><g><rect x="550" y="18" width="150" height="72" rx="10"/><text x="625" y="43" text-anchor="middle">Chroma store</text><text class="sub" x="625" y="61" text-anchor="middle">chunk + vector</text><text class="sub" x="625" y="76" text-anchor="middle">in memory</text></g></a>
+      <a class="node" href="#code-f4"><g><rect x="706" y="18" width="186" height="72" rx="10"/><text x="799" y="43" text-anchor="middle">question</text><text class="sub" x="799" y="61" text-anchor="middle">"what is the mobile policy?"</text><text class="sub" x="799" y="76" text-anchor="middle">embedded the same way</text></g></a>
+      <path class="arrow" d="M702 54 H796" stroke-dasharray="4 4" transform="translate(0,72)"/>
+      <a class="node" href="#code-f4"><g><rect x="550" y="122" width="150" height="62" rx="10"/><text x="625" y="146" text-anchor="middle">top-k chunks</text><text class="sub" x="625" y="164" text-anchor="middle">3-4 nearest</text></g></a>
+      <path class="arrow" d="M625 92 V118"/>
+      <a class="node" href="#code-f4"><g><rect x="354" y="122" width="150" height="62" rx="10"/><text x="429" y="146" text-anchor="middle">prompt = context + question</text><text class="sub" x="429" y="164" text-anchor="middle">{context} {question}</text></g></a>
+      <path class="arrow" d="M548 153 H508"/>
+      <a class="node" href="#code-f4"><g><rect x="180" y="122" width="150" height="62" rx="10"/><text x="255" y="146" text-anchor="middle">watsonx LLM</text><text class="sub" x="255" y="164" text-anchor="middle">granite / llama / mistral</text></g></a>
+      <path class="arrow" d="M352 153 H334"/>
+      <a class="node" href="#code-f4"><g><rect x="6" y="122" width="150" height="62" rx="10"/><text x="81" y="146" text-anchor="middle">answer + chunks</text><text class="sub" x="81" y="164" text-anchor="middle">shown to the user</text></g></a>
+      <path class="arrow" d="M178 153 H160"/>
+    </svg>
+  </div>
+  <p class="small">Click a box to jump to the file that implements that step. The dashed arrow shows the question taking the same embedding route as the documents.</p>
+</section>
+
+<section class="card">
+  <h3>Before you run anything</h3>
+  <div class="grid2">
+    <div>
+      <p><b>Credentials</b> - create a <code>.env</code> next to the files with exactly these three names:</p>
+      <div class="code-wrap"><pre class="code" data-lang="text" data-highlight="false"><code>WATSONX_URL=https://eu-de.ml.cloud.ibm.com
+WATSONX_PROJECT_ID=your-project-id
+WATSONX_APIKEY=your-api-key</code></pre></div>
+      <p class="small">Values are never printed in this page. The URL must be the region where your project actually lives: <code>us-south</code>, <code>eu-gb</code>, <code>eu-de</code> or <code>jp-tok</code>.</p>
+    </div>
+    <div>
+      <p><b>Packages</b></p>
+      <div class="code-wrap"><pre class="code" data-lang="bash" data-highlight="false"><code>pip install ibm-watsonx-ai langchain langchain-ibm \
+  langchain-community langchain-text-splitters \
+  chromadb sentence-transformers llama-index \
+  llama-index-retrievers-bm25 PyStemmer scipy \
+  pypdf python-dotenv wget</code></pre></div>
+      <p><b>First file to run</b></p>
+      <div class="code-wrap"><pre class="code" data-lang="bash" data-highlight="false"><code>python LANGCHAIN_APP_BASICS.py
+echo $LASTEXITCODE   # 0 = credentials work</code></pre></div>
+    </div>
+  </div>
+  <div class="callout warn"><b>Fail fast, fail clearly</b>Almost every "it doesn't work" in this folder is a missing environment variable, a wrong region, or a project id copied from course material. Run the handshake file first and fix that before touching retrieval code.</div>
+</section>
+
+<!-- CODE:Code/LANGCHAIN_APP_BASICS.py -->
+<!-- CODE:Code/RAG_BASIC.py -->
+<!-- CODE:Code/advanced_retrievers.py -->
+<!-- CODE:Code/langchain_context_retreival.py -->
+<!-- CODE:Code/LANGCHAIN_AGENT_AI.py -->
+<!-- CODE:Code/SIMILARITY_SEARCH_HAND.py -->
+<!-- CODE:Code/_tmp_watsonxllm_check.py -->
+<!-- CODE:Code/data_extraction.py -->
+
+<section class="card glossary-card" id="glossary-code">
+  <h3>Glossary - every acronym in this tab</h3>
+  <div class="glossary-filter"><input type="search" placeholder="Filter terms, e.g. BM25" aria-label="Filter glossary terms"></div>
+  <div class="table-wrap">
+    <table class="glossary">
+      <thead><tr><th>Term</th><th>Full form</th><th>What it means here</th></tr></thead>
+      <tbody class="glossary-body">
+        <tr class="gtr"><td>AI<span>Artificial Intelligence</span></td><td>Artificial Intelligence</td><td>The broad field. Everything in this folder is a narrow, practical slice of it.</td></tr>
+        <tr class="gtr"><td>API<span>Application Programming Interface</span></td><td>Application Programming Interface</td><td>A published way to call someone else's program. watsonx.ai is reached through an HTTP API wrapped by an SDK.</td></tr>
+        <tr class="gtr"><td>BM25<span>Best Matching 25</span></td><td>Best Matching 25</td><td>The standard keyword-ranking formula: term frequency with saturation plus document-length correction. Used by Elasticsearch and Lucene.</td></tr>
+        <tr class="gtr"><td>CLI<span>Command Line Interface</span></td><td>Command Line Interface</td><td>Typing commands into a terminal instead of clicking. Files like <code>RAG_BASIC.py</code> end in a `while True: input(...)` loop, which is a CLI chat.</td></tr>
+        <tr class="gtr"><td>GUID<span>Globally Unique Identifier</span></td><td>Globally Unique Identifier</td><td>A 36-character id such as <code>1a2b3c4d-...</code> that identifies your watsonx project. Microsoft's name for a UUID.</td></tr>
+        <tr class="gtr"><td>HNSW<span>Hierarchical Navigable Small World</span></td><td>Hierarchical Navigable Small World</td><td>The graph index Chroma uses for fast nearest-neighbour search. It is why a query does not scan every vector.</td></tr>
+        <tr class="gtr"><td>IAM<span>Identity and Access Management</span></td><td>Identity and Access Management</td><td>IBM's login service. Your API key is exchanged for a short-lived IAM token before any model call.</td></tr>
+        <tr class="gtr"><td>IDF<span>Inverse Document Frequency</span></td><td>Inverse Document Frequency</td><td>The "rarity" half of TF-IDF/BM25: a word found in every document is worth little; a rare word is worth a lot.</td></tr>
+        <tr class="gtr"><td>JSON<span>JavaScript Object Notation</span></td><td>JavaScript Object Notation</td><td>A text format for structured data. The JSON parser chain turns model output into a Python dictionary.</td></tr>
+        <tr class="gtr"><td>LLM<span>Large Language Model</span></td><td>Large Language Model</td><td>A model trained on huge amounts of text to continue or answer in natural language: granite, llama, mistral here.</td></tr>
+        <tr class="gtr"><td>MMR<span>Maximal Marginal Relevance</span></td><td>Maximal Marginal Relevance</td><td>A re-ranking rule that trades a little relevance for variety, so you do not get four copies of the same paragraph.</td></tr>
+        <tr class="gtr"><td>NLP<span>Natural Language Processing</span></td><td>Natural Language Processing</td><td>The field behind embeddings, tokenisers and stemmers.</td></tr>
+        <tr class="gtr"><td>PDF<span>Portable Document Format</span></td><td>Portable Document Format</td><td>The format of the paper loaded with <code>PyPDFLoader</code>. Its text is extracted page by page.</td></tr>
+        <tr class="gtr"><td>RAG<span>Retrieval-Augmented Generation</span></td><td>Retrieval-Augmented Generation</td><td>Retrieve relevant chunks, then let the model answer from them. The core pattern of this folder.</td></tr>
+        <tr class="gtr"><td>ReAct<span>Reason + Act</span></td><td>Reason + Act</td><td>The prompt pattern used by the agent: Thought, Action, Observation, repeat, Final Answer.</td></tr>
+        <tr class="gtr"><td>SDK<span>Software Development Kit</span></td><td>Software Development Kit</td><td>The Python package that wraps an HTTP API: <code>ibm-watsonx-ai</code>, <code>langchain-ibm</code>.</td></tr>
+        <tr class="gtr"><td>TF-IDF<span>Term Frequency - Inverse Document Frequency</span></td><td>Term Frequency - Inverse Document Frequency</td><td>The older keyword scoring formula BM25 improves on. Frequency times rarity.</td></tr>
+        <tr class="gtr"><td>URL<span>Uniform Resource Locator</span></td><td>Uniform Resource Locator</td><td>A web address. <code>WATSONX_URL</code> is the regional endpoint, and the sample files are downloaded from S3 URLs.</td></tr>
+        <tr class="gtr"><td>UUID<span>Universally Unique Identifier</span></td><td>Universally Unique Identifier</td><td>A 128-bit identifier written as five hyphen-separated groups. A watsonx project id is a UUID.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</section>
+
+<section class="card quiz-card" id="quiz-code">
+  <div class="quiz-head">
+    <div>
+      <h3>Check your understanding - 26 MCQs</h3>
+      <p class="small">Concepts are drawn from all eight files. Each wrong answer explains the trap, not just the right option.</p>
+    </div>
+    <div class="quiz-score"><b>0 / 26</b><span class="muted">0 answered</span></div>
+  </div>
+  <div class="qbar"><i></i></div>
+  <div class="qcontrols">
+    <button class="qchip" type="button" data-filter="all" aria-pressed="true">All</button>
+    <button class="qchip" type="button" data-filter="unanswered" aria-pressed="false">Unanswered</button>
+    <button class="qchip" type="button" data-filter="wrong" aria-pressed="false">Wrong</button>
+    <button class="qchip" type="button" data-filter="easy" aria-pressed="false">Easy</button>
+    <button class="qchip" type="button" data-filter="medium" aria-pressed="false">Medium</button>
+    <button class="qchip" type="button" data-filter="hard" aria-pressed="false">Hard</button>
+    <button class="qchip" type="button" data-action="shuffle">Shuffle</button>
+    <button class="qchip" type="button" data-action="retry">Retry wrong only</button>
+    <button class="qchip" type="button" data-action="reset">Reset</button>
+  </div>
+  <div class="quiz-list"></div>
+  <script type="application/json" class="quiz">
+  [
+    {"q":"What does the two-stage handshake in LANGCHAIN_APP_BASICS.py prove?","opts":["That the model gives good answers","That the API key, region and project id all work, through both the SDK and the LangChain wrapper","That Python is installed correctly","That the .env file has no typos"],"a":1,"why":"Stage 1 exercises the raw SDK, which performs the IAM token exchange and project resolution. Stage 2 repeats it through langchain-ibm. Together they prove credentials plus integration. Answer quality is a separate matter.","topic":"handshake","diff":"easy"},
+    {"q":"Stage 1 passes but stage 2 fails. What is the most likely cause?","opts":["A wrong API key","A wrong project id","A LangChain or langchain-ibm version / integration problem","No internet connection at all"],"a":2,"why":"Stage 2 runs only after stage 1 succeeds, so key, region and project are already proven. The remaining variable is the wrapper layer - often a version mismatch such as `apikey` versus `api_key`.","topic":"handshake","diff":"medium"},
+    {"q":"Why does `load_dotenv(override=True)` exist?","opts":["It writes new values into .env","It makes .env values win over variables already set in the shell","It deletes unused variables","It validates the key format"],"a":1,"why":"By default existing environment variables win and your edited .env seems to be ignored. override=True makes the file authoritative. It never writes to the file.","topic":"config","diff":"medium"},
+    {"q":"`raise SystemExit(\"...\")` in read_settings is used because...","opts":["It prints a traceback that helps debugging","A CLI script should stop with a clear message and a non-zero exit code","It is the only way to stop a Python program","It retries the request"],"a":1,"why":"There is no bug to debug - only a missing setting. SystemExit avoids a noisy traceback and still signals failure to the shell.","topic":"config","diff":"medium"},
+    {"q":"What does `ModelInference(...)` do before any text is generated?","opts":["Nothing, it is a pure data object","It exchanges the API key for an IAM token and resolves the project","It downloads the model weights","It creates a vector database"],"a":1,"why":"Construction performs two network steps, which is why credential and project errors surface there rather than at generate_text. Model weights run on IBM's side; nothing is downloaded locally.","topic":"sdk","diff":"medium"},
+    {"q":"In RAG_BASIC.py, what is `chain_type=\"stuff\"`?","opts":["A chain that stores chunks on disk","A chain that pastes all retrieved chunks into one prompt","A chain that summarises each chunk separately","A chain that refuses to answer"],"a":1,"why":"\"Stuff\" literally stuffs the retrieved context into the prompt. It is simple and effective until the context is too long for the model window.","topic":"rag","diff":"easy"},
+    {"q":"Which two placeholders must a RetrievalQA prompt contain?","opts":["{input} and {output}","{context} and {question}","{tools} and {tool_names}","{docs} and {query}"],"a":1,"why":"The chain fills {context} with retrieved chunks and {question} with the user question. {tools}/{tool_names} belong to the ReAct agent prompt.","topic":"rag","diff":"medium"},
+    {"q":"Why add \"If you don't know the answer, say so\" to the prompt?","opts":["To make responses shorter","To give the model a safe, allowed way to admit missing information","Because watsonx rejects invented answers automatically","To reduce token cost"],"a":1,"why":"Models tend to produce plausible text even when the context is silent. An explicit escape hatch reduces invented facts. It is a prompt-level safeguard, not an API rule.","topic":"rag","diff":"easy"},
+    {"q":"`ConversationBufferMemory(memory_key=\"chat_history\", return_message=True)` fails. Why?","opts":["memory_key must be \"history\"","The keyword should be return_messages (plural)","Memory cannot be used with RetrievalQA","chat_history must be a string"],"a":1,"why":"The parameter is `return_messages`. The singular spelling is an invalid argument and recent LangChain versions raise TypeError. This is a real bug in the file.","topic":"memory","diff":"hard"},
+    {"q":"Why can \"List points in it?\" be answered at all?","opts":["The retriever remembers previous queries","The chat_history list is passed to the chain, so \"it\" refers to the earlier topic","The LLM has internet access","The vector store caches the last answer"],"a":1,"why":"ConversationalRetrievalChain rewrites the follow-up using prior turns, or receives chat_history directly. Without history the pronoun has no referent.","topic":"memory","diff":"medium"},
+    {"q":"In advanced_retrievers.py, what is the difference between a Document and a node?","opts":["A node is a whole file; a document is a chunk","A document is a whole file; a node is a chunk of it","They are exactly the same object","A node is a vector and a document is text"],"a":1,"why":"Documents are the loaded inputs; the node parser splits them into nodes (chunks) that carry ids, text and metadata. Retrievers return nodes.","topic":"llamaindex","diff":"easy"},
+    {"q":"What does BM25 add on top of plain TF-IDF?","opts":["Embeddings","Term-frequency saturation and document-length normalisation","A spell checker","A neural network"],"a":1,"why":"k1 controls how quickly repeated terms stop helping and b controls how much long documents are penalised. Both fix known weaknesses of raw TF-IDF.","topic":"bm25","diff":"medium"},
+    {"q":"Why does the BM25 demo need PyStemmer?","opts":["To translate the query","To reduce words to their root so learn/learning match","To compress the index","To compute cosine distance"],"a":1,"why":"`Stemmer.Stemmer(\"english\")` performs stemming. Without the package the file falls back to vector search and says so honestly.","topic":"bm25","diff":"medium"},
+    {"q":"What does `similarity_score_threshold=0.4` do in the Chroma retriever?","opts":["Returns only documents scoring at least 0.4 similarity","Returns exactly four documents","Caps the answer at 0.4 tokens","Filters out documents longer than 0.4 KB"],"a":0,"why":"Documents below the bar are dropped, so an empty result is a legitimate outcome. Your UI must handle that instead of assuming matches always exist.","topic":"retrieval","diff":"medium"},
+    {"q":"What problem does MMR solve?","opts":["Slow embedding","Results that are near-duplicates of each other","Wrong API keys","Missing metadata"],"a":1,"why":"Maximal Marginal Relevance penalises candidates too similar to ones already selected, improving coverage. It does not change the embedding model or the index.","topic":"retrieval","diff":"medium"},
+    {"q":"In the self-query retriever, what does AttributeInfo describe?","opts":["The LLM's temperature","Each metadata field so the LLM can build a valid filter","The vector store's size","The chunk overlap"],"a":1,"why":"AttributeInfo gives a name, description and type per metadata field. The LLM turns \"rated above 8.5\" into a numeric filter using those descriptions; ChromaTranslator then renders it in Chroma syntax.","topic":"selfquery","diff":"hard"},
+    {"q":"ParentDocumentRetriever searches over which chunks?","opts":["Parent chunks","Child chunks","Both, averaged","Neither, it uses keywords"],"a":1,"why":"Small children are embedded for precise matching; the recorded parent id is then used to return the larger parent chunk, giving precision plus context.","topic":"parentdoc","diff":"medium"},
+    {"q":"What is wrong with `vectordb = Chroma(collection_name=\"split_parents\", embedding_function=watsonx_embedding())` in langchain_context_retreival.py?","opts":["Nothing, it runs fine","watsonx_embedding() is not defined in that file, so it raises NameError","collection_name must be numeric","Chroma cannot store parents"],"a":1,"why":"That helper exists in Gradio/qbot.py, not here. The correct call is get_embeddings(). This is a copy-paste defect that will crash the parent-document section.","topic":"parentdoc","diff":"hard"},
+    {"q":"Why is `eval(expression)` in the agent's calculator tool dangerous?","opts":["It is slow","It executes arbitrary Python, so a crafted input can run OS commands","It only works for integers","It cannot handle strings"],"a":1,"why":"eval runs any expression, including imports and file access. Because the model chooses the input, prompt injection can reach code execution. Use ast.literal_eval or a restricted parser.","topic":"agent","diff":"easy"},
+    {"q":"Which two placeholders must a ReAct agent prompt include?","opts":["{context} and {question}","{tools} and {tool_names}","{memory} and {history}","{system} and {user}"],"a":1,"why":"The agent injects the tool list into {tools} and the bare names into {tool_names} so the prompt can restrict the Action value. It also needs {input} and {agent_scratchpad}.","topic":"agent","diff":"medium"},
+    {"q":"`handle_parsing_errors=True` means...","opts":["Errors are silently ignored","A malformed model output is fed back as an observation so the agent can retry","The model is called twice every time","Tool errors are hidden from the user"],"a":1,"why":"The executor converts a parsing failure into feedback. Without it, one stray sentence ends the run. It does not hide genuine tool failures.","topic":"agent","diff":"medium"},
+    {"q":"Why is `max_new_tokens: 100` risky for the ReAct agent?","opts":["It makes the model too creative","A full thought/action/observation trace may not fit, so output is cut mid-format","It disables tools","It stops the IAM token exchange"],"a":1,"why":"Agents need room for several reasoning steps. A tight cap truncates the trace and often produces a parse error, which looks like a prompt bug.","topic":"agent","diff":"medium"},
+    {"q":"In SIMILARITY_SEARCH_HAND.py, why do the two software \"bugs\" sentences sit closer together than the insect ones?","opts":["They are shorter","The embedding model captures meaning, so both are about software defects","They contain more capital letters","Euclidean distance ignores meaning"],"a":1,"why":"The four sentences deliberately reuse the word bugs with two meanings. Embeddings place same-meaning sentences nearby, which keyword matching cannot do.","topic":"embeddings","diff":"medium"},
+    {"q":"What does `np.allclose(l2_dist_manual, l2_dist_scipy)` check?","opts":["That both matrices are identical without any tolerance","That the two computations agree within a tiny floating-point tolerance","That the matrices are square","That the model is loaded"],"a":1,"why":"Floating-point maths rarely matches bit for bit, so allclose allows a small epsilon. It also confirms your hand-written double loop was correct.","topic":"embeddings","diff":"hard"},
+    {"q":"The file `Code/data_extraction.py` is 0 bytes. What happens if another module does `from data_extraction import extract`?","opts":["It imports None","It raises ImportError because nothing is defined","It downloads the function automatically","It silently creates an empty function"],"a":1,"why":"An empty module is valid Python but defines no names, so the import fails with ImportError. The working extraction code lives in icebreaker/modules/data_extraction.py.","topic":"repo","diff":"easy"},
+    {"q":"What is the difference between `generate()` and `generate_text()` in the IBM SDK?","opts":["None at all","generate returns a dictionary with metadata; generate_text returns just the text","generate is faster","generate_text needs no credentials"],"a":1,"why":"generate gives results plus token counts and stop reason; generate_text is the convenience wrapper. Reading msg['results'][0]['generated_text'] is how you unpack generate.","topic":"sdk","diff":"medium"}
+  ]
+  </script>
+</section>

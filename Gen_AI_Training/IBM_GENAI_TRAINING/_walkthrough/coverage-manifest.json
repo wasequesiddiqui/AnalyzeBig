@@ -1,0 +1,346 @@
+{
+  "kit": "_walkthrough",
+  "root": ".",
+  "min_questions_per_tab": 20,
+  "totals": {
+    "tabs": 6,
+    "files": 31,
+    "lines": 4313,
+    "questions": 146
+  },
+  "tabs": [
+    {
+      "id": "chromadb",
+      "label": "ChromaDB",
+      "tagline": "A tiny vector database, start to finish",
+      "questions": 22,
+      "glossary_terms": 14,
+      "files": [
+        {
+          "path": "ChromaDB/similarity_search.py",
+          "sha1": "03f0b9177edbb97a9701e8ec535b8cb9ce660cde",
+          "lines": 124,
+          "documented_lines": 124,
+          "documented": "1-124",
+          "sections": 8,
+          "notes": 22
+        }
+      ]
+    },
+    {
+      "id": "code",
+      "label": "Code",
+      "tagline": "LangChain, LlamaIndex, agents and advanced retrievers on watsonx.ai",
+      "questions": 26,
+      "glossary_terms": 19,
+      "files": [
+        {
+          "path": "Code/LANGCHAIN_APP_BASICS.py",
+          "sha1": "e3d6cb33f9a40844fc45f52c7ec2ba8caa4a10df",
+          "lines": 416,
+          "documented_lines": 416,
+          "documented": "1-416",
+          "sections": 16,
+          "notes": 32
+        },
+        {
+          "path": "Code/advanced_retrievers.py",
+          "sha1": "46a2bf22a28e815a4c04634213264f3049be9f66",
+          "lines": 382,
+          "documented_lines": 382,
+          "documented": "1-382",
+          "sections": 11,
+          "notes": 25
+        },
+        {
+          "path": "Code/langchain_context_retreival.py",
+          "sha1": "b5a43289e3c34189f67cffb8e4aba849ee3a37a2",
+          "lines": 239,
+          "documented_lines": 239,
+          "documented": "1-239",
+          "sections": 11,
+          "notes": 25
+        },
+        {
+          "path": "Code/RAG_BASIC.py",
+          "sha1": "9913a9334d91b7736fcc62d2613f3dab7c678c45",
+          "lines": 186,
+          "documented_lines": 186,
+          "documented": "1-186",
+          "sections": 10,
+          "notes": 23
+        },
+        {
+          "path": "Code/LANGCHAIN_AGENT_AI.py",
+          "sha1": "b652542d827164a8e3804869ca655123c7603799",
+          "lines": 131,
+          "documented_lines": 131,
+          "documented": "1-131",
+          "sections": 7,
+          "notes": 16
+        },
+        {
+          "path": "Code/SIMILARITY_SEARCH_HAND.py",
+          "sha1": "e57baec77f41ce598c86cb1df1421689496532b3",
+          "lines": 65,
+          "documented_lines": 65,
+          "documented": "1-65",
+          "sections": 6,
+          "notes": 11
+        },
+        {
+          "path": "Code/_tmp_watsonxllm_check.py",
+          "sha1": "d2f3f7656b1bdc4850b02e81dd127c16e1493ede",
+          "lines": 19,
+          "documented_lines": 19,
+          "documented": "1-19",
+          "sections": 1,
+          "notes": 5
+        },
+        {
+          "path": "Code/data_extraction.py",
+          "sha1": "da39a3ee5e6b4b0d3255bfef95601890afd80709",
+          "lines": 0,
+          "documented_lines": 0,
+          "documented": "0",
+          "sections": 0,
+          "notes": 0
+        }
+      ]
+    },
+    {
+      "id": "food",
+      "label": "Food_Recommender",
+      "tagline": "A ChromaDB food search engine with calorie-aware re-ranking",
+      "questions": 27,
+      "glossary_terms": 14,
+      "files": [
+        {
+          "path": "Food_Recommender/shared_functions.py",
+          "sha1": "0bfe1ed42d03f40f2a2e3251fc9bbf456c0ff75f",
+          "lines": 878,
+          "documented_lines": 878,
+          "documented": "1-878",
+          "sections": 12,
+          "notes": 38
+        },
+        {
+          "path": "Food_Recommender/interactive_search.py",
+          "sha1": "9e61f0746bd5c81d922ed112b40ad47a057ef8df",
+          "lines": 164,
+          "documented_lines": 164,
+          "documented": "1-164",
+          "sections": 6,
+          "notes": 20
+        },
+        {
+          "path": "Food_Recommender/FoodDataSet.json",
+          "sha1": "bfcc6dffe7ba07ab0a4d20f375759a54895658d9",
+          "lines": 5081,
+          "documented_lines": 40,
+          "documented": "1-40",
+          "sections": 1,
+          "notes": 7
+        }
+      ]
+    },
+    {
+      "id": "flask",
+      "label": "genai_flask_app",
+      "tagline": "A Flask web app that asks three watsonx models the same question",
+      "questions": 24,
+      "glossary_terms": 15,
+      "files": [
+        {
+          "path": "genai_flask_app/app.py",
+          "sha1": "51ff49327d64846ce3ddcc6b027a56bde21b90d9",
+          "lines": 45,
+          "documented_lines": 45,
+          "documented": "1-45",
+          "sections": 5,
+          "notes": 13
+        },
+        {
+          "path": "genai_flask_app/model.py",
+          "sha1": "f652ed57bb94e91795356df06bddb3b78be04ebb",
+          "lines": 79,
+          "documented_lines": 79,
+          "documented": "1-79",
+          "sections": 7,
+          "notes": 13
+        },
+        {
+          "path": "genai_flask_app/config.py",
+          "sha1": "ddfe497b79d27805909a002259949a6239410b20",
+          "lines": 25,
+          "documented_lines": 25,
+          "documented": "1-25",
+          "sections": 1,
+          "notes": 7
+        },
+        {
+          "path": "genai_flask_app/capital.py",
+          "sha1": "7623f7c1f87228249616f61bef16ac20cbe3dc51",
+          "lines": 52,
+          "documented_lines": 52,
+          "documented": "1-52",
+          "sections": 3,
+          "notes": 8
+        },
+        {
+          "path": "genai_flask_app/llm_test.py",
+          "sha1": "95ba3e5317d0367b12522118db329da74dd5d58f",
+          "lines": 16,
+          "documented_lines": 16,
+          "documented": "1-16",
+          "sections": 1,
+          "notes": 4
+        },
+        {
+          "path": "genai_flask_app/templates/index.html",
+          "sha1": "a25739919aac3e819f321584dbf5b68ab354a87b",
+          "lines": 115,
+          "documented_lines": 115,
+          "documented": "1-115",
+          "sections": 5,
+          "notes": 7
+        },
+        {
+          "path": "genai_flask_app/static/script.js",
+          "sha1": "c5e46465ea15a1c05f986a078d8fe9ff78d61419",
+          "lines": 243,
+          "documented_lines": 243,
+          "documented": "1-243",
+          "sections": 6,
+          "notes": 16
+        },
+        {
+          "path": "genai_flask_app/static/styles.css",
+          "sha1": "c4b03c24736464807632a0106a23a9551739d973",
+          "lines": 545,
+          "documented_lines": 60,
+          "documented": "1-60",
+          "sections": 1,
+          "notes": 7
+        }
+      ]
+    },
+    {
+      "id": "gradio",
+      "label": "Gradio",
+      "tagline": "Upload a PDF, ask a question - a RAG chatbot in 130 lines",
+      "questions": 22,
+      "glossary_terms": 13,
+      "files": [
+        {
+          "path": "Gradio/qbot.py",
+          "sha1": "03c23beaa287629fd5860606a71e8ff90a326bef",
+          "lines": 131,
+          "documented_lines": 131,
+          "documented": "1-131",
+          "sections": 12,
+          "notes": 19
+        },
+        {
+          "path": "Gradio/common_input_types.py",
+          "sha1": "11e94be81b7c54210e5e034bb9f413e0457f3253",
+          "lines": 40,
+          "documented_lines": 40,
+          "documented": "1-40",
+          "sections": 3,
+          "notes": 9
+        }
+      ]
+    },
+    {
+      "id": "icebreaker",
+      "label": "icebreaker",
+      "tagline": "A LinkedIn profile to chatbot pipeline, split into clean modules",
+      "questions": 25,
+      "glossary_terms": 13,
+      "files": [
+        {
+          "path": "icebreaker/main.py",
+          "sha1": "df6c5a3a7d23f4dd6bc4abccecd87ae01f44df31",
+          "lines": 121,
+          "documented_lines": 121,
+          "documented": "1-121",
+          "sections": 4,
+          "notes": 21
+        },
+        {
+          "path": "icebreaker/config.py",
+          "sha1": "1da54b57284d3e023f9a2b06173a13055df5db96",
+          "lines": 88,
+          "documented_lines": 88,
+          "documented": "1-88",
+          "sections": 5,
+          "notes": 13
+        },
+        {
+          "path": "icebreaker/modules/llm_interface.py",
+          "sha1": "8c5d93545c04f2d4451c9abd87c858024317c071",
+          "lines": 70,
+          "documented_lines": 70,
+          "documented": "1-70",
+          "sections": 3,
+          "notes": 8
+        },
+        {
+          "path": "icebreaker/modules/data_extraction.py",
+          "sha1": "f9cbc9c11e5a15327b3124e6bd976aab5f3ffeb9",
+          "lines": 199,
+          "documented_lines": 199,
+          "documented": "1-199",
+          "sections": 6,
+          "notes": 15
+        },
+        {
+          "path": "icebreaker/modules/data_processing.py",
+          "sha1": "c26f5bb2b7688b64609bea7fa0f8ea9d02b32692",
+          "lines": 215,
+          "documented_lines": 215,
+          "documented": "1-215",
+          "sections": 3,
+          "notes": 13
+        },
+        {
+          "path": "icebreaker/modules/query_engine.py",
+          "sha1": "b4518e175660d279d464bd1f6de0fd98893fea06",
+          "lines": 93,
+          "documented_lines": 93,
+          "documented": "1-93",
+          "sections": 2,
+          "notes": 12
+        },
+        {
+          "path": "icebreaker/modules/__init__.py",
+          "sha1": "7507455e542f3725f32ce8bc53558febcae6f203",
+          "lines": 14,
+          "documented_lines": 14,
+          "documented": "1-14",
+          "sections": 1,
+          "notes": 3
+        },
+        {
+          "path": "icebreaker/profile_lookup.py",
+          "sha1": "86cf852f26614b7816eb306917323dd261ac48d3",
+          "lines": 47,
+          "documented_lines": 47,
+          "documented": "1-47",
+          "sections": 2,
+          "notes": 6
+        },
+        {
+          "path": "icebreaker/test_config.py",
+          "sha1": "aed2b65db9e8213a0110a3e83ee228e8bfbf2096",
+          "lines": 16,
+          "documented_lines": 16,
+          "documented": "1-16",
+          "sections": 2,
+          "notes": 3
+        }
+      ]
+    }
+  ]
+}
